@@ -13,7 +13,7 @@ const START = "/assessment/default";
 
 export function LandingPage() {
   return (
-    <main className="min-h-screen bg-white">
+    <main className="min-h-screen overflow-x-hidden bg-white">
       <AnnouncementBar />
       <MarketingNav ctaHref={START} />
       <Hero ctaHref={START} />
