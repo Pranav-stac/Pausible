@@ -87,6 +87,8 @@ export type UserDoc = {
 export type AppSettingsDoc = {
   /** When false, completions skip checkout and unlock results immediately */
   requirePayment?: boolean;
+  /** Integer INR charged at checkout; unset uses `NEXT_PUBLIC_ASSESSMENT_PRICE_INR` */
+  priceInr?: number;
   updatedAt?: Timestamp;
 };
 

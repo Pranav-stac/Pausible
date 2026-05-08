@@ -3,9 +3,12 @@ import { TrackedAssessmentLink } from "@/components/marketing/TrackedAssessmentL
 
 export function Hero({ ctaHref }: { ctaHref: string }) {
   return (
-    <section className="px-4 py-10 sm:px-6 sm:py-12 lg:py-14" id="top">
-      <div className="mx-auto flex max-w-7xl justify-center">
-        <div className="w-full rounded-2xl bg-linear-to-b from-[#050816] via-[#0a1029] to-[#050816] px-4 pb-12 pt-9 text-center shadow-[0_28px_72px_-28px_rgba(15,23,42,.5)] sm:rounded-3xl sm:px-9 sm:pb-16 sm:pt-12 sm:shadow-[0_32px_80px_-24px_rgba(15,23,42,.55)]">
+    <section
+      className="px-4 py-10 sm:px-6 sm:py-12 lg:py-14 max-sm:flex max-sm:min-h-[calc(100svh-9rem)] max-sm:flex-col max-sm:py-6 max-sm:pb-0"
+      id="top"
+    >
+      <div className="mx-auto flex w-full max-w-7xl flex-1 justify-center max-sm:flex-1">
+        <div className="w-full rounded-2xl bg-linear-to-b from-[#050816] via-[#0a1029] to-[#050816] px-4 pb-12 pt-9 text-center shadow-[0_28px_72px_-28px_rgba(15,23,42,.5)] max-sm:flex max-sm:min-h-0 max-sm:flex-1 max-sm:flex-col max-sm:rounded-b-none max-sm:pb-[calc(3rem+env(safe-area-inset-bottom))] max-sm:shadow-none sm:rounded-3xl sm:px-9 sm:pb-16 sm:pt-12 sm:shadow-[0_32px_80px_-24px_rgba(15,23,42,.55)]">
           <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/85 sm:text-[11px] sm:tracking-[0.2em]">
             Pausible insights
           </div>

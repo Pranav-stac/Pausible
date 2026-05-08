@@ -10,7 +10,8 @@ import { fetchAssessment } from "@/lib/data/assessment-service";
 import type { AssessmentDefinition } from "@/types/models";
 import type { SerializedAttempt } from "@/lib/local/attempts";
 import { getArchetypeCopy } from "@/lib/results/archetype";
-import { dimensionMaxContributions, dimensionPercentages } from "@/lib/scoring/dimension-caps";
+import { dimensionRowsForAttempt } from "@/lib/results/dimension-rows";
+import { ResultsStoryPosterSection } from "@/components/results/ResultsStoryPosterSection";
 
 export function ResultsClient() {
   const params = useParams<{ attemptId: string }>();
@@ -62,21 +63,35 @@ export function ResultsClient() {
     [assessment, attempt],
   );
 
-  const dimensionCaps = useMemo(() => (assessment ? dimensionMaxContributions(assessment) : {}), [assessment]);
+  const dimensionRows = useMemo(
+    () => (assessment && attempt ? dimensionRowsForAttempt(assessment, attempt) : []),
+    [assessment, attempt],
+  );
 
-  const orderedDimensionPct = useMemo(() => {
-    if (!attempt?.scores?.dimensions || !assessment) return [];
-    const raw = dimensionPercentages(attempt.scores.dimensions, dimensionCaps);
-    const prio = ["openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism"] as const;
-    const prioSet = new Set<string>(prio);
-    const keys = Object.keys(raw);
-    const ordered = [...prio.filter((p) => keys.includes(p)), ...keys.filter((k) => !prioSet.has(k)).sort()];
-    function label(k: string) {
-      return k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-    }
-    return ordered.map((k) => ({ key: k, label: label(k), pct: raw[k] ?? 0 }));
-  }, [assessment, attempt, dimensionCaps]);
+  const posterHostSlug = useMemo(() => {
+    const raw = (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/^https?:\/\//i, "").split("/")[0];
+    return raw || "pausible.com";
+  }, []);
 
+  function archetypeHashtagSlug(label?: string | null) {
+    if (!label?.trim()) return "ProfileGlow";
+    const fused = label
+      .replace(/[^\p{L}\p{N}]+/gu, "")
+      .slice(0, 22);
+    return fused || "ProfileGlow";
+  }
+
+  const storyPoster = useMemo(() => {
+    const sum = arch?.summary?.trim() ?? "";
+    const line = sum.length > 160 ? `${sum.slice(0, 157)}…` : sum || "Fitness behavioral spotlight — dimensional mix from your latest assessment.";
+    return {
+      archetypeLabel: arch?.label ?? "Your profile",
+      line,
+      dimensions: dimensionRows.slice(0, 6).map((d) => ({ label: d.label, pct: d.pct })),
+      hashtags: ["Pausible", `Paus${archetypeHashtagSlug(arch?.label)}`, "FitnessMind"],
+      siteSlug: `${posterHostSlug} · spotlight`,
+    };
+  }, [arch, dimensionRows, posterHostSlug]);
   const shareUrl = useMemo(() => {
     if (!attempt?.shareToken || !attempt.isLatestShareEligible || attempt.paymentStatus !== "paid") return null;
     if (typeof window === "undefined") return null;
@@ -238,42 +253,61 @@ export function ResultsClient() {
           </div>
         </div>
 
-        <div className="mt-10 grid gap-6 lg:grid-cols-2">
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">Dimensions</h2>
-            <div className="mt-4 space-y-4">
-              {orderedDimensionPct.length === 0 ? (
-                <p className="text-sm text-slate-500">No dimension aggregates for this snapshot.</p>
-              ) : (
-                orderedDimensionPct.map(({ key, label, pct }) => (
+        <div className="mt-10 rounded-3xl border border-[#1b3a76]/60 bg-linear-to-br from-[#071132] via-[#0c1c45] to-[#050816] p-8 text-white shadow-[0_42px_100px_-40px_rgba(125,216,255,0.22)] ring-2 ring-[#274f8f]/40">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#7dd8ff]/85">Dimensional breakdown</p>
+            <h2 className="mt-2 text-lg font-semibold tracking-tight text-white">Trait meters</h2>
+            <p className="mt-2 max-w-2xl text-xs leading-relaxed text-white/62">
+              Neon rails match your downloadable Story card — capped-relative percentages from scoring.
+            </p>
+          </div>
+          <div className="mt-8 space-y-5">
+            {dimensionRows.length === 0 ? (
+              <p className="text-sm text-white/55">No dimension aggregates available for this snapshot.</p>
+            ) : (
+              dimensionRows.map(({ key, label, pct }, idx) => {
+                const hues = ["#61aaff", "#7dd8ff", "#93daff", "#5fd4ff"] as const;
+                const c = hues[idx % hues.length];
+                const c2 = hues[(idx + 1) % hues.length];
+                return (
                   <div key={key}>
-                    <div className="flex justify-between text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <div className="flex justify-between gap-3 text-[11px] font-semibold uppercase tracking-wide text-white/55">
                       <span>{label}</span>
-                      <span>{pct}%</span>
+                      <span className="font-bold tabular-nums text-[#dfefff]">{pct}%</span>
                     </div>
-                    <div className="mt-2 h-2 rounded-full bg-slate-100">
+                    <div className="mt-2 h-3 overflow-hidden rounded-full bg-white/[0.08] ring ring-white/[0.06]">
                       <div
-                        className="h-full rounded-full bg-linear-to-r from-sky-500 to-indigo-500"
-                        style={{ width: `${pct}%` }}
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${pct}%`,
+                          background: `linear-gradient(90deg, ${c} 0%, ${c2} 100%)`,
+                          boxShadow: "0 0 18px rgba(125, 216, 255, 0.35)",
+                        }}
                       />
                     </div>
                   </div>
-                ))
-              )}
-            </div>
+                );
+              })
+            )}
           </div>
+        </div>
 
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">Playbook</h2>
-            <ul className="mt-4 space-y-3 text-sm text-slate-700">
-              {(arch?.bullets ?? []).map((b) => (
-                <li key={b} className="flex gap-2">
-                  <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
-                  <span>{b}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+        <div className="mt-10">
+          <ResultsStoryPosterSection poster={storyPoster} filenameSlug={`results-${attemptId}`} />
+        </div>
+
+        <div className="mt-10 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-900">Playbook</h2>
+          <ul className="mt-4 grid gap-6 sm:grid-cols-2">
+            {(arch?.bullets ?? []).map((b) => (
+              <li key={b} className="flex gap-3 rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
+                <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-[#61aaff] to-[#7dd8ff] text-[11px] font-bold text-[#061018]">
+                  ✓
+                </span>
+                <span className="text-sm leading-relaxed text-slate-700">{b}</span>
+              </li>
+            ))}
+          </ul>
         </div>
 
         {shareUrl && (

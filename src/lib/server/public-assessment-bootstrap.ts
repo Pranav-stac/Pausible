@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { getAdminFirestore } from "@/lib/firebase/server";
 import type { AssessmentDefinition } from "@/types/models";
+import { DEFAULT_PRICE_INR, effectiveAssessmentPriceInr } from "@/lib/pricing";
 
 function omitFirestoreMeta(data: Record<string, unknown>): void {
   for (const k of ["createdAt", "updatedAt"] as const) {
@@ -25,15 +26,21 @@ const cachedAssessmentBootstrap = unstable_cache(
   { revalidate: 120 },
 );
 
-const cachedRequirePaymentBootstrap = unstable_cache(
+/** Single read of `app_settings/global` — shared cache for SSR hints. */
+const cachedGlobalAppBootstrap = unstable_cache(
   async () => {
     const db = getAdminFirestore();
-    if (!db) return null;
+    if (!db)
+      return { requirePayment: true, priceInr: DEFAULT_PRICE_INR >= 1 ? Math.round(DEFAULT_PRICE_INR) : 499 };
+
     const snap = await db.doc("app_settings/global").get();
-    if (!snap.exists) return true;
-    return snap.data()?.requirePayment !== false;
+    const d = snap.exists ? (snap.data() ?? {}) : {};
+    return {
+      requirePayment: snap.exists ? (d as { requirePayment?: boolean }).requirePayment !== false : true,
+      priceInr: effectiveAssessmentPriceInr((d as { priceInr?: unknown }).priceInr),
+    };
   },
-  ["pausible-app-settings-require-payment"],
+  ["pausible-app-settings-global"],
   { revalidate: 60 },
 );
 
@@ -47,5 +54,15 @@ export async function loadPublicAssessmentForBootstrap(assessmentId: string): Pr
 }
 
 export async function loadPublicRequirePaymentBootstrap(): Promise<boolean | null> {
-  return cachedRequirePaymentBootstrap();
+  const row = await cachedGlobalAppBootstrap();
+  return row.requirePayment;
+}
+
+export async function loadPublicPriceBootstrap(): Promise<number> {
+  const row = await cachedGlobalAppBootstrap();
+  return row.priceInr;
+}
+
+export async function loadPublicAppSettingsBootstrap(): Promise<{ requirePayment: boolean; priceInr: number }> {
+  return cachedGlobalAppBootstrap();
 }

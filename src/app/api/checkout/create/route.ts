@@ -4,7 +4,7 @@ import Stripe from "stripe";
 import Razorpay from "razorpay";
 import { verifyIdToken } from "@/lib/api/verify-user";
 import { getAdminFirestore } from "@/lib/firebase/server";
-import { DEFAULT_PRICE_INR, lookupDiscountPercent, priceAfterDiscount } from "@/lib/pricing";
+import { effectiveAssessmentPriceInr, lookupDiscountPercent, priceAfterDiscount } from "@/lib/pricing";
 
 const bodySchema = z.object({
   attemptId: z.string(),
@@ -34,7 +34,9 @@ export async function POST(req: NextRequest) {
 
   const referral = parsed.data.referralCode ?? "";
   const discount = lookupDiscountPercent(referral);
-  const amountInr = priceAfterDiscount(DEFAULT_PRICE_INR, discount);
+  const settingsSnap = await db.doc("app_settings/global").get();
+  const listInr = effectiveAssessmentPriceInr(settingsSnap.data()?.priceInr);
+  const amountInr = priceAfterDiscount(listInr, discount);
   const amountPaise = Math.max(100, Math.round(amountInr * 100));
 
   const origin =

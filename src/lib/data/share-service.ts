@@ -6,7 +6,10 @@ import { isFirebaseConfigured } from "@/lib/firebase/config";
 import type { AssessmentDefinition } from "@/types/models";
 import type { SerializedAttempt } from "@/lib/local/attempts";
 import { getArchetypeCopy } from "@/lib/results/archetype";
+import { dimensionRowsForAttempt } from "@/lib/results/dimension-rows";
 import { localRegisterShareToken } from "@/lib/local/attempts";
+
+export type ShareDimensionBar = { key: string; label: string; pct: number };
 
 export type ShareSnapshot = {
   token: string;
@@ -18,6 +21,7 @@ export type ShareSnapshot = {
   archetypeLabel: string;
   summary: string;
   bullets: string[];
+  dimensionBars?: ShareDimensionBar[];
 };
 
 export async function publishShareSnapshot(
@@ -26,6 +30,8 @@ export async function publishShareSnapshot(
   token: string,
 ) {
   const arch = getArchetypeCopy(assessment, attempt.scores?.archetypeKey);
+
+  const dimensionBars = dimensionRowsForAttempt(assessment, attempt).slice(0, 6);
 
   const payload: ShareSnapshot = {
     token,
@@ -37,6 +43,7 @@ export async function publishShareSnapshot(
     archetypeLabel: arch?.label ?? "Your profile",
     summary: arch?.summary ?? "Your latest Pausible behavioral snapshot.",
     bullets: arch?.bullets ?? [],
+    ...(dimensionBars.length ? { dimensionBars } : {}),
   };
 
   localRegisterShareToken(token, attempt.id);

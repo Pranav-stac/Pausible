@@ -9,7 +9,8 @@ import { fetchAttempt, finalizeAttemptPayment } from "@/lib/data/attempt-service
 import { fetchAssessment } from "@/lib/data/assessment-service";
 import { publishShareSnapshot } from "@/lib/data/share-service";
 import { randomShareToken } from "@/lib/share-token";
-import { DEFAULT_PRICE_INR, formatInr, lookupDiscountPercent, priceAfterDiscount } from "@/lib/pricing";
+import { useAssessmentPrice } from "@/lib/hooks/useAssessmentPrice";
+import { formatInr, lookupDiscountPercent, priceAfterDiscount } from "@/lib/pricing";
 import { readStoredReferral } from "@/components/ReferralCapture";
 import { isFirebaseConfigured } from "@/lib/firebase/config";
 import { getFirebaseAuth } from "@/lib/firebase/client";
@@ -41,7 +42,7 @@ function loadRazorpayScript(): Promise<void> {
   });
 }
 
-export function CheckoutClient() {
+export function CheckoutClient({ bootstrapPriceInr }: { bootstrapPriceInr: number }) {
   const router = useRouter();
   const params = useSearchParams();
   const attemptId = params.get("attemptId");
@@ -53,7 +54,8 @@ export function CheckoutClient() {
 
   const storedRef = useMemo(() => readStoredReferral(), []);
   const percentOff = useMemo(() => lookupDiscountPercent(referral || storedRef), [referral, storedRef]);
-  const amount = priceAfterDiscount(DEFAULT_PRICE_INR, percentOff);
+  const listPrice = useAssessmentPrice(bootstrapPriceInr);
+  const amount = priceAfterDiscount(listPrice, percentOff);
 
   const lastCheckoutOpenAttempt = useRef<string | null>(null);
   useEffect(() => {

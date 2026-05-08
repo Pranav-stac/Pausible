@@ -99,6 +99,8 @@ export function AdminDashboard() {
   const [assessRows, setAssessRows] = useState<AssessmentRow[]>([]);
   const [users, setUsers] = useState<UserRow[]>([]);
   const [requirePayment, setRequirePayment] = useState(true);
+  const [priceInrDraft, setPriceInrDraft] = useState("499");
+  const [envDefaultPriceInr, setEnvDefaultPriceInr] = useState(499);
 
   const [analyticsData, setAnalyticsData] = useState<AdminAnalyticsResponse | null>(null);
   const [analyticsBusy, setAnalyticsBusy] = useState(false);
@@ -184,8 +186,10 @@ export function AdminDashboard() {
 
   const refreshSettingsRemote = useCallback(async () => {
     const res = await api("/api/admin/settings");
-    const j = (await res.json()) as { requirePayment: boolean };
+    const j = (await res.json()) as { requirePayment: boolean; priceInr: number; envDefaultPriceInr?: number };
     setRequirePayment(j.requirePayment);
+    setPriceInrDraft(String(j.priceInr));
+    if (typeof j.envDefaultPriceInr === "number") setEnvDefaultPriceInr(j.envDefaultPriceInr);
   }, [api]);
 
   const refreshAnalytics = useCallback(async () => {
@@ -284,13 +288,47 @@ export function AdminDashboard() {
           body: JSON.stringify({ requirePayment: next }),
         });
         setRequirePayment(next);
+        await refreshSettingsRemote();
         setMsg(next ? "Payments required again." : "Free results enabled for new runs.");
       } catch (e) {
         setErr(e instanceof Error ? e.message : "Save failed");
       }
     },
-    [api],
+    [api, refreshSettingsRemote],
   );
+
+  const saveAssessmentPriceInr = useCallback(async () => {
+    const n = Number.parseInt(String(priceInrDraft).replace(/\s/g, ""), 10);
+    if (!Number.isFinite(n) || n < 1 || n > 500_000) {
+      setErr("Price must be a whole number between 1 and 500,000 INR.");
+      return;
+    }
+    setErr(null);
+    try {
+      await api("/api/admin/settings", {
+        method: "PATCH",
+        body: JSON.stringify({ priceInr: n }),
+      });
+      setMsg("Assessment list price updated.");
+      await refreshSettingsRemote();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Save failed");
+    }
+  }, [api, priceInrDraft, refreshSettingsRemote]);
+
+  const resetPriceToEnvDefault = useCallback(async () => {
+    setErr(null);
+    try {
+      await api("/api/admin/settings", {
+        method: "PATCH",
+        body: JSON.stringify({ priceInr: null }),
+      });
+      setMsg("Stored price removed — checkouts use your .env default until you set a price again.");
+      await refreshSettingsRemote();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Reset failed");
+    }
+  }, [api, refreshSettingsRemote]);
 
   const seedDefault = useCallback(async () => {
     try {
@@ -1134,6 +1172,44 @@ export function AdminDashboard() {
 
           {tab === "settings" ? (
             <div className="mx-auto max-w-2xl space-y-6">
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <h2 className="text-sm font-semibold">Assessment price</h2>
+                <p className="mt-2 text-xs text-slate-600">
+                  INR charged before referral discounts ({`Stripe / Razorpay / PayPal`} receive this list price). Resolved
+                  value is synced to checkout servers and the checkout page (~1 min cache lag for SSR bootstrap).
+                  Firestore overrides <code className="rounded bg-slate-100 px-1">NEXT_PUBLIC_ASSESSMENT_PRICE_INR</code>{" "}
+                  (env default shown as {envDefaultPriceInr} INR).
+                </p>
+                <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+                  <label className="flex flex-col text-xs font-semibold text-slate-700">
+                    List price (INR)
+                    <input
+                      type="number"
+                      min={1}
+                      max={500_000}
+                      step={1}
+                      value={priceInrDraft}
+                      onChange={(e) => setPriceInrDraft(e.target.value)}
+                      className="mt-1 w-full min-w-[10rem] rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium sm:w-40"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => void saveAssessmentPriceInr()}
+                    className="rounded-full bg-slate-950 px-5 py-2 text-xs font-semibold text-white"
+                  >
+                    Save price
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void resetPriceToEnvDefault()}
+                    className="rounded-full border border-slate-200 bg-white px-5 py-2 text-xs font-semibold text-slate-800"
+                  >
+                    Clear override (use .env)
+                  </button>
+                </div>
+              </div>
+
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <h2 className="text-sm font-semibold">Monetization</h2>
                 <p className="mt-2 text-xs text-slate-600">
