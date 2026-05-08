@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { createRoot } from "react-dom/client";
 import { ResultsStoryPosterChrome, type ResultsStoryPosterData } from "@/components/results/ResultsStoryPosterChrome";
 
@@ -157,14 +157,7 @@ export function ResultsStoryPosterSection({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [photoOverrideBlobUrl, setPhotoOverrideBlobUrl] = useState<string | null>(null);
 
-  useEffect(() => {
-    const url = photoOverrideBlobUrl;
-    return () => {
-      if (url?.startsWith("blob:")) URL.revokeObjectURL(url);
-    };
-  }, [photoOverrideBlobUrl]);
-
-  /** Revoke old blob URLs when replacing or clearing (strictMode double-mount skips leaking). */
+  /** Revoke replaced blob URLs in state updater (avoid Strict Mode double-invoke wiping active preview). */
   const replaceOverrideUrl = useCallback((next: string | null) => {
     setPhotoOverrideBlobUrl((prev) => {
       if (prev?.startsWith("blob:") && prev !== next) URL.revokeObjectURL(prev);
@@ -189,7 +182,7 @@ export function ResultsStoryPosterSection({
   }, [replaceOverrideUrl]);
 
   const onPickPortrait = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
+    (e: ChangeEvent<HTMLInputElement>) => {
       const f = e.target.files?.[0];
       if (!f?.type.startsWith("image/")) return;
       if (f.size > 6 * 1024 * 1024) {
@@ -291,7 +284,7 @@ export function ResultsStoryPosterSection({
               {photoOverrideBlobUrl ? "Using your chosen image below — not saved anywhere." : "Portrait from Google; change stays in this browser only."}
             </p>
           </div>
-          <div className="flex flex-shrink-0 flex-wrap gap-2">
+          <div className="flex shrink-0 flex-wrap gap-2">
             <button
               type="button"
               disabled={busy}
