@@ -34,26 +34,26 @@ function ParticipantPortrait({
   const label = displayName?.trim() || "";
   const initials = participantInitials(label || "?");
 
+  const ring =
+    "size-[76px] shrink-0 rounded-full ring-[3px] ring-[#61aaff]/55 ring-offset-[6px] ring-offset-[rgba(7,13,38,1)] shadow-[0_10px_32px_-6px_rgb(125,216,255,0.5),inset_0_2px_20px_-10px_rgb(125,216,255,0.12)]";
+
   if (photoSrc) {
     return (
       <img
         src={photoSrc}
         alt=""
-        width={52}
-        height={52}
+        width={76}
+        height={76}
         crossOrigin="anonymous"
         referrerPolicy="no-referrer"
         draggable={false}
-        className="h-[52px] w-[52px] shrink-0 rounded-full bg-black/35 object-cover ring-2 ring-[#61aaff]/45 shadow-[0_8px_24px_-6px_rgba(125,216,255,0.35)]"
+        className={`object-cover bg-black/40 ${ring}`}
       />
     );
   }
 
   return (
-    <div
-      aria-hidden
-      className="grid h-[52px] w-[52px] shrink-0 place-items-center rounded-full bg-linear-to-br from-[#173a72] via-[#0d2244] to-[#050918] text-[17px] font-bold tabular-nums text-[#dff6ff] ring-2 ring-[#61aaff]/45 shadow-[0_8px_24px_-6px_rgba(125,216,255,0.35)]"
-    >
+    <div aria-hidden className={`grid place-items-center bg-linear-to-br from-[#1a4f9c] via-[#0f2d5e] to-[#061221] text-[22px] font-bold tabular-nums text-[#e8fbff] ${ring}`}>
       {initials}
     </div>
   );
@@ -124,7 +124,7 @@ export function ResultsStoryPosterChrome({
         style={{ background: "radial-gradient(circle at center, rgb(97 170 255), transparent 72%)" }}
       />
 
-      <svg className="pointer-events-none absolute right-8 top-[120px] w-[180px] opacity-[0.22]" height="92" viewBox="0 0 180 92" aria-hidden fill="none">
+      <svg className="pointer-events-none absolute right-6 top-[168px] w-[164px] opacity-[0.2]" height="92" viewBox="0 0 180 92" aria-hidden fill="none">
         <defs>
           <linearGradient id="storyWave" x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stopColor="#61aaff" />
@@ -140,33 +140,81 @@ export function ResultsStoryPosterChrome({
         />
       </svg>
 
-      <div className="relative z-[1] flex flex-1 flex-col px-[36px] pt-[42px]">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-white/52">profile snapshot · trend card</p>
+      <div className="relative z-[1] flex min-h-0 flex-1 flex-col px-[32px] pt-[38px]">
+        <div className="flex items-start justify-between gap-3 border-b border-white/[0.08] pb-[18px]">
+          <div className="min-w-0 pt-1">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-white/52">
+              Profile snapshot<span className="text-white/32"> · </span>
+              <span className="text-[#93dfff]/92">Trend card</span>
+            </p>
+          </div>
+          {/* Micro accent — fills top-right notch beside headline stack */}
+          <div
+            aria-hidden
+            className="mt-2 h-[22px] w-[64px] shrink-0 rounded-full opacity-90"
+            style={{
+              background: "linear-gradient(90deg, transparent, rgb(97 170 255 / 0.45), rgb(125 216 255 / 0.55))",
+            }}
+          />
+        </div>
 
         {showIdentity ? (
-          <div className="mt-6 flex items-center gap-3.5">
-            <ParticipantPortrait displayName={nameLine || "?"} photoSrc={participantPhotoSrc} />
-            <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/43">Participant</p>
-              <p className="truncate text-[17px] font-semibold leading-snug tracking-tight text-[#eaf8ff]" title={nameLine || undefined}>
-                {nameLine || "Your snapshot"}
-              </p>
+          <div
+            className="mt-[22px] w-full rounded-[26px] p-[22px]"
+            style={{
+              background:
+                "linear-gradient(155deg, rgb(97 170 255 / 0.1) 0%, rgb(5 13 38 / 0.72) 38%, rgb(5 11 29 / 0.88) 100%)",
+              boxShadow:
+                "inset 0 1px 0 rgb(125 216 255 / 0.28), 0 18px 48px -26px rgb(125 216 255 / 0.45), 0 0 0 1px rgb(97 170 255 / 0.2)",
+            }}
+          >
+            <div className="relative flex items-center gap-5">
+              <div aria-hidden className="pointer-events-none absolute -left-4 top-10 h-36 w-24 rounded-full bg-[#61aaff]/12 blur-[32px]" />
+              <div className="relative flex shrink-0 flex-col items-center gap-3">
+                <div className="relative">
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 scale-[1.18] rounded-full bg-[radial-gradient(circle,rgb(125,216,255,0.35)_0%,transparent_70%)] blur-[8px]"
+                  />
+                  <ParticipantPortrait displayName={nameLine || "?"} photoSrc={participantPhotoSrc} />
+                </div>
+              </div>
+              <div className="relative min-w-0 flex-1 pt-[6px]">
+                <p className="text-[9px] font-bold uppercase tracking-[0.38em] text-[#93dfff]/92">Spotlight · you</p>
+                <p
+                  className="mt-4 line-clamp-2 max-h-[3.05em] overflow-hidden text-balance text-[21px] font-bold leading-[1.28] tracking-[-0.02em] text-white"
+                  style={{ textShadow: "0 0 28px rgb(125 216 255 / 22%)" }}
+                  title={(nameLine || "Your snapshot").length > 32 ? nameLine || "Your snapshot" : undefined}
+                >
+                  {nameLine || "Your snapshot"}
+                </p>
+                <div className="mt-5 flex items-center gap-2">
+                  <span
+                    className="inline-block h-1 shrink-0 rounded-full bg-linear-to-r from-[#61aaff] via-[#7dd8ff] to-transparent"
+                    style={{ width: 72 }}
+                    aria-hidden
+                  />
+                  <span className="text-[11px] font-semibold tracking-wide text-white/48">Powered by scoring</span>
+                </div>
+              </div>
             </div>
           </div>
         ) : null}
 
-        <div className={showIdentity ? "mt-8" : "mt-10"}>
+        <div className={`min-h-0 shrink-0 ${showIdentity ? "mt-7" : "mt-9"}`}>
           <h1 className="text-[32px] font-bold leading-[1.12] tracking-tight text-white" style={{ textShadow: "0 2px 32px rgb(125 216 255 / 22%)" }}>
             Your{" "}
-            {/* Solid accent for screenshots — gradient text often rasterizes blank in svg foreignObject */}
             <span className="text-[#8fe6ff]" style={{ textShadow: "0 0 24px rgb(125 216 255 / 45%)" }}>
               {archetypeLabel}
             </span>
           </h1>
-          <p className="mt-4 max-w-[440px] text-[14px] font-medium leading-snug text-white/[0.74]">{line}</p>
+          <p className="mt-4 max-w-[440px] text-[14px] font-medium leading-[1.5] text-white/[0.74]">{line}</p>
         </div>
 
-        <div className="mt-auto pb-[44px]">
+        {/* Absorbs extra vertical rhythm so meters sit lower — visually fills IG story pillar */}
+        <div className="min-h-[20px] grow" aria-hidden />
+
+        <div className="mt-auto shrink-0 pb-[44px]">
           <div className="mb-6 flex items-end justify-between border-b border-white/[0.1] pb-5">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/45">dimensional footprint</p>
