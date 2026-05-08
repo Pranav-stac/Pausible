@@ -30,7 +30,7 @@ export function MyResultsNavLink({ layout = "toolbar" }: { layout?: "toolbar" | 
 
 export function MyResultsHub() {
   const router = useRouter();
-  const { effectiveUid, ready, linkGoogle, signInWithGoogle, user } = useFirebaseAuth();
+  const { effectiveUid, ready, linkGoogle, signInWithGoogle, user, signOut } = useFirebaseAuth();
   const hasGoogleIdentity = hasGoogleResultsIdentity(user);
   const mustUseGoogle = isFirebaseConfigured();
 
@@ -115,7 +115,18 @@ export function MyResultsHub() {
               link—past entries stay private in this history.
             </p>
           </div>
-          <BrandLogo heightClass="h-8 sm:h-9" withWordmark wordmarkClassName="text-lg" />
+          <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-center sm:gap-3">
+            {hasGoogleIdentity ? (
+              <button
+                type="button"
+                onClick={() => void signOut()}
+                className="rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 shadow-sm hover:border-rose-200 hover:bg-rose-50 hover:text-rose-800"
+              >
+                Log out
+              </button>
+            ) : null}
+            <BrandLogo heightClass="h-8 sm:h-9" withWordmark wordmarkClassName="text-lg" />
+          </div>
         </header>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
