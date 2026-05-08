@@ -1,0 +1,356 @@
+"use client";
+
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useFirebaseAuth } from "@/lib/firebase/auth-context";
+import { isFirebaseConfigured } from "@/lib/firebase/config";
+import { fetchAttempt, listMyAttempts } from "@/lib/data/attempt-service";
+import { fetchAssessment } from "@/lib/data/assessment-service";
+import type { AssessmentDefinition } from "@/types/models";
+import type { SerializedAttempt } from "@/lib/local/attempts";
+import { getArchetypeCopy } from "@/lib/results/archetype";
+import { dimensionMaxContributions, dimensionPercentages } from "@/lib/scoring/dimension-caps";
+
+export function ResultsClient() {
+  const params = useParams<{ attemptId: string }>();
+  const attemptId = params.attemptId;
+  const router = useRouter();
+  const { effectiveUid, ready, linkGoogle, signInWithGoogle, user } = useFirebaseAuth();
+  const hasGoogleIdentity = Boolean(user && !user.isAnonymous && user.email);
+  const mustUseGoogle = isFirebaseConfigured();
+
+  const [attempt, setAttempt] = useState<SerializedAttempt | null>(null);
+  const [assessment, setAssessment] = useState<AssessmentDefinition | null>(null);
+  const [history, setHistory] = useState<SerializedAttempt[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  const reload = useCallback(async () => {
+    if (!attemptId || !effectiveUid) return;
+    const a = await fetchAttempt(attemptId);
+    if (!a || a.uid !== effectiveUid) {
+      setError("Not found");
+      return;
+    }
+    setAttempt(a);
+    setAssessment(null);
+    try {
+      const asm = await fetchAssessment(a.assessmentId);
+      if (!asm) {
+        setError(
+          `Assessment "${a.assessmentId}" was not found in Firestore or is inactive. Sync it from Admin (e.g. “Sync default from question.json”).`,
+        );
+        return;
+      }
+      setAssessment(asm);
+      const all = await listMyAttempts(effectiveUid);
+      setHistory(all);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load assessment from Firestore");
+    }
+  }, [attemptId, effectiveUid]);
+
+  useEffect(() => {
+    if (!ready || !attemptId || !effectiveUid) return;
+    if (mustUseGoogle && !hasGoogleIdentity) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- async data load
+    void reload();
+  }, [attemptId, effectiveUid, hasGoogleIdentity, mustUseGoogle, ready, reload]);
+
+  const arch = useMemo(
+    () => (assessment && attempt?.scores ? getArchetypeCopy(assessment, attempt.scores.archetypeKey) : null),
+    [assessment, attempt],
+  );
+
+  const dimensionCaps = useMemo(() => (assessment ? dimensionMaxContributions(assessment) : {}), [assessment]);
+
+  const orderedDimensionPct = useMemo(() => {
+    if (!attempt?.scores?.dimensions || !assessment) return [];
+    const raw = dimensionPercentages(attempt.scores.dimensions, dimensionCaps);
+    const prio = ["openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism"] as const;
+    const prioSet = new Set<string>(prio);
+    const keys = Object.keys(raw);
+    const ordered = [...prio.filter((p) => keys.includes(p)), ...keys.filter((k) => !prioSet.has(k)).sort()];
+    function label(k: string) {
+      return k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    }
+    return ordered.map((k) => ({ key: k, label: label(k), pct: raw[k] ?? 0 }));
+  }, [assessment, attempt, dimensionCaps]);
+
+  const shareUrl = useMemo(() => {
+    if (!attempt?.shareToken || !attempt.isLatestShareEligible || attempt.paymentStatus !== "paid") return null;
+    if (typeof window === "undefined") return null;
+    return `${window.location.origin}/share/${attempt.shareToken}`;
+  }, [attempt]);
+
+  const copyShare = useCallback(async () => {
+    if (!shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+    } catch {
+      /* ignore */
+    }
+  }, [shareUrl]);
+
+  if (!ready) {
+    return <div className="p-10 text-center text-sm text-slate-500">Loading results…</div>;
+  }
+
+  if (mustUseGoogle && !hasGoogleIdentity) {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-16 text-center">
+        <h1 className="text-lg font-semibold text-slate-900">Sign in to view results</h1>
+        <p className="mt-2 text-sm leading-relaxed text-slate-600">
+          With Firebase enabled, detailed results load only after a Google account is on this session. If you took the
+          assessment as a guest, link Google first so your attempt stays on the same UID.
+        </p>
+        <div className="mt-6 flex flex-col items-center gap-3">
+          {user?.isAnonymous ? (
+            <button
+              type="button"
+              onClick={() => void linkGoogle()}
+              className="rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white"
+            >
+              Link Google
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => void signInWithGoogle()}
+              className="rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white"
+            >
+              Sign in with Google
+            </button>
+          )}
+          <Link href="/" className="text-sm font-semibold text-sky-600">
+            ← Home
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !attempt || !assessment) {
+    return (
+      <div className="mx-auto max-w-lg px-1.5 py-16 text-center sm:px-2">
+        <p className="text-sm text-slate-600">{error ?? "Loading…"}</p>
+        <Link href="/assessment/default" className="mt-4 inline-block text-sm font-semibold text-sky-600">
+          Start assessment
+        </Link>
+      </div>
+    );
+  }
+
+  if (attempt.paymentStatus !== "paid") {
+    return (
+      <div className="min-h-screen bg-white px-1.5 py-12 sm:px-2 sm:py-16">
+        <div className="mx-auto max-w-xl">
+          <div className="rounded-3xl border border-amber-200 bg-amber-50 p-8 text-center shadow-sm">
+            <h1 className="text-2xl font-semibold text-slate-900">Complete payment to unlock</h1>
+            <p className="mt-3 text-sm text-slate-700">
+              We&apos;ve saved your responses. Checkout unlocks the full premium breakdown for this attempt.
+            </p>
+            <button
+              type="button"
+              onClick={() => router.push(`/checkout?attemptId=${encodeURIComponent(attempt.id)}`)}
+              className="mt-6 rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white"
+            >
+              Go to checkout
+            </button>
+          </div>
+
+          {isFirebaseConfigured() ? (
+            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 text-left shadow-sm">
+              <h2 className="text-sm font-semibold text-slate-900">Optional: save this attempt to your account</h2>
+              <p className="mt-2 text-xs leading-relaxed text-slate-600">
+                Sign in with Google (or link from your anonymous session) so this attempt can sync across devices. Your
+                answers stay private unless you choose to share the spotlight link after payment.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {user?.email ? (
+                  <p className="w-full text-sm font-medium text-slate-800">Signed in as {user.email}</p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => void (user?.isAnonymous ? linkGoogle() : signInWithGoogle())}
+                    className="rounded-full bg-slate-950 px-4 py-2 text-xs font-semibold text-white sm:text-sm"
+                  >
+                    {user?.isAnonymous ? "Link Google" : "Sign in with Google"}
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-linear-to-b from-slate-50 to-white px-1.5 py-10 sm:px-2">
+      <div className="mx-auto max-w-6xl">
+        {isFirebaseConfigured() ? (
+          <div className="mb-8 rounded-3xl border border-sky-200/70 bg-linear-to-r from-sky-50 via-white to-indigo-50/80 p-6 shadow-sm">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-sky-900/80">Account</h2>
+                <p className="mt-1 max-w-xl text-sm text-slate-700">
+                  Optional login keeps your history recoverable across devices. Anonymous sessions stay on this browser
+                  until you link Google.
+                </p>
+              </div>
+              {user?.email ? (
+                <div className="text-right">
+                  <p className="text-sm font-semibold text-slate-900">{user.email}</p>
+                  <p className="text-xs text-slate-500">Signed in</p>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => void (user?.isAnonymous ? linkGoogle() : signInWithGoogle())}
+                  className="shrink-0 rounded-full bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white"
+                >
+                  {user?.isAnonymous ? "Link Google" : "Sign in with Google"}
+                </button>
+              )}
+            </div>
+          </div>
+        ) : null}
+
+        <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Latest paid spotlight</p>
+            <h1 className="mt-2 text-4xl font-semibold tracking-tight text-slate-950">{arch?.label ?? "Your profile"}</h1>
+            <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-600">{arch?.summary}</p>
+          </div>
+          <div className="md:w-80">
+            <div className="rounded-3xl bg-linear-to-br from-[#061238] via-[#071746] to-[#031132] p-[1px] shadow-[0_30px_80px_-30px_rgba(12,25,78,.6)]">
+              <div className="rounded-3xl bg-linear-to-br from-[#081633] to-[#040814] p-5 text-white">
+                <div className="text-xs font-semibold uppercase tracking-[0.3em] text-white/60">Snapshot</div>
+                <div className="mt-3 text-sm text-white/75">
+                  {(() => {
+                    const iso = attempt.paidAtIso ?? attempt.createdAtIso;
+                    return iso ? new Date(iso).toLocaleString() : "—";
+                  })()}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-10 grid gap-6 lg:grid-cols-2">
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-slate-900">Dimensions</h2>
+            <div className="mt-4 space-y-4">
+              {orderedDimensionPct.length === 0 ? (
+                <p className="text-sm text-slate-500">No dimension aggregates for this snapshot.</p>
+              ) : (
+                orderedDimensionPct.map(({ key, label, pct }) => (
+                  <div key={key}>
+                    <div className="flex justify-between text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      <span>{label}</span>
+                      <span>{pct}%</span>
+                    </div>
+                    <div className="mt-2 h-2 rounded-full bg-slate-100">
+                      <div
+                        className="h-full rounded-full bg-linear-to-r from-sky-500 to-indigo-500"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-slate-900">Playbook</h2>
+            <ul className="mt-4 space-y-3 text-sm text-slate-700">
+              {(arch?.bullets ?? []).map((b) => (
+                <li key={b} className="flex gap-2">
+                  <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+                  <span>{b}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        {shareUrl && (
+          <div className="mt-8 rounded-3xl bg-linear-to-r from-[#0b47ff] via-[#4a7dff] to-[#20b7ff] p-6 text-white shadow-lg">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-white/80">Share (latest only)</div>
+                <div className="mt-2 break-all text-sm text-white/95">{shareUrl}</div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => void copyShare()}
+                  className="rounded-full bg-white/15 px-4 py-2 text-sm font-semibold ring ring-white/30"
+                >
+                  Copy link
+                </button>
+                <a
+                  href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(
+                    `My Pausible fitness behavioral spotlight: ${shareUrl}`,
+                  )}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-full bg-white/15 px-4 py-2 text-sm font-semibold ring ring-white/30"
+                >
+                  Share on X
+                </a>
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(`Pausible results: ${shareUrl}`)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-full bg-white/15 px-4 py-2 text-sm font-semibold ring ring-white/30"
+                >
+                  WhatsApp
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-12">
+          <div className="flex items-center justify-between gap-4">
+            <h3 className="text-lg font-semibold text-slate-900">Private history</h3>
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Not shareable</span>
+          </div>
+          <div className="mt-4 space-y-3">
+            {history.map((row) => (
+              <button
+                key={row.id}
+                type="button"
+                onClick={() => router.push(`/results/${row.id}`)}
+                className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm hover:border-slate-300"
+              >
+                <div>
+                  <div className="font-semibold text-slate-900">
+                    {new Date(row.createdAtIso ?? "").toLocaleString()} · {row.paymentStatus}
+                  </div>
+                  <div className="text-xs text-slate-500 font-mono">{row.id.slice(0, 10)}…</div>
+                </div>
+                {row.id === attemptId ? <span className="text-xs font-semibold text-sky-600">Viewing</span> : null}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-10 flex flex-wrap gap-3">
+          <Link
+            href="/assessment/default"
+            className="rounded-full border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-900"
+          >
+            Retake (new payment)
+          </Link>
+          <Link href="/" className="rounded-full bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white">
+            Home
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}

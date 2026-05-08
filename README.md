@@ -1,36 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Pausible — Fitness behavioral assessment
 
-## Getting Started
+Next.js (App Router) + Firebase (Auth / Firestore) + Stripe, Razorpay, and PayPal checkouts.
 
-First, run the development server:
+## Local development
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+1. Copy [`.env.example`](./.env.example) to `.env.local` and fill Firebase public keys for full auth + persistence. Without Firebase, the app uses a local browser ID and `localStorage` for attempts (fine for UI work).
+2. `npm install`
+3. `npm run dev` → [http://localhost:3000](http://localhost:3000)
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+**Dev payment**: With `NEXT_PUBLIC_DEV_PAYMENTS=true` (or running in `development`), checkout shows “Simulate successful payment,” which finalizes the attempt client-side (and writes share snapshots when applicable).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Firebase
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Rules: [`firebase/firestore.rules`](./firebase/firestore.rules)
+- Indexes: [`firebase/firestore.indexes.json`](./firebase/firestore.indexes.json)
+- Deploy rules: `firebase deploy --only firestore` (from project root with Firebase CLI configured)
 
-## Learn More
+Set **`FIREBASE_ADMIN_CREDENTIALS_JSON`** (single-line service account JSON string) on the server for:
 
-To learn more about Next.js, take a look at the following resources:
+- `/api/checkout/create` (paid sessions against real attempts)
+- `/api/checkout/stripe-return` and PayPal capture flows
+- `/api/admin/export` (Excel of attempts)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Grant **`admin: true`** custom claim to privileged users, **or** set **`ADMIN_UIDS`** (comma-separated UIDs) to allow admin export without claims.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Payments
 
-## Deploy on Vercel
+| Provider | Env vars | Notes |
+|----------|-----------|--------|
+| Stripe | `STRIPE_SECRET_KEY`, Checkout success via `/api/checkout/stripe-return` | Uses hosted Checkout Session (INR). |
+| Razorpay | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` | Returns order for client Checkout.js. **Webhook** should confirm payment in production ([`functions/`](./functions/) stub). |
+| PayPal | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` | REST order + `/api/checkout/paypal-return`. |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Prioritize one provider for launch; keep keys in Vercel/hosting env, never in client bundles (except publishable Stripe/Razorpay key IDs).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Deployment checklist
+
+- [ ] `NEXT_PUBLIC_SITE_URL` production URL (metadata + redirects).
+- [ ] All payment secrets + webhook endpoints registered.
+- [ ] Firestore rules deployed; composite index for `attempts` (`uid` + `createdAt`) if prompted by Firebase console.
+- [ ] Optional: deploy [`functions/`](./functions/) for webhooks and batch jobs.
+
+## Project layout (high level)
+
+- `src/app/` — routes: landing, assessment, checkout, results, share, admin, APIs under `api/`.
+- `src/components/` — marketing shell, assessment runner, checkout/results/share UI.
+- `src/lib/` — Firebase client/server, scoring, pricing, attempt/share services.
+- `firebase/` — Firestore rules and indexes.
+- `functions/` — Firebase Cloud Functions stub.

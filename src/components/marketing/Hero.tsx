@@ -1,0 +1,46 @@
+import { ActiveAssessmentCards } from "@/components/marketing/ActiveAssessmentCards";
+import { TrackedAssessmentLink } from "@/components/marketing/TrackedAssessmentLink";
+
+export function Hero({ ctaHref }: { ctaHref: string }) {
+  return (
+    <section className="px-4 py-10 sm:px-6 sm:py-12 lg:py-14" id="top">
+      <div className="mx-auto flex max-w-7xl justify-center">
+        <div className="w-full rounded-2xl bg-linear-to-b from-[#050816] via-[#0a1029] to-[#050816] px-4 pb-12 pt-9 text-center shadow-[0_28px_72px_-28px_rgba(15,23,42,.5)] sm:rounded-3xl sm:px-9 sm:pb-16 sm:pt-12 sm:shadow-[0_32px_80px_-24px_rgba(15,23,42,.55)]">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/85 sm:text-[11px] sm:tracking-[0.2em]">
+            Pausible insights
+          </div>
+          <h1 className="mx-auto mt-5 max-w-[22rem] text-balance text-[1.35rem] font-semibold leading-snug tracking-tight text-white sm:mt-7 sm:max-w-none sm:text-5xl sm:leading-[1.08] lg:text-[3.2rem] lg:leading-[1.1]">
+            Understand how you behave around{" "}
+            <span className="bg-linear-to-r from-[#7dd8ff] to-[#61aaff] bg-clip-text text-transparent">
+              fitness, focus, & follow-through.
+            </span>
+          </h1>
+          <p className="mx-auto mt-4 max-w-md text-pretty text-[13px] leading-[1.65] text-white/75 sm:mt-6 sm:max-w-2xl sm:text-base sm:leading-relaxed">
+            A structured behavioral profile with honest scoring—not vibes. Finish in minutes, unlock the full breakdown
+            when you&apos;re ready, and revisit your history privately whenever you reassess.
+          </p>
+
+          <div className="mt-8 flex flex-col items-stretch gap-3.5 sm:mt-10 sm:items-center sm:gap-4">
+            <TrackedAssessmentLink
+              href={ctaHref}
+              placement="hero_primary_cta"
+              className="inline-flex w-full max-w-none items-center justify-center rounded-full bg-white px-5 py-3.5 text-[15px] font-semibold text-[#061018] shadow-md ring-2 ring-white/25 transition hover:bg-slate-100 sm:w-auto sm:max-w-md sm:bg-slate-950 sm:px-8 sm:text-base sm:text-white sm:shadow-lg sm:shadow-slate-950/40 sm:ring-white/5 sm:hover:-translate-y-px sm:hover:bg-black"
+            >
+              Start assessment
+              <span className="pl-2 text-lg leading-none sm:text-xl" aria-hidden>
+                ↗
+              </span>
+            </TrackedAssessmentLink>
+            <p className="text-center text-[11px] leading-relaxed text-white/58 sm:max-w-lg sm:text-sm sm:text-white/58">
+              No login required to begin. Checkout unlocks the full breakdown.&nbsp;
+              <a href="#faq" className="inline font-medium text-[#9ae4ff] underline decoration-white/30 underline-offset-[3px]">
+                Payments FAQ →
+              </a>
+            </p>
+            <ActiveAssessmentCards />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
