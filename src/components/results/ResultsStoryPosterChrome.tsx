@@ -9,7 +9,55 @@ export type ResultsStoryPosterData = {
   dimensions: Pick<DimensionRow, "label" | "pct">[];
   hashtags: string[];
   siteSlug: string;
+  participantDisplayName?: string | null;
+  /** HTTPS, `data:` for exports, or `blob:` preview — never persisted from this repo */
+  participantPhotoSrc?: string | null;
 };
+
+function participantInitials(name: string): string {
+  const p = name
+    .trim()
+    .split(/\s+/u)
+    .filter(Boolean)
+    .slice(0, 2);
+  const s = p.map((x) => x[0]?.toUpperCase()).join("");
+  return s || "?";
+}
+
+function ParticipantPortrait({
+  displayName,
+  photoSrc,
+}: {
+  displayName: string | null | undefined;
+  photoSrc?: string | null;
+}) {
+  const label = displayName?.trim() || "";
+  const initials = participantInitials(label || "?");
+
+  if (photoSrc) {
+    return (
+      <img
+        src={photoSrc}
+        alt=""
+        width={52}
+        height={52}
+        crossOrigin="anonymous"
+        referrerPolicy="no-referrer"
+        draggable={false}
+        className="h-[52px] w-[52px] shrink-0 rounded-full bg-black/35 object-cover ring-2 ring-[#61aaff]/45 shadow-[0_8px_24px_-6px_rgba(125,216,255,0.35)]"
+      />
+    );
+  }
+
+  return (
+    <div
+      aria-hidden
+      className="grid h-[52px] w-[52px] shrink-0 place-items-center rounded-full bg-linear-to-br from-[#173a72] via-[#0d2244] to-[#050918] text-[17px] font-bold tabular-nums text-[#dff6ff] ring-2 ring-[#61aaff]/45 shadow-[0_8px_24px_-6px_rgba(125,216,255,0.35)]"
+    >
+      {initials}
+    </div>
+  );
+}
 
 function MeterRow({ label, pct, idx }: { label: string; pct: number; idx: number }) {
   const hues = ["#61aaff", "#7dd8ff", "#93daff", "#5fd4ff"];
@@ -36,8 +84,19 @@ function MeterRow({ label, pct, idx }: { label: string; pct: number; idx: number
 }
 
 /** Exact 540×960 layout for Instagram Stories (export at pixelRatio 2 → 1080×1920). */
-export function ResultsStoryPosterChrome({ archetypeLabel, line, dimensions, hashtags, siteSlug }: ResultsStoryPosterData) {
+export function ResultsStoryPosterChrome({
+  archetypeLabel,
+  line,
+  dimensions,
+  hashtags,
+  siteSlug,
+  participantDisplayName,
+  participantPhotoSrc,
+}: ResultsStoryPosterData) {
   const dims = dimensions.slice(0, 6);
+
+  const nameLine = participantDisplayName?.trim() ?? "";
+  const showIdentity = Boolean(nameLine || participantPhotoSrc);
 
   return (
     <div
@@ -81,9 +140,22 @@ export function ResultsStoryPosterChrome({ archetypeLabel, line, dimensions, has
         />
       </svg>
 
-      <div className="relative z-[1] flex flex-1 flex-col px-[36px] pt-[52px]">
+      <div className="relative z-[1] flex flex-1 flex-col px-[36px] pt-[42px]">
         <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-white/52">profile snapshot · trend card</p>
-        <div className="mt-10">
+
+        {showIdentity ? (
+          <div className="mt-6 flex items-center gap-3.5">
+            <ParticipantPortrait displayName={nameLine || "?"} photoSrc={participantPhotoSrc} />
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/43">Participant</p>
+              <p className="truncate text-[17px] font-semibold leading-snug tracking-tight text-[#eaf8ff]" title={nameLine || undefined}>
+                {nameLine || "Your snapshot"}
+              </p>
+            </div>
+          </div>
+        ) : null}
+
+        <div className={showIdentity ? "mt-8" : "mt-10"}>
           <h1 className="text-[32px] font-bold leading-[1.12] tracking-tight text-white" style={{ textShadow: "0 2px 32px rgb(125 216 255 / 22%)" }}>
             Your{" "}
             {/* Solid accent for screenshots — gradient text often rasterizes blank in svg foreignObject */}

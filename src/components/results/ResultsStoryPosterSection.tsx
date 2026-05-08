@@ -1,14 +1,45 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { ResultsStoryPosterChrome, type ResultsStoryPosterData } from "@/components/results/ResultsStoryPosterChrome";
 
 const STORY_W = 540;
 const STORY_H = 960;
 
-async function rasterizePosterToBlob(poster: ResultsStoryPosterData): Promise<Blob> {
+export type ResultsStoryPosterParticipant = {
+  displayName: string;
+  googlePhotoUrl: string | null;
+};
+
+async function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(fr.result as string);
+    fr.onerror = () => reject(new Error("read"));
+    fr.readAsDataURL(blob);
+  });
+}
+
+async function embedPortraitForRaster(raw?: string | null): Promise<string | undefined> {
+  if (!raw?.trim()) return undefined;
+  const u = raw.trim();
+  if (u.startsWith("data:") || u.startsWith("blob:")) return u;
+  if (!/^https?:\/\//i.test(u)) return u;
+  try {
+    const res = await fetch(u, { mode: "cors" });
+    if (!res.ok) return u;
+    return await blobToDataUrl(await res.blob());
+  } catch {
+    return u;
+  }
+}
+
+async function rasterizePosterToBlob(base: ResultsStoryPosterData): Promise<Blob> {
   const { toBlob, toPng } = await import("html-to-image");
+
+  const portrait = await embedPortraitForRaster(base.participantPhotoSrc);
+  const poster: ResultsStoryPosterData = portrait === base.participantPhotoSrc ? base : { ...base, participantPhotoSrc: portrait };
 
   const host = document.createElement("div");
   host.setAttribute("data-pausible-story-export", "true");
@@ -112,15 +143,64 @@ function openWhatsAppStatusHint(extraUrl?: string | null) {
 
 export function ResultsStoryPosterSection({
   poster,
+  participant,
   filenameSlug,
   shareSnippetUrl,
 }: {
   poster: ResultsStoryPosterData;
+  participant?: ResultsStoryPosterParticipant | null;
   filenameSlug: string;
   /** Public share URL to include when opening WhatsApp (text fallback). */
   shareSnippetUrl?: string | null;
 }) {
   const [busy, setBusy] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [photoOverrideBlobUrl, setPhotoOverrideBlobUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const url = photoOverrideBlobUrl;
+    return () => {
+      if (url?.startsWith("blob:")) URL.revokeObjectURL(url);
+    };
+  }, [photoOverrideBlobUrl]);
+
+  /** Revoke old blob URLs when replacing or clearing (strictMode double-mount skips leaking). */
+  const replaceOverrideUrl = useCallback((next: string | null) => {
+    setPhotoOverrideBlobUrl((prev) => {
+      if (prev?.startsWith("blob:") && prev !== next) URL.revokeObjectURL(prev);
+      return next;
+    });
+  }, []);
+
+  const rawPortraitSrc = photoOverrideBlobUrl ?? participant?.googlePhotoUrl ?? poster.participantPhotoSrc ?? null;
+
+  const mergedPoster = useMemo(
+    (): ResultsStoryPosterData => ({
+      ...poster,
+      participantDisplayName: participant?.displayName ?? poster.participantDisplayName ?? null,
+      participantPhotoSrc: rawPortraitSrc,
+    }),
+    [participant, poster, rawPortraitSrc],
+  );
+
+  const resetToGooglePortrait = useCallback(() => {
+    replaceOverrideUrl(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, [replaceOverrideUrl]);
+
+  const onPickPortrait = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const f = e.target.files?.[0];
+      if (!f?.type.startsWith("image/")) return;
+      if (f.size > 6 * 1024 * 1024) {
+        window.alert("Please choose an image under 6MB.");
+        return;
+      }
+      const url = URL.createObjectURL(f);
+      replaceOverrideUrl(url);
+    },
+    [replaceOverrideUrl],
+  );
 
   /** Preview: scale from native 540×960 with top-left origin so nothing drifts sideways. */
   const previewOuterW = 297;
@@ -131,18 +211,18 @@ export function ResultsStoryPosterSection({
     if (busy) return;
     setBusy(true);
     try {
-      const blob = await rasterizePosterToBlob(poster);
+      const blob = await rasterizePosterToBlob(mergedPoster);
       downloadBlob(blob, filenameSlug);
     } finally {
       setBusy(false);
     }
-  }, [busy, poster, filenameSlug]);
+  }, [busy, mergedPoster, filenameSlug]);
 
   const handleSystemShare = useCallback(async () => {
     if (busy) return;
     setBusy(true);
     try {
-      const blob = await rasterizePosterToBlob(poster);
+      const blob = await rasterizePosterToBlob(mergedPoster);
       const ok = await shareImageFile(blob, filenameSlug).catch(() => false);
       if (!ok) {
         downloadBlob(blob, filenameSlug);
@@ -153,7 +233,7 @@ export function ResultsStoryPosterSection({
     } finally {
       setBusy(false);
     }
-  }, [busy, poster, filenameSlug]);
+  }, [busy, mergedPoster, filenameSlug]);
 
   const handleWhatsApp = useCallback(() => {
     openWhatsAppStatusHint(shareSnippetUrl);
@@ -166,8 +246,9 @@ export function ResultsStoryPosterSection({
           <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#7dd8ff]/90">Stories &amp; status</p>
           <h2 className="mt-2 text-xl font-semibold tracking-tight text-white">Share your snapshot image</h2>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/62">
-            9:16 card in your brand palette — built for Stories &amp; status.{" "}
-            <span className="text-white/80">On phones, Share opens Instagram or WhatsApp when those apps appear in your sheet.</span>
+            Includes your profile name &amp; photo on the Story card — photo defaults to Google, or pick a substitute for
+            export only.&nbsp;
+            <span className="text-white/72">Substitution lives in browser memory until you refresh; we don&apos;t store it.</span>
           </p>
         </div>
         <div className="flex shrink-0 flex-col gap-2 sm:items-end">
@@ -201,6 +282,40 @@ export function ResultsStoryPosterSection({
         </div>
       </div>
 
+      {participant?.displayName ? (
+        <div className="mt-7 flex flex-col gap-4 rounded-2xl border border-white/[0.1] bg-black/35 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/43">Shown on Story card</p>
+            <p className="mt-1 truncate text-sm font-semibold text-white">{participant.displayName.trim()}</p>
+            <p className="mt-1 max-w-xl text-[11px] leading-relaxed text-white/52">
+              {photoOverrideBlobUrl ? "Using your chosen image below — not saved anywhere." : "Portrait from Google; change stays in this browser only."}
+            </p>
+          </div>
+          <div className="flex flex-shrink-0 flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => fileInputRef.current?.click()}
+              className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-[#eaf8ff] hover:bg-white/15 disabled:opacity-50"
+            >
+              Pick image…
+            </button>
+            {photoOverrideBlobUrl ? (
+              <button type="button" disabled={busy} onClick={resetToGooglePortrait} className="rounded-xl border border-[#61aaff]/35 bg-transparent px-3 py-2 text-xs font-semibold text-[#9fe8ff] hover:bg-black/35 disabled:opacity-50">
+                Use Google photo
+              </button>
+            ) : null}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="sr-only"
+              onChange={(e) => onPickPortrait(e)}
+            />
+          </div>
+        </div>
+      ) : null}
+
       <div className="relative mx-auto mt-10 flex justify-center pb-8 pt-6">
         <div className="pointer-events-none absolute inset-x-[6%] top-[18%] h-[52%] rounded-[40%] bg-[#7dd8ff]/10 blur-[56px]" />
         <div
@@ -208,7 +323,7 @@ export function ResultsStoryPosterSection({
           style={{ width: previewOuterW, height: previewOuterH }}
         >
           <div style={{ width: STORY_W, height: STORY_H, transform: `scale(${previewScale})`, transformOrigin: "top left" }}>
-            <ResultsStoryPosterChrome {...poster} />
+            <ResultsStoryPosterChrome {...mergedPoster} />
           </div>
         </div>
       </div>
