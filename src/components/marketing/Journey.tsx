@@ -57,11 +57,11 @@ export function Journey() {
           />
 
           <ol className="relative grid divide-y divide-white/[0.09] sm:grid-cols-3 sm:divide-x sm:divide-white/[0.09] sm:divide-y-0">
-            {steps.map((s) => (
+            {steps.map((s, idx) => (
               <li key={s.title} className="relative px-5 py-[1.125rem] sm:px-[1.15rem] sm:py-[1.35rem] lg:px-6 lg:py-7">
                 <div className="flex items-start gap-3.5">
                   <span className="mt-0.5 grid h-[2.25rem] min-w-[2.25rem] place-items-center rounded-xl bg-black/38 text-[12px] font-bold tabular-nums text-[#9fe9ff] ring-2 ring-[#61aaff]/35 shadow-[inset_0_1px_0_rgb(125_216_255_/_22%)]">
-                    {String(i + 1).padStart(2, "0")}
+                    {String(idx + 1).padStart(2, "0")}
                   </span>
                   <div className="min-w-0 pt-0.5">
                     <h3 className="text-[0.9rem] font-semibold leading-snug tracking-tight text-white">{s.title}</h3>
@@ -77,7 +77,7 @@ export function Journey() {
           {pills.map((p) => (
             <span
               key={p}
-              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-[0.3125rem] text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-600 shadow-[0_8px_24px_-14px_rgb(15,23,42,0.35)] ring-2 ring-transparent transition hover:border-[#61aaff]/55 hover:text-slate-800 hover:shadow-[0_12px_32px_-16px_rgb(125,216,255,0.45)] hover:ring-[#61aaff]/15"
+              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-[0.3125rem] text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-600 shadow-[0_8px_24px_-14px_rgba(15,23,42,0.18)] ring-2 ring-transparent transition hover:border-[#61aaff]/55 hover:text-slate-800 hover:shadow-[0_12px_32px_-16px_rgba(125,216,255,0.35)] hover:ring-[#61aaff]/15"
             >
               <CheckCircle className="h-3.5 w-3.5 shrink-0 text-[#3d9fff]" />
               {p}
