@@ -41,14 +41,21 @@ export function ResultsStoryPosterChrome({ archetypeLabel, line, dimensions, has
 
   return (
     <div
-      className="relative flex flex-col overflow-hidden text-left bg-[#050816]"
+      className="relative flex flex-col overflow-hidden text-left"
       style={{
         width: 540,
         height: 960,
         fontFamily: 'system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        backgroundColor: "#050816",
       }}
     >
-      <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-[#050816] via-[#0a1029] to-[#050816]" />
+      {/* Inline gradient so html-to-image foreignObject clones reliably */}
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background: "linear-gradient(180deg, #050816 0%, #0a1029 45%, #050816 100%)",
+        }}
+      />
       <div
         className="pointer-events-none absolute -right-28 -top-24 size-[440px] rounded-full opacity-[0.12]"
         style={{ background: "radial-gradient(circle at center, rgb(125 216 255), transparent 70%)" }}
@@ -79,16 +86,8 @@ export function ResultsStoryPosterChrome({ archetypeLabel, line, dimensions, has
         <div className="mt-10">
           <h1 className="text-[32px] font-bold leading-[1.12] tracking-tight text-white" style={{ textShadow: "0 2px 32px rgb(125 216 255 / 22%)" }}>
             Your{" "}
-            <span
-              className="bg-linear-to-r from-[#7dd8ff] to-[#61aaff]"
-              style={{
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-                color: "transparent",
-                display: "inline-block",
-              }}
-            >
+            {/* Solid accent for screenshots — gradient text often rasterizes blank in svg foreignObject */}
+            <span className="text-[#8fe6ff]" style={{ textShadow: "0 0 24px rgb(125 216 255 / 45%)" }}>
               {archetypeLabel}
             </span>
           </h1>

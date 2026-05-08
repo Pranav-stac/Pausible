@@ -1,77 +1,220 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
+import { createRoot } from "react-dom/client";
 import { ResultsStoryPosterChrome, type ResultsStoryPosterData } from "@/components/results/ResultsStoryPosterChrome";
 
-async function pngFromPosterNode(node: HTMLElement, filenameBase: string) {
-  const { toPng } = await import("html-to-image");
-  const url = await toPng(node, {
-    pixelRatio: 2,
+const STORY_W = 540;
+const STORY_H = 960;
+
+async function rasterizePosterToBlob(poster: ResultsStoryPosterData): Promise<Blob> {
+  const { toBlob, toPng } = await import("html-to-image");
+
+  const host = document.createElement("div");
+  host.setAttribute("data-pausible-story-export", "true");
+  host.style.cssText = [
+    "position:fixed",
+    "left:0",
+    "top:0",
+    `z-index:2147483646`,
+    `width:${STORY_W}px`,
+    `height:${STORY_H}px`,
+    "pointer-events:none",
+    "margin:0",
+    "padding:0",
+    "overflow:hidden",
+    "opacity:1",
+    "visibility:visible",
+    "background:#050816",
+    "caret-color:transparent",
+  ].join(";");
+
+  document.body.appendChild(host);
+
+  const opts = {
     cacheBust: true,
+    pixelRatio: 2,
+    width: STORY_W,
+    height: STORY_H,
     backgroundColor: "#050816",
-  });
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${filenameBase.replace(/[^\w\-]+/g, "-").slice(0, 44)}-pausible-story.png`;
-  a.rel = "noopener";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+    skipFonts: true,
+  };
+
+  let rootRet: ReturnType<typeof createRoot> | null = null;
+  try {
+    rootRet = createRoot(host);
+    rootRet.render(<ResultsStoryPosterChrome {...poster} />);
+    await new Promise<void>((resolve) =>
+      queueMicrotask(() =>
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() =>
+            queueMicrotask(() => resolve())),
+        ),
+      ),
+    );
+
+    const inner = host.firstElementChild as HTMLElement | null;
+    if (!inner) throw new Error("Poster did not mount");
+
+    let blob = await toBlob(inner, opts);
+    if (!blob || blob.size < 900) {
+      const dataUrl = await toPng(inner, opts);
+      const fetched = await fetch(dataUrl);
+      blob = await fetched.blob();
+    }
+    if (!blob.size) throw new Error("Empty raster");
+    return blob;
+  } finally {
+    rootRet?.unmount();
+    host.remove();
+  }
 }
 
-/** Preview scaled; hidden twin used for rasterization at native 540×960. */
-export function ResultsStoryPosterSection({ poster, filenameSlug }: { poster: ResultsStoryPosterData; filenameSlug: string }) {
-  const captureRef = useRef<HTMLDivElement>(null);
+function downloadBlob(blob: Blob, basename: string) {
+  const name = `${basename.replace(/[^\w\-]+/g, "-").slice(0, 44)}-pausible-story.png`;
+  const u = URL.createObjectURL(blob);
+  try {
+    const a = document.createElement("a");
+    a.href = u;
+    a.download = name;
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  } finally {
+    URL.revokeObjectURL(u);
+  }
+}
+
+async function shareImageFile(blob: Blob, basename: string): Promise<boolean> {
+  const name = `${basename.replace(/[^\w\-]+/g, "-").slice(0, 44)}-pausible-story.png`;
+  const file = new File([blob], name, {
+    type: blob.type.startsWith("image/") ? blob.type : "image/png",
+    lastModified: Date.now(),
+  });
+
+  const data: ShareData = { files: [file] };
+  if (!navigator.share) return false;
+  if (!navigator.canShare?.(data)) return false;
+
+  /** Omit title/text — some targets (e.g. Instagram) choke when combined with `files`. */
+  await navigator.share(data);
+  return true;
+}
+
+function openWhatsAppStatusHint(extraUrl?: string | null) {
+  const link = typeof extraUrl === "string" && extraUrl.trim() ? extraUrl.trim() : "";
+  const body = link
+    ? `My Pausible spotlight — tap to view.\n${link}\n\nTip: Save the Story PNG above, then post it to WhatsApp Status from your gallery.`
+    : "My behavioral snapshot — from Pausible. Save your Story PNG, then post it on WhatsApp Status from your gallery.";
+  window.open(`https://wa.me/?text=${encodeURIComponent(body)}`, "_blank", "noopener,noreferrer");
+}
+
+export function ResultsStoryPosterSection({
+  poster,
+  filenameSlug,
+  shareSnippetUrl,
+}: {
+  poster: ResultsStoryPosterData;
+  filenameSlug: string;
+  /** Public share URL to include when opening WhatsApp (text fallback). */
+  shareSnippetUrl?: string | null;
+}) {
   const [busy, setBusy] = useState(false);
 
-  const download = useCallback(async () => {
-    const node = captureRef.current;
-    if (!node || busy) return;
+  /** Preview: scale from native 540×960 with top-left origin so nothing drifts sideways. */
+  const previewOuterW = 297;
+  const previewScale = previewOuterW / STORY_W;
+  const previewOuterH = Math.round(STORY_H * previewScale);
+
+  const handleDownload = useCallback(async () => {
+    if (busy) return;
     setBusy(true);
     try {
-      await pngFromPosterNode(node, filenameSlug);
+      const blob = await rasterizePosterToBlob(poster);
+      downloadBlob(blob, filenameSlug);
     } finally {
       setBusy(false);
     }
-  }, [busy, filenameSlug]);
+  }, [busy, poster, filenameSlug]);
+
+  const handleSystemShare = useCallback(async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const blob = await rasterizePosterToBlob(poster);
+      const ok = await shareImageFile(blob, filenameSlug).catch(() => false);
+      if (!ok) {
+        downloadBlob(blob, filenameSlug);
+        window.alert(
+          "Your browser can’t hand off the image automatically—PNG downloaded instead. Open the file from your downloads, tap Share (mobile), then pick Instagram or WhatsApp.",
+        );
+      }
+    } finally {
+      setBusy(false);
+    }
+  }, [busy, poster, filenameSlug]);
+
+  const handleWhatsApp = useCallback(() => {
+    openWhatsAppStatusHint(shareSnippetUrl);
+  }, [shareSnippetUrl]);
 
   return (
-    <>
-      <div className="rounded-3xl border border-[#162042] bg-linear-to-br from-[#050816]/95 via-[#0a1530]/90 to-[#050816] p-7 shadow-[0_40px_100px_-40px_rgba(125,216,255,0.25)] ring-2 ring-[#234a7a]/55">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#7dd8ff]/90">Stories &amp; reels</p>
-            <h2 className="mt-2 text-xl font-semibold tracking-tight text-white">Share your snapshot as an image</h2>
-            <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/62">
-              9:16 card in the homepage hero palette — luminous meters, trend line, hashtags. Save PNG and upload to&nbsp;Instagram Stories.
-            </p>
-          </div>
+    <div className="rounded-3xl border border-[#162042] bg-linear-to-br from-[#050816]/95 via-[#0a1530]/90 to-[#050816] p-7 shadow-[0_40px_100px_-40px_rgba(125,216,255,0.25)] ring-2 ring-[#234a7a]/55">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#7dd8ff]/90">Stories &amp; status</p>
+          <h2 className="mt-2 text-xl font-semibold tracking-tight text-white">Share your snapshot image</h2>
+          <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/62">
+            9:16 card in your brand palette — built for Stories &amp; status.{" "}
+            <span className="text-white/80">On phones, Share opens Instagram or WhatsApp when those apps appear in your sheet.</span>
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-col gap-2 sm:items-end">
           <button
             type="button"
             disabled={busy}
-            onClick={() => void download()}
-            className="shrink-0 rounded-2xl bg-linear-to-r from-[#61aaff] to-[#7dd8ff] px-5 py-3 text-sm font-bold text-[#061018] shadow-lg shadow-black/35 disabled:opacity-50"
+            title="Opens the OS share sheet (mobile). Prefer Instagram Stories or WhatsApp."
+            onClick={() => void handleSystemShare()}
+            className="w-full rounded-2xl bg-white px-5 py-3 text-center text-sm font-bold text-[#061018] shadow-lg shadow-black/35 disabled:opacity-50 sm:min-w-[220px]"
           >
-            {busy ? "Rendering…" : "Download PNG (1080×1920)"}
+            {busy ? "Preparing…" : "Share image…"}
           </button>
-        </div>
-
-        <div className="relative mx-auto mt-12 flex justify-center pb-6 pt-16">
-          <div className="pointer-events-none absolute inset-x-[8%] top-1/4 h-[50%] rounded-[40%] bg-[#7dd8ff]/12 blur-[60px]" />
-          <div
-            className="relative overflow-hidden rounded-[1.85rem] shadow-[0_52px_80px_-48px_rgb(125,216,255,0.35)] ring-2 ring-[#274f8f]/95"
-            style={{ width: 297, height: 528 }}
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void handleDownload()}
+            className="w-full rounded-2xl border border-white/20 bg-black/35 px-5 py-3 text-center text-sm font-semibold text-white/95 shadow-inner shadow-black/30 disabled:opacity-50 sm:min-w-[220px]"
           >
-            <div className="flex origin-top justify-center bg-[#050816]" style={{ transform: "scale(0.55)", transformOrigin: "top center", width: 540 }}>
-              <ResultsStoryPosterChrome {...poster} />
-            </div>
+            Download PNG (1080×1920)
+          </button>
+          <button
+            type="button"
+            onClick={handleWhatsApp}
+            className="w-full rounded-2xl border border-[#61aaff]/35 bg-black/25 px-5 py-3 text-center text-sm font-semibold text-[#c8efff] sm:min-w-[220px]"
+          >
+            WhatsApp (compose + tip)
+          </button>
+          <p className="hidden text-right text-[10px] leading-snug text-white/45 sm:block sm:max-w-[240px]">
+            IG has no upload URL — use Share or Save, then Stories.
+          </p>
+        </div>
+      </div>
+
+      <div className="relative mx-auto mt-10 flex justify-center pb-8 pt-6">
+        <div className="pointer-events-none absolute inset-x-[6%] top-[18%] h-[52%] rounded-[40%] bg-[#7dd8ff]/10 blur-[56px]" />
+        <div
+          className="relative mx-auto overflow-hidden rounded-[1.85rem] shadow-[0_52px_80px_-48px_rgb(125,216,255,0.35)] ring-2 ring-[#274f8f]/95"
+          style={{ width: previewOuterW, height: previewOuterH }}
+        >
+          <div style={{ width: STORY_W, height: STORY_H, transform: `scale(${previewScale})`, transformOrigin: "top left" }}>
+            <ResultsStoryPosterChrome {...poster} />
           </div>
         </div>
       </div>
-
-      <div ref={captureRef} className="fixed left-[-12000px] top-0 -z-[3] opacity-100" aria-hidden>
-        <ResultsStoryPosterChrome {...poster} />
-      </div>
-    </>
+      <p className="text-center text-xs text-white/45">
+        WhatsApp opens a chat composer with link + reminder to attach the PNG for Status — there is no public “status-only” upload API.
+      </p>
+    </div>
   );
 }

@@ -293,7 +293,7 @@ export function ResultsClient() {
         </div>
 
         <div className="mt-10">
-          <ResultsStoryPosterSection poster={storyPoster} filenameSlug={`results-${attemptId}`} />
+          <ResultsStoryPosterSection poster={storyPoster} filenameSlug={`results-${attemptId}`} shareSnippetUrl={shareUrl} />
         </div>
 
         <div className="mt-10 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">

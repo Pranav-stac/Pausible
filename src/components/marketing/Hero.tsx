@@ -4,7 +4,7 @@ import { TrackedAssessmentLink } from "@/components/marketing/TrackedAssessmentL
 export function Hero({ ctaHref }: { ctaHref: string }) {
   return (
     <section
-      className="px-4 py-10 sm:px-6 sm:py-12 lg:py-14 max-sm:flex max-sm:min-h-[calc(100dvh-10.75rem)] max-sm:flex-col max-sm:py-0 max-sm:pb-[env(safe-area-inset-bottom,0px)]"
+      className="px-4 py-10 sm:px-6 sm:py-12 lg:py-14 max-sm:flex max-sm:min-h-[calc(100dvh-8rem)] max-sm:flex-col max-sm:py-0"
       id="top"
       aria-labelledby="hero-heading"
     >
