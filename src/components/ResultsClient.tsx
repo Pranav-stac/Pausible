@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { NavAuthActions } from "@/components/NavAuthActions";
 import { useFirebaseAuth } from "@/lib/firebase/auth-context";
 import { isFirebaseConfigured } from "@/lib/firebase/config";
 import { fetchAttempt, listMyAttempts } from "@/lib/data/attempt-service";
@@ -12,6 +13,26 @@ import type { SerializedAttempt } from "@/lib/local/attempts";
 import { getArchetypeCopy } from "@/lib/results/archetype";
 import { dimensionRowsForAttempt } from "@/lib/results/dimension-rows";
 import { ResultsStoryPosterSection } from "@/components/results/ResultsStoryPosterSection";
+
+function ResultsTopBar() {
+  return (
+    <header className="sticky top-0 z-30 border-b border-slate-200/85 bg-white/95 backdrop-blur-sm scheme-light">
+      <div className="mx-auto flex max-w-6xl items-center justify-end gap-2 px-3 py-2.5 sm:justify-between sm:px-4 sm:py-3">
+        <Link
+          href="/"
+          className="mr-auto shrink-0 rounded-lg text-sm font-semibold text-slate-900 outline-offset-4 hover:text-slate-700 sm:mr-0"
+        >
+          Home
+        </Link>
+        {isFirebaseConfigured() ? (
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            <NavAuthActions />
+          </div>
+        ) : null}
+      </div>
+    </header>
+  );
+}
 
 export function ResultsClient() {
   const params = useParams<{ attemptId: string }>();
@@ -25,38 +46,57 @@ export function ResultsClient() {
   const [assessment, setAssessment] = useState<AssessmentDefinition | null>(null);
   const [history, setHistory] = useState<SerializedAttempt[]>([]);
   const [error, setError] = useState<string | null>(null);
-
-  const reload = useCallback(async () => {
-    if (!attemptId || !effectiveUid) return;
-    const a = await fetchAttempt(attemptId);
-    if (!a || a.uid !== effectiveUid) {
-      setError("Not found");
-      return;
-    }
-    setAttempt(a);
-    setAssessment(null);
-    try {
-      const asm = await fetchAssessment(a.assessmentId);
-      if (!asm) {
-        setError(
-          `Assessment "${a.assessmentId}" was not found in Firestore or is inactive. Sync it from Admin (e.g. “Sync default from question.json”).`,
-        );
-        return;
-      }
-      setAssessment(asm);
-      const all = await listMyAttempts(effectiveUid);
-      setHistory(all);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load assessment from Firestore");
-    }
-  }, [attemptId, effectiveUid]);
+  const [fetching, setFetching] = useState(true);
 
   useEffect(() => {
     if (!ready || !attemptId || !effectiveUid) return;
     if (mustUseGoogle && !hasGoogleIdentity) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- async data load
-    void reload();
-  }, [attemptId, effectiveUid, hasGoogleIdentity, mustUseGoogle, ready, reload]);
+
+    let cancelled = false;
+
+    (async () => {
+      setFetching(true);
+      setError(null);
+      setAttempt(null);
+      setAssessment(null);
+      setHistory([]);
+
+      const row = await fetchAttempt(attemptId);
+      if (cancelled) return;
+
+      if (!row || row.uid !== effectiveUid) {
+        setError("Not found");
+        setFetching(false);
+        return;
+      }
+      setAttempt(row);
+
+      try {
+        const asm = await fetchAssessment(row.assessmentId);
+        if (cancelled) return;
+        if (!asm) {
+          setError(
+            `Assessment "${row.assessmentId}" was not found in Firestore or is inactive. Sync it from Admin (e.g. “Sync default from question.json”).`,
+          );
+          setFetching(false);
+          return;
+        }
+        setAssessment(asm);
+        const all = await listMyAttempts(effectiveUid);
+        if (cancelled) return;
+        setHistory(all);
+      } catch (e) {
+        if (cancelled) return;
+        setError(e instanceof Error ? e.message : "Failed to load assessment from Firestore");
+      } finally {
+        if (!cancelled) setFetching(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [attemptId, effectiveUid, hasGoogleIdentity, mustUseGoogle, ready]);
 
   const arch = useMemo(
     () => (assessment && attempt?.scores ? getArchetypeCopy(assessment, attempt.scores.archetypeKey) : null),
@@ -108,130 +148,149 @@ export function ResultsClient() {
   }, [shareUrl]);
 
   if (!ready) {
-    return <div className="p-10 text-center text-sm text-slate-500">Loading results…</div>;
+    return (
+      <div className="min-h-screen bg-white scheme-light text-slate-900">
+        <div className="p-10 text-center text-sm text-slate-600">Loading results…</div>
+      </div>
+    );
   }
 
   if (mustUseGoogle && !hasGoogleIdentity) {
-    return (
-      <div className="mx-auto max-w-lg px-4 py-16 text-center">
-        <h1 className="text-lg font-semibold text-slate-900">Sign in to view results</h1>
-        <p className="mt-2 text-sm leading-relaxed text-slate-600">
-          With Firebase enabled, detailed results load only after a Google account is on this session. If you took the
-          assessment as a guest, link Google first so your attempt stays on the same UID.
-        </p>
-        <div className="mt-6 flex flex-col items-center gap-3">
-          {user?.isAnonymous ? (
-            <button
-              type="button"
-              onClick={() => void linkGoogle()}
-              className="rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white"
-            >
-              Link Google
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => void signInWithGoogle()}
-              className="rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white"
-            >
-              Sign in with Google
-            </button>
-          )}
-          <Link href="/" className="text-sm font-semibold text-sky-600">
-            ← Home
-          </Link>
+    if (!user) {
+      return (
+        <div className="min-h-screen bg-white scheme-light text-slate-900">
+          <ResultsTopBar />
+          <div className="p-10 text-center text-sm text-slate-600">Preparing your session…</div>
         </div>
+      );
+    }
+
+    return (
+      <div className="min-h-screen bg-white scheme-light text-slate-900">
+        <ResultsTopBar />
+        <div className="mx-auto max-w-lg px-4 py-12 text-center sm:py-16">
+          <h1 className="text-lg font-semibold text-slate-900">Sign in to view results</h1>
+          {user.isAnonymous ? (
+            <>
+              <p className="mt-3 text-sm leading-relaxed text-slate-600">
+                Link Google from this browser to keep your current attempt tied to one account.&nbsp;
+                <span className="font-semibold text-slate-700">Do not tap “Sign in” in another tab</span>—that replaces
+                the guest session and this link won&apos;t resolve until you link here.
+              </p>
+              <div className="mt-8 flex flex-col items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => void linkGoogle()}
+                  className="rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-900"
+                >
+                  Link Google
+                </button>
+                <Link href="/" className="text-sm font-semibold text-sky-700 hover:text-indigo-800">
+                  ← Home
+                </Link>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="mt-3 text-sm leading-relaxed text-slate-600">
+                Your Google identity is needed to load paid results from Firebase for this deployment.
+              </p>
+              <div className="mt-8 flex flex-col items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => void signInWithGoogle()}
+                  className="rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-900"
+                >
+                  Sign in with Google
+                </button>
+                <Link href="/" className="text-sm font-semibold text-sky-700 hover:text-indigo-800">
+                  ← Home
+                </Link>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (!effectiveUid) {
+    return (
+      <div className="min-h-screen bg-white scheme-light text-slate-900">
+        <ResultsTopBar />
+        <div className="p-10 text-center text-sm text-slate-600">Connecting your profile…</div>
+      </div>
+    );
+  }
+
+  if (fetching) {
+    return (
+      <div className="min-h-screen bg-white scheme-light text-slate-900">
+        <ResultsTopBar />
+        <div className="p-10 text-center text-sm text-slate-600">Loading results…</div>
       </div>
     );
   }
 
   if (error || !attempt || !assessment) {
     return (
-      <div className="mx-auto max-w-lg px-1.5 py-16 text-center sm:px-2">
-        <p className="text-sm text-slate-600">{error ?? "Loading…"}</p>
-        <Link href="/assessment/default" className="mt-4 inline-block text-sm font-semibold text-sky-600">
-          Start assessment
-        </Link>
+      <div className="min-h-screen bg-white scheme-light text-slate-900">
+        <ResultsTopBar />
+        <div className="mx-auto max-w-lg px-4 py-16 text-center sm:py-16">
+          <p className="text-sm leading-relaxed text-slate-600">{error ?? "Something went wrong."}</p>
+          {error === "Not found" && isFirebaseConfigured() ? (
+            <p className="mx-auto mt-4 max-w-md text-xs leading-relaxed text-slate-500">
+              Tip: if you started as a guest, use <strong className="text-slate-700">Link Google</strong> in the top bar
+              on this page so your attempt stays on the same profile.
+            </p>
+          ) : null}
+          <Link
+            href="/assessment/default"
+            className="mt-8 inline-block text-sm font-semibold text-sky-700 underline decoration-sky-300 underline-offset-[3px] hover:text-indigo-800"
+          >
+            Start assessment
+          </Link>
+        </div>
       </div>
     );
   }
 
   if (attempt.paymentStatus !== "paid") {
     return (
-      <div className="min-h-screen bg-white px-1.5 py-12 sm:px-2 sm:py-16">
-        <div className="mx-auto max-w-xl">
-          <div className="rounded-3xl border border-amber-200 bg-amber-50 p-8 text-center shadow-sm">
-            <h1 className="text-2xl font-semibold text-slate-900">Complete payment to unlock</h1>
-            <p className="mt-3 text-sm text-slate-700">
-              We&apos;ve saved your responses. Checkout unlocks the full premium breakdown for this attempt.
-            </p>
-            <button
-              type="button"
-              onClick={() => router.push(`/checkout?attemptId=${encodeURIComponent(attempt.id)}`)}
-              className="mt-6 rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white"
-            >
-              Go to checkout
-            </button>
-          </div>
-
-          {isFirebaseConfigured() ? (
-            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 text-left shadow-sm">
-              <h2 className="text-sm font-semibold text-slate-900">Optional: save this attempt to your account</h2>
-              <p className="mt-2 text-xs leading-relaxed text-slate-600">
-                Sign in with Google (or link from your anonymous session) so this attempt can sync across devices. Your
-                answers stay private unless you choose to share the spotlight link after payment.
+      <div className="min-h-screen bg-white scheme-light text-slate-900">
+        <ResultsTopBar />
+        <div className="px-4 py-10 sm:px-6 sm:py-14">
+          <div className="mx-auto max-w-xl">
+            <div className="rounded-3xl border border-amber-200 bg-amber-50 p-8 text-center shadow-sm">
+              <h1 className="text-2xl font-semibold text-slate-900">Complete payment to unlock</h1>
+              <p className="mt-3 text-sm text-slate-700">
+                We&apos;ve saved your responses. Checkout unlocks the full premium breakdown for this attempt.
               </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {user?.email ? (
-                  <p className="w-full text-sm font-medium text-slate-800">Signed in as {user.email}</p>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => void (user?.isAnonymous ? linkGoogle() : signInWithGoogle())}
-                    className="rounded-full bg-slate-950 px-4 py-2 text-xs font-semibold text-white sm:text-sm"
-                  >
-                    {user?.isAnonymous ? "Link Google" : "Sign in with Google"}
-                  </button>
-                )}
-              </div>
+              <button
+                type="button"
+                onClick={() => router.push(`/checkout?attemptId=${encodeURIComponent(attempt.id)}`)}
+                className="mt-6 rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-900"
+              >
+                Go to checkout
+              </button>
             </div>
-          ) : null}
+
+            {isFirebaseConfigured() ? (
+              <p className="mt-6 text-center text-xs leading-relaxed text-slate-600">
+                Optional: use <strong className="text-slate-800">Link Google</strong> in the top bar to keep this attempt
+                on your account.
+              </p>
+            ) : null}
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-slate-50 to-white px-1.5 py-10 sm:px-2">
-      <div className="mx-auto max-w-6xl">
-        {isFirebaseConfigured() ? (
-          <div className="mb-8 rounded-3xl border border-sky-200/70 bg-linear-to-r from-sky-50 via-white to-indigo-50/80 p-6 shadow-sm">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-sky-900/80">Account</h2>
-                <p className="mt-1 max-w-xl text-sm text-slate-700">
-                  Optional login keeps your history recoverable across devices. Anonymous sessions stay on this browser
-                  until you link Google.
-                </p>
-              </div>
-              {user?.email ? (
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-slate-900">{user.email}</p>
-                  <p className="text-xs text-slate-500">Signed in</p>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => void (user?.isAnonymous ? linkGoogle() : signInWithGoogle())}
-                  className="shrink-0 rounded-full bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white"
-                >
-                  {user?.isAnonymous ? "Link Google" : "Sign in with Google"}
-                </button>
-              )}
-            </div>
-          </div>
-        ) : null}
-
+    <div className="min-h-screen bg-linear-to-b from-slate-50 to-white scheme-light text-slate-900">
+      <ResultsTopBar />
+      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
         <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Latest paid spotlight</p>
@@ -257,9 +316,6 @@ export function ResultsClient() {
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#7dd8ff]/85">Dimensional breakdown</p>
             <h2 className="mt-2 text-lg font-semibold tracking-tight text-white">Trait meters</h2>
-            <p className="mt-2 max-w-2xl text-xs leading-relaxed text-white/62">
-              Neon rails match your downloadable Story card — capped-relative percentages from scoring.
-            </p>
           </div>
           <div className="mt-8 space-y-5">
             {dimensionRows.length === 0 ? (

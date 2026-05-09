@@ -20,7 +20,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
-  themeColor: [{ media: "(prefers-color-scheme: light)", color: "#ffffff" }, { media: "(prefers-color-scheme: dark)", color: "#050816" }],
+  themeColor: "#ffffff",
 };
 
 export const metadata: Metadata = {
@@ -77,7 +77,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full scroll-smooth antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full scroll-smooth antialiased scheme-light`}
     >
       <body className="flex min-h-full min-w-0 flex-col overflow-x-hidden bg-white font-sans text-slate-900">
         <AppProviders>
