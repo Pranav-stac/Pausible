@@ -139,11 +139,19 @@ export function AdminDashboard() {
         reason?: string;
         hint?: string;
         tokenUid?: string;
+        devVerifyMessage?: string;
       };
       const base = j.error ?? `Request failed (${res.status})`;
       if (res.status === 403) {
         throw new Error(
-          [base, `(${res.status})`, j.reason && `reason=${j.reason}`, j.tokenUid && `tokenUid=${j.tokenUid}`, j.hint]
+          [
+            base,
+            `(${res.status})`,
+            j.reason && `reason=${j.reason}`,
+            j.tokenUid && `tokenUid=${j.tokenUid}`,
+            j.hint,
+            j.devVerifyMessage && `detail=${j.devVerifyMessage}`,
+          ]
             .filter(Boolean)
             .join(" — "),
         );
