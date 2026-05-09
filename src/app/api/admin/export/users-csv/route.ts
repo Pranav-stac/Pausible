@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api/admin-auth";
+import { firebaseAdminErrorHint, isFirebaseAdminUnauthenticatedError } from "@/lib/firebase/admin-firestore-errors";
 import { getAdminAuth, getAdminFirestore } from "@/lib/firebase/server";
 
 function esc(c: string) {
@@ -17,7 +18,15 @@ export async function GET(req: NextRequest) {
   if (!auth) return NextResponse.json({ error: "Auth admin missing" }, { status: 503 });
 
   const max = Math.min(1000, Math.max(10, Number(req.nextUrl.searchParams.get("max") ?? "500")));
-  const list = await auth.listUsers(max);
+  let list;
+  try {
+    list = await auth.listUsers(max);
+  } catch (e) {
+    if (isFirebaseAdminUnauthenticatedError(e)) {
+      return NextResponse.json({ error: "Firebase Admin credentials rejected", hint: firebaseAdminErrorHint() }, { status: 503 });
+    }
+    throw e;
+  }
   const db = getAdminFirestore();
 
   const fsRole = new Map<string, string | null>();

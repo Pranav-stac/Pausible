@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import ExcelJS from "exceljs";
 import { requireAdmin } from "@/lib/api/admin-auth";
+import { firebaseAdminErrorHint, isFirebaseAdminUnauthenticatedError } from "@/lib/firebase/admin-firestore-errors";
 import { getAdminFirestore } from "@/lib/firebase/server";
 
 export async function GET(req: NextRequest) {
@@ -25,22 +26,29 @@ export async function GET(req: NextRequest) {
 
   const db = getAdminFirestore();
   if (db) {
-    const snap = await db.collection("attempts").orderBy("createdAt", "desc").limit(5000).get();
-    snap.docs.forEach((d) => {
-      const x = d.data();
-      attemptsSheet.addRow({
-        attemptId: d.id,
-        uid: String(x.uid ?? ""),
-        assessmentId: String(x.assessmentId ?? ""),
-        paymentStatus: String(x.paymentStatus ?? ""),
-        paymentProvider: String(x.paymentProvider ?? ""),
-        paymentId: String(x.paymentId ?? ""),
-        shareEligible: Boolean(x.isLatestShareEligible) ? "yes" : "no",
-        shareToken: String(x.shareToken ?? "").slice(0, 12),
-        createdAt: x.createdAt?.toDate?.()?.toISOString?.() ?? "",
-        paidAt: x.paidAt?.toDate?.()?.toISOString?.() ?? "",
+    try {
+      const snap = await db.collection("attempts").orderBy("createdAt", "desc").limit(5000).get();
+      snap.docs.forEach((d) => {
+        const x = d.data();
+        attemptsSheet.addRow({
+          attemptId: d.id,
+          uid: String(x.uid ?? ""),
+          assessmentId: String(x.assessmentId ?? ""),
+          paymentStatus: String(x.paymentStatus ?? ""),
+          paymentProvider: String(x.paymentProvider ?? ""),
+          paymentId: String(x.paymentId ?? ""),
+          shareEligible: Boolean(x.isLatestShareEligible) ? "yes" : "no",
+          shareToken: String(x.shareToken ?? "").slice(0, 12),
+          createdAt: x.createdAt?.toDate?.()?.toISOString?.() ?? "",
+          paidAt: x.paidAt?.toDate?.()?.toISOString?.() ?? "",
+        });
       });
-    });
+    } catch (e) {
+      if (isFirebaseAdminUnauthenticatedError(e)) {
+        return NextResponse.json({ error: "Firebase Admin credentials rejected", hint: firebaseAdminErrorHint() }, { status: 503 });
+      }
+      throw e;
+    }
   } else {
     attemptsSheet.addRow({
       attemptId: "demo",

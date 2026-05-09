@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api/admin-auth";
+import { firebaseAdminErrorHint, isFirebaseAdminUnauthenticatedError } from "@/lib/firebase/admin-firestore-errors";
 import { getAdminFirestore } from "@/lib/firebase/server";
 
 function esc(c: string) {
@@ -18,7 +19,15 @@ export async function GET(req: NextRequest) {
 
   const limit = Math.min(8000, Math.max(1, Number(req.nextUrl.searchParams.get("limit") ?? "2000")));
 
-  const snap = await db.collection("attempts").orderBy("createdAt", "desc").limit(limit).get();
+  let snap;
+  try {
+    snap = await db.collection("attempts").orderBy("createdAt", "desc").limit(limit).get();
+  } catch (e) {
+    if (isFirebaseAdminUnauthenticatedError(e)) {
+      return NextResponse.json({ error: "Firebase Admin credentials rejected", hint: firebaseAdminErrorHint() }, { status: 503 });
+    }
+    throw e;
+  }
 
   const header = [
     "attempt_id",
