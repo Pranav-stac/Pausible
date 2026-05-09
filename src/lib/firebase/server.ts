@@ -1,6 +1,7 @@
 import * as firebaseAdminApp from "firebase-admin/app";
 import { getAuth, type Auth } from "firebase-admin/auth";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -60,30 +61,63 @@ export function getAdminAuth(): Auth | null {
   return getAuth(app);
 }
 
+function adminAppName(jsonTrimmed: string): string {
+  const suffix = createHash("sha256").update(jsonTrimmed).digest("hex").slice(0, 32);
+  return `pausable-admin-${suffix}`;
+}
+
+function duplicateAdminApp(error: unknown): boolean {
+  const any = error as { code?: string; message?: string };
+  const m = `${any?.code ?? ""} ${any?.message ?? ""}`;
+  return any?.code === "app/duplicate-app" || /\balready exists\b/i.test(m);
+}
+
 export function firebaseAdminCredentialsJson(): string | null {
   return loadCredentialsRaw();
 }
 
-/** Returns Firebase Admin App or null when credentials absent/invalid */
 export function initializeFirebaseAdmin() {
-  const apps = firebaseAdminApp.getApps();
-  if (apps.length) return apps[0]!;
+  const jsonRaw = loadCredentialsRaw();
+  if (!jsonRaw?.trim()) return null;
 
-  const json = loadCredentialsRaw();
-  if (!json?.trim()) return null;
+  const jsonTrimmed = jsonRaw.trim();
 
+  let sa: Record<string, unknown>;
   try {
-    const sa = JSON.parse(json) as Record<string, unknown>;
+    sa = JSON.parse(jsonTrimmed) as Record<string, unknown>;
     normalizePrivateKey(sa);
-    return firebaseAdminApp.initializeApp({
-      credential: firebaseAdminApp.cert(sa as firebaseAdminApp.ServiceAccount),
-    });
   } catch (e) {
     if (process.env.NODE_ENV === "development") {
       console.error(
-        "[firebase-admin] Invalid FIREBASE_ADMIN_CREDENTIALS_JSON (or unreadable FIREBASE_ADMIN_CREDENTIALS_PATH).",
+        "[firebase-admin] Invalid FIREBASE_ADMIN credential JSON / BASE64 / path (parse failed).",
         e,
       );
+    }
+    return null;
+  }
+
+  const name = adminAppName(jsonTrimmed);
+
+  try {
+    return firebaseAdminApp.getApp(name);
+  } catch {
+    /* must initialize below */
+  }
+
+  const projectId = typeof sa.project_id === "string" ? sa.project_id : undefined;
+
+  try {
+    return firebaseAdminApp.initializeApp(
+      {
+        credential: firebaseAdminApp.cert(sa as firebaseAdminApp.ServiceAccount),
+        ...(projectId ? { projectId } : {}),
+      },
+      name,
+    );
+  } catch (e) {
+    if (duplicateAdminApp(e)) return firebaseAdminApp.getApp(name);
+    if (process.env.NODE_ENV === "development") {
+      console.error("[firebase-admin] initializeApp failed.", e);
     }
     return null;
   }

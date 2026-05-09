@@ -68,7 +68,7 @@ async function getBearer(): Promise<string | null> {
   const auth = getFirebaseAuth();
   const u = auth?.currentUser;
   if (!u) return null;
-  return u.getIdToken();
+  return u.getIdToken(true);
 }
 
 function firestoreJsonReplacer(_key: string, value: unknown) {
