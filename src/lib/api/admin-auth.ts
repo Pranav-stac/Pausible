@@ -32,7 +32,7 @@ export async function requireAdmin(req: NextRequest): Promise<AdminGate> {
       ok: false,
       response: forbidden({
         reason: "server_firebase_admin_unconfigured",
-        hint: 'Set FIREBASE_ADMIN_CREDENTIALS_PATH (recommended: path to the downloaded service-account .json file) or FIREBASE_ADMIN_CREDENTIALS_JSON must parse as JSON; same Firebase project as NEXT_PUBLIC_FIREBASE_*. In dev, check the server terminal for JSON parse errors.',
+        hint: 'Set FIREBASE_ADMIN_CREDENTIALS_JSON (paste full JSON) or FIREBASE_ADMIN_CREDENTIALS_JSON_BASE64 (base64-encoded file contents, best for Vercel) or FIREBASE_ADMIN_CREDENTIALS_PATH. Must match NEXT_PUBLIC_FIREBASE_PROJECT_ID.',
       }),
     };
   }

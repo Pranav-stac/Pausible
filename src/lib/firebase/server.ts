@@ -19,6 +19,16 @@ function loadCredentialsRaw(): string | null {
     }
   }
 
+  /** Safer on Vercel than pasting raw JSON (no quote/newline mangling, no 4k-ish paste issues). */
+  const b64 = process.env.FIREBASE_ADMIN_CREDENTIALS_JSON_BASE64?.trim();
+  if (b64) {
+    try {
+      return Buffer.from(b64, "base64").toString("utf8").replace(/^\uFEFF/, "");
+    } catch {
+      return null;
+    }
+  }
+
   const rawJson = process.env.FIREBASE_ADMIN_CREDENTIALS_JSON?.trim();
   if (!rawJson) return null;
   return rawJson.replace(/^\uFEFF/, "");

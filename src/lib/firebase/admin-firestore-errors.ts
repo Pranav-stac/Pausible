@@ -14,5 +14,9 @@ export function isFirebaseAdminUnauthenticatedError(err: unknown): boolean {
 }
 
 export function firebaseAdminErrorHint(): string {
-  return "Server env must include valid FIREBASE_ADMIN_CREDENTIALS_JSON (or PATH) for the same Firebase project as the app. On Vercel, paste the full service-account JSON (regenerate the key if revoked).";
+  return (
+    "Server env must include valid FIREBASE_ADMIN_CREDENTIALS_JSON (same project as NEXT_PUBLIC_FIREBASE_*), " +
+    "or FIREBASE_ADMIN_CREDENTIALS_JSON_BASE64 (recommended on Vercel: base64 the full downloaded service-account .json file), " +
+    "or FIREBASE_ADMIN_CREDENTIALS_PATH. Paste errors often truncate or break private_key — regenerate if revoked or leaked."
+  );
 }
