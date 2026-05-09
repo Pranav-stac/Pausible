@@ -298,28 +298,42 @@ export function AssessmentRunner({
   return (
     <div className="min-h-screen bg-linear-to-b from-slate-100 via-slate-50 to-sky-50/90 pb-40">
       <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/90 backdrop-blur-md">
-        <div className="mx-auto flex max-w-lg flex-wrap items-center justify-between gap-3 px-3 py-3 sm:max-w-xl sm:px-4 lg:max-w-[40rem]">
-          <Link href="/" className="flex items-center rounded-lg outline-offset-4" aria-label="Pausible home">
-            <BrandLogo heightClass="h-7 sm:h-8" withWordmark wordmarkClassName="text-base sm:text-[1.05rem]" />
-          </Link>
-          {showTestFill ? (
-            <button
-              type="button"
-              title="Development / QA only"
-              onClick={fillAllRandomTesting}
-              className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-800 shadow-sm hover:bg-slate-50 sm:text-xs"
-            >
-              Fill all randomly (test)
-            </button>
-          ) : null}
-          <div className="flex min-w-[120px] flex-1 basis-[180px] items-center gap-2">
-            <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200/80">
+        <div className="mx-auto flex max-w-lg flex-col gap-2 px-3 py-3 sm:max-w-xl sm:px-4 lg:max-w-[40rem]">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Link href="/" className="flex items-center rounded-lg outline-offset-4" aria-label="Pausible home">
+              <BrandLogo heightClass="h-7 sm:h-8" withWordmark wordmarkClassName="text-base sm:text-[1.05rem]" />
+            </Link>
+            {showTestFill ? (
+              <button
+                type="button"
+                title="Development / QA only"
+                onClick={fillAllRandomTesting}
+                className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-800 shadow-sm hover:bg-slate-50 sm:text-xs"
+              >
+                Fill all randomly (test)
+              </button>
+            ) : null}
+          </div>
+
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-slate-200/80">
               <div
                 className="h-full rounded-full bg-linear-to-r from-sky-500 to-indigo-500 transition-all"
                 style={{ width: `${progress}%` }}
               />
             </div>
-            <span className="text-[11px] font-semibold tabular-nums text-slate-700">{progress}%</span>
+            <span className="shrink-0 text-[11px] font-semibold tabular-nums text-slate-700">{progress}%</span>
+          </div>
+
+          <div className="flex justify-end">
+            <button
+              type="button"
+              disabled={!canGoBack}
+              onClick={() => goToPreviousQuestion()}
+              className="min-h-[40px] rounded-full border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-800 shadow-sm hover:border-slate-400 hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-40 sm:text-sm"
+            >
+              ← Previous question
+            </button>
           </div>
         </div>
       </header>
@@ -433,26 +447,16 @@ export function AssessmentRunner({
       </main>
 
       <footer className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200/75 bg-white/95 px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-10px_36px_-24px_rgba(15,23,42,0.12)] backdrop-blur-md">
-        <div className="mx-auto flex max-w-lg flex-wrap items-center justify-between gap-3 sm:max-w-xl lg:max-w-[40rem]">
+        <div className="mx-auto flex max-w-lg flex-wrap items-center justify-end gap-3 sm:max-w-xl lg:max-w-[40rem]">
+          <p className="text-[11px] font-medium text-slate-700">{answeredCount}/{total} answered</p>
           <button
             type="button"
-            disabled={!canGoBack}
-            onClick={() => goToPreviousQuestion()}
-            className="min-h-[44px] shrink-0 rounded-full border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 shadow-sm hover:border-slate-400 hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-40"
+            onClick={() => void handleFinish()}
+            disabled={!canFinish || phase === "hiding"}
+            className="rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/20 disabled:opacity-40"
           >
-            ← Previous question
+            {requirePayment ? "Finish & continue to checkout" : "Finish & unlock results"}
           </button>
-          <div className="flex min-w-[160px] flex-1 flex-wrap items-center justify-end gap-3 sm:flex-nowrap">
-            <p className="text-[11px] font-medium text-slate-700">{answeredCount}/{total} answered</p>
-            <button
-              type="button"
-              onClick={() => void handleFinish()}
-              disabled={!canFinish || phase === "hiding"}
-              className="rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/20 disabled:opacity-40"
-            >
-              {requirePayment ? "Finish & continue to checkout" : "Finish & unlock results"}
-            </button>
-          </div>
         </div>
       </footer>
     </div>
