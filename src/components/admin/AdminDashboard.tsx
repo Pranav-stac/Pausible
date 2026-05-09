@@ -68,7 +68,7 @@ async function getBearer(): Promise<string | null> {
   const auth = getFirebaseAuth();
   const u = auth?.currentUser;
   if (!u) return null;
-  return u.getIdToken(true);
+  return u.getIdToken();
 }
 
 function firestoreJsonReplacer(_key: string, value: unknown) {
@@ -139,19 +139,11 @@ export function AdminDashboard() {
         reason?: string;
         hint?: string;
         tokenUid?: string;
-        devVerifyMessage?: string;
       };
       const base = j.error ?? `Request failed (${res.status})`;
       if (res.status === 403) {
         throw new Error(
-          [
-            base,
-            `(${res.status})`,
-            j.reason && `reason=${j.reason}`,
-            j.tokenUid && `tokenUid=${j.tokenUid}`,
-            j.hint,
-            j.devVerifyMessage && `detail=${j.devVerifyMessage}`,
-          ]
+          [base, `(${res.status})`, j.reason && `reason=${j.reason}`, j.tokenUid && `tokenUid=${j.tokenUid}`, j.hint]
             .filter(Boolean)
             .join(" — "),
         );

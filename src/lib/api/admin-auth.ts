@@ -40,15 +40,12 @@ export async function requireAdmin(req: NextRequest): Promise<AdminGate> {
   let uid: string;
   try {
     uid = (await getAuth(app).verifyIdToken(token)).uid;
-  } catch (e: unknown) {
-    const devMsg = process.env.NODE_ENV === "development" && e instanceof Error ? e.message : undefined;
+  } catch {
     return {
       ok: false,
       response: forbidden({
         reason: "invalid_id_token",
-        hint:
-          "Token rejected by Firebase Admin — sign out and sign in again, or ensure the Admin service-account project_id equals NEXT_PUBLIC_FIREBASE_PROJECT_ID for this deployment (common after swapping BASE64 credentials: restart dev server if error persists without deploy). After changing FIREBASE_ADMIN_* env, redeploy.",
-        ...(devMsg ? { devVerifyMessage: devMsg } : {}),
+        hint: "Token rejected by Firebase Admin — sign out and back in, or check server vs client Firebase project match.",
       }),
     };
   }
