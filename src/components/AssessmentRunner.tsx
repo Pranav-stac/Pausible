@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { BrandLogo } from "@/components/BrandLogo";
 import { trackAssessmentComplete, trackAssessmentStart } from "@/lib/analytics/track";
@@ -18,8 +18,19 @@ import { assessmentTestToolsAllowed, randomAnswersForQuestions } from "@/lib/tes
 import { getOrCreateLocalUid } from "@/lib/local/uid";
 
 const DEBOUNCE_SAVE_MS = 400;
-/** Fade current card before promoting the next into the same slot */
-const CARD_FADE_OUT_MS = 300;
+
+/** Short line for collapsed “answered” rows (shown under header so current question dominates). */
+function summarizeAnswerSnippet(q: AssessmentQuestion, raw: unknown): string {
+  const coerced = coerceAnswer(q, raw as number | string | string[] | undefined);
+  if (coerced === null) return "";
+  if (q.type === "likert") return `Chosen: ${coerced}`;
+  if (q.type === "single") {
+    const s = String(coerced);
+    return s.length > 48 ? `${s.slice(0, 46)}…` : s;
+  }
+  if (q.type === "multi" && Array.isArray(coerced)) return `${coerced.length} selected`;
+  return "";
+}
 
 function flattenQuestions(a: AssessmentDefinition): AssessmentQuestion[] {
   const order: AssessmentQuestion[] = [];
@@ -51,10 +62,11 @@ export function AssessmentRunner({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, number | string | string[]>>({});
   const [localUid, setLocalUid] = useState<string | null>(null);
-  const [activeIndex, setActiveIndex] = useState(0);
-  type Phase = "show" | "hiding";
-  const [phase, setPhase] = useState<Phase>("show");
-  const hideTimeoutRef = useRef<number | null>(null);
+  /** Renders question cards 0..revealedCount-1; increments when the latest visible question is answered. */
+  const [revealedCount, setRevealedCount] = useState(1);
+  /** Full editor for one answered question when user taps its compact row */
+  const [expandedPastIndex, setExpandedPastIndex] = useState<number | null>(null);
+  const questionRefs = useRef<(HTMLDivElement | null)[]>([]);
   const attemptIdRef = useRef("");
   const startTrackedRef = useRef<string | null>(null);
   const assessmentSessionIdRef = useRef<string | null>(null);
@@ -77,15 +89,15 @@ export function AssessmentRunner({
     if (!assessment?.id) return;
     if (assessmentSessionIdRef.current === assessment.id) return;
     assessmentSessionIdRef.current = assessment.id;
-    if (hideTimeoutRef.current) {
-      window.clearTimeout(hideTimeoutRef.current);
-      hideTimeoutRef.current = null;
-    }
     attemptIdRef.current = crypto.randomUUID();
     setAnswers({});
-    setActiveIndex(0);
-    setPhase("show");
+    setRevealedCount(1);
+    setExpandedPastIndex(null);
   }, [assessment]);
+
+  useEffect(() => {
+    setExpandedPastIndex(null);
+  }, [revealedCount]);
 
   useEffect(() => {
     if (bootstrapAssessment != null) return;
@@ -113,12 +125,6 @@ export function AssessmentRunner({
     };
   }, [assessmentId, bootstrapAssessment]);
 
-  useEffect(() => {
-    return () => {
-      if (hideTimeoutRef.current) window.clearTimeout(hideTimeoutRef.current);
-    };
-  }, []);
-
   const questions = useMemo(() => (assessment ? flattenQuestions(assessment) : []), [assessment]);
   const total = questions.length;
 
@@ -132,37 +138,41 @@ export function AssessmentRunner({
     setAnswers((prev) => ({ ...prev, [qid]: value }));
   }, []);
 
-  const beginAdvanceAfterAnswer = useCallback(() => {
-    if (phase === "hiding") return;
-    setPhase("hiding");
-    if (hideTimeoutRef.current !== null) window.clearTimeout(hideTimeoutRef.current);
-    hideTimeoutRef.current = window.setTimeout(() => {
-      hideTimeoutRef.current = null;
-      setActiveIndex((prev) => Math.min(prev + 1, Math.max(total, 0)));
-      setPhase("show");
-    }, CARD_FADE_OUT_MS);
-  }, [phase, total]);
-
-  const goToPreviousQuestion = useCallback(() => {
-    if (hideTimeoutRef.current !== null) {
-      window.clearTimeout(hideTimeoutRef.current);
-      hideTimeoutRef.current = null;
-      setPhase("show");
-      setActiveIndex((prev) => {
-        if (total <= 0) return prev;
-        if (prev >= total) return Math.max(0, total - 1);
-        return Math.max(0, prev - 1);
-      });
-      return;
-    }
-    setPhase("show");
-    setActiveIndex((prev) => {
-      if (total <= 0) return prev;
-      if (prev >= total) return Math.max(0, total - 1);
-      if (prev <= 0) return prev;
-      return prev - 1;
-    });
+  const tryRevealNextAfterIndex = useCallback((answeredIndex: number) => {
+    setRevealedCount((r) => (answeredIndex === r - 1 && r < total ? r + 1 : r));
   }, [total]);
+
+  const scrollToQuestion = useCallback((index: number) => {
+    const el = questionRefs.current[index];
+    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
+  const scrollToPreviousBlock = useCallback(() => {
+    if (revealedCount < 2) return;
+    scrollToQuestion(Math.max(0, revealedCount - 2));
+  }, [revealedCount, scrollToQuestion]);
+
+  useLayoutEffect(() => {
+    if (revealedCount < 1 || typeof window === "undefined") return;
+    const idx = revealedCount - 1;
+    let frame2 = 0;
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    const frame1 = window.requestAnimationFrame(() => {
+      frame2 = window.requestAnimationFrame(() => {
+        const el = questionRefs.current[idx];
+        if (el)
+          el.scrollIntoView({
+            behavior: reduceMotion ? "auto" : "smooth",
+            block: "start",
+            inline: "nearest",
+          });
+      });
+    });
+    return () => {
+      window.cancelAnimationFrame(frame1);
+      window.cancelAnimationFrame(frame2);
+    };
+  }, [revealedCount]);
 
   useEffect(() => {
     if (!assessment || !attemptUid || !attemptIdRef.current) return;
@@ -239,12 +249,7 @@ export function AssessmentRunner({
     if (!questions.length || !assessment) return;
     const next = randomAnswersForQuestions(questions);
     setAnswers(next);
-    setActiveIndex(questions.length);
-    setPhase("show");
-    if (hideTimeoutRef.current) {
-      window.clearTimeout(hideTimeoutRef.current);
-      hideTimeoutRef.current = null;
-    }
+    setRevealedCount(questions.length);
   }, [assessment, questions]);
 
   const showTestFill = assessmentTestToolsAllowed();
@@ -254,7 +259,7 @@ export function AssessmentRunner({
     return questions.every((q) => coerceAnswer(q, answers[q.id]) !== null);
   }, [questions, answers]);
 
-  const canGoBack = total > 0 && (activeIndex > 0 || activeIndex >= total);
+  const canScrollPrev = revealedCount >= 2;
 
   if (!ready || attemptUid === null) {
     return (
@@ -280,23 +285,10 @@ export function AssessmentRunner({
     );
   }
 
-  const currentQuestion = activeIndex < total ? questions[activeIndex] : null;
-  const previewSlice = [];
-  if (currentQuestion) {
-    for (let k = 1; k <= 2; k++) {
-      const j = activeIndex + k;
-      if (j < total) previewSlice.push(questions[j]);
-    }
-  }
-
-  const currentAnswerRaw = currentQuestion ? answers[currentQuestion.id] : undefined;
-  const currentLikertValue =
-    currentQuestion?.type === "likert" && typeof currentAnswerRaw === "number" ? currentAnswerRaw : undefined;
-  const currentSingleValue =
-    currentQuestion?.type === "single" && typeof currentAnswerRaw === "string" ? currentAnswerRaw : undefined;
+  const showCompletion = revealedCount >= total;
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-slate-100 via-slate-50 to-sky-50/90 pb-40">
+    <div className="min-h-screen bg-linear-to-b from-slate-100 via-slate-50 to-sky-50/90 pb-[10rem] sm:pb-44">
       <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-lg flex-col gap-2 px-3 py-3 sm:max-w-xl sm:px-4 lg:max-w-[40rem]">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -328,121 +320,166 @@ export function AssessmentRunner({
           <div className="flex justify-end">
             <button
               type="button"
-              disabled={!canGoBack}
-              onClick={() => goToPreviousQuestion()}
+              disabled={!canScrollPrev}
+              onClick={() => scrollToPreviousBlock()}
               className="min-h-[40px] rounded-full border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-800 shadow-sm hover:border-slate-400 hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-40 sm:text-sm"
             >
-              ← Previous question
+              ↑ Earlier question
             </button>
           </div>
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto w-full max-w-lg px-3 py-10 sm:max-w-xl sm:px-5 lg:max-w-[40rem]">
-        {activeIndex < total && currentQuestion ? (
-          <div
-            key={currentQuestion.id}
-            className={`transition-all duration-300 ease-out motion-reduce:transition-none ${
-              phase === "hiding" ? "pointer-events-none opacity-0 -translate-y-2 scale-[0.985]" : "opacity-100"
-            } ${phase === "show" ? "motion-reduce:!animate-none motion-safe:pausable-assessment-card-in" : ""}`}
-          >
-            <article className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-[0_22px_50px_-32px_rgba(15,23,42,0.18)] sm:p-8">
-              <p className="mb-3 text-[11px] font-semibold tabular-nums tracking-wide text-slate-500 sm:text-xs">
-                Question {activeIndex + 1} of {total}
-              </p>
-              <h2 className="text-lg font-bold leading-snug tracking-tight text-slate-950 sm:text-xl">
-                {currentQuestion.prompt}
-              </h2>
+      <main className="relative z-10 mx-auto w-full max-w-lg px-3 py-8 sm:max-w-xl sm:px-5 sm:py-10 lg:max-w-[40rem]">
+        <div className="flex flex-col gap-3 sm:gap-4">
+          {questions.slice(0, revealedCount).map((q, idx) => {
+            const raw = answers[q.id];
+            const likertVal = q.type === "likert" && typeof raw === "number" ? raw : undefined;
+            const singleVal = q.type === "single" && typeof raw === "string" ? raw : undefined;
+            const multiVal = q.type === "multi" && Array.isArray(raw) ? (raw as string[]) : [];
+            const activeIdx = revealedCount - 1;
+            const isActive = idx === activeIdx;
+            const isPast = idx < activeIdx;
+            const pastAnswered = isPast && coerceAnswer(q, raw) !== null;
+            const marginUnderHeader =
+              "scroll-mt-[10.75rem] sm:scroll-mt-[12.5rem]";
+            const snippet = summarizeAnswerSnippet(q, raw);
 
-              {currentQuestion.type === "likert" && currentQuestion.reverse ? (
-                <p className="mt-3 text-[11px] leading-relaxed text-amber-900/90">
-                  <span className="font-semibold">Note:</span> Reverse-worded—your choice is scored automatically;
-                  answer for how you actually behave.
-                </p>
-              ) : null}
+            if (pastAnswered && expandedPastIndex !== idx) {
+              return (
+                <div
+                  key={q.id}
+                  ref={(el) => {
+                    questionRefs.current[idx] = el;
+                  }}
+                  className={marginUnderHeader}
+                >
+                  <button
+                    type="button"
+                    className="flex w-full items-start gap-3 rounded-2xl border border-slate-200/95 bg-white/95 px-4 py-3 text-left shadow-sm ring-1 ring-slate-100/85 transition-colors hover:border-sky-300/70 hover:bg-white active:bg-sky-50/40 sm:rounded-3xl sm:py-3.5"
+                    onClick={() => {
+                      setExpandedPastIndex(idx);
+                      window.requestAnimationFrame(() => {
+                        questionRefs.current[idx]?.scrollIntoView({
+                          behavior: "smooth",
+                          block: "start",
+                          inline: "nearest",
+                        });
+                      });
+                    }}
+                  >
+                    <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-800">
+                      ✓
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="text-[11px] font-semibold text-slate-500">
+                        Question {idx + 1} of {total} · Answered
+                      </span>
+                      <p className="mt-1 line-clamp-2 text-sm font-medium leading-snug text-slate-800">{q.prompt}</p>
+                      {snippet ? <p className="mt-1.5 truncate text-xs text-slate-500">{snippet}</p> : null}
+                      <p className="mt-2 text-[11px] font-semibold text-sky-700">Tap to change answer</p>
+                    </span>
+                  </button>
+                </div>
+              );
+            }
 
-              <div className="mt-7">
-                {currentQuestion.type === "likert" && (
-                  <LikertScaleNumeric
-                    scaleMin={currentQuestion.scaleMin ?? 1}
-                    scaleMax={currentQuestion.scaleMax ?? 5}
-                    value={currentLikertValue}
-                    onChange={(n) => {
-                      if (phase === "hiding") return;
-                      setAnswer(currentQuestion.id, n);
-                      beginAdvanceAfterAnswer();
-                    }}
-                    disabled={phase === "hiding"}
-                  />
-                )}
-                {currentQuestion.type === "single" && (
-                  <SingleChoice
-                    options={currentQuestion.options ?? []}
-                    value={currentSingleValue}
-                    onChange={(v) => {
-                      if (phase === "hiding") return;
-                      setAnswer(currentQuestion.id, v);
-                      beginAdvanceAfterAnswer();
-                    }}
-                    disabled={phase === "hiding"}
-                  />
-                )}
-                {currentQuestion.type === "multi" && (
-                  <MultiChoiceAdvance
-                    options={currentQuestion.options ?? []}
-                    value={
-                      Array.isArray(answers[currentQuestion.id]) ? (answers[currentQuestion.id] as string[]) : []
-                    }
-                    disabled={phase === "hiding"}
-                    onAnswersChange={(v) => setAnswer(currentQuestion.id, v)}
-                    onContinue={(selected) => {
-                      if (phase === "hiding" || !selected.length) return;
-                      const c = coerceAnswer(currentQuestion, selected);
-                      if (c === null) return;
-                      beginAdvanceAfterAnswer();
-                    }}
-                  />
-                )}
-              </div>
-            </article>
-          </div>
-        ) : (
-          <div className="rounded-3xl border border-slate-200/80 bg-white p-8 text-center shadow-[0_18px_48px_-32px_rgba(15,23,42,0.14)]">
-            <p className="text-lg font-semibold text-slate-900">You&apos;ve answered everything</p>
-            <p className="mt-2 text-sm text-slate-600">
-              {canFinish ? "Tap finish below to see your outcome." : "Some answers still look incomplete."}
-            </p>
-          </div>
-        )}
-
-        <div className="mt-7 space-y-5">
-          {previewSlice.map((q) => {
-            const pv = coerceAnswer(q, answers[q.id]);
-            const qNum = questions.findIndex((x) => x.id === q.id) + 1;
             return (
               <div
                 key={q.id}
-                className="pointer-events-none select-none rounded-3xl border border-slate-200/85 bg-white/95 p-5 shadow-[0_14px_40px_-28px_rgba(15,23,42,0.1)] saturate-[0.97] sm:p-7"
-                aria-hidden
+                ref={(el) => {
+                  questionRefs.current[idx] = el;
+                }}
+                className={marginUnderHeader}
               >
-                <p className="mb-2 text-[10px] font-semibold tabular-nums uppercase tracking-wide text-slate-500 sm:text-[11px]">
-                  Question {qNum} of {total}
-                </p>
-                <h3 className="text-sm font-semibold leading-snug text-slate-800 sm:text-base">{q.prompt}</h3>
-                <div className="pointer-events-none mt-6">
-                  {q.type === "likert" && (
-                    <LikertScaleNumeric
-                      scaleMin={q.scaleMin ?? 1}
-                      scaleMax={q.scaleMax ?? 5}
-                      value={typeof pv === "number" ? pv : undefined}
-                      preview
-                      readOnly
-                    />
-                  )}
-                </div>
+                <article
+                  className={`rounded-3xl border bg-white p-5 shadow-[0_22px_50px_-32px_rgba(15,23,42,0.18)] sm:p-8 ${
+                    isActive
+                      ? "border-sky-300/80 ring-2 ring-sky-400/45 ring-offset-2 ring-offset-slate-50"
+                      : "border-slate-200/80"
+                  }`}
+                >
+                  {isPast && expandedPastIndex === idx ? (
+                    <div className="-mt-1 mb-4 flex justify-end">
+                      <button
+                        type="button"
+                        className="text-[11px] font-semibold text-sky-700 underline decoration-sky-300 underline-offset-2 hover:text-indigo-800"
+                        onClick={() => setExpandedPastIndex(null)}
+                      >
+                        Collapse summary
+                      </button>
+                    </div>
+                  ) : null}
+                  <p className="mb-3 text-[11px] font-semibold tabular-nums tracking-wide text-slate-500 sm:text-xs">
+                    Question {idx + 1} of {total}
+                    {isActive ? <span className="ml-2 font-bold text-sky-700">· Current</span> : null}
+                  </p>
+                  <h2 className="text-lg font-bold leading-snug tracking-tight text-slate-950 sm:text-xl">{q.prompt}</h2>
+
+                  {q.type === "likert" && q.reverse ? (
+                    <p className="mt-3 text-[11px] leading-relaxed text-amber-900/90">
+                      <span className="font-semibold">Note:</span> Reverse-worded—your choice is scored automatically;
+                      answer for how you actually behave.
+                    </p>
+                  ) : null}
+
+                  <div className="mt-7">
+                    {q.type === "likert" && (
+                      <LikertScaleNumeric
+                        scaleMin={q.scaleMin ?? 1}
+                        scaleMax={q.scaleMax ?? 5}
+                        value={likertVal}
+                        onChange={(n) => {
+                          setAnswer(q.id, n);
+                          if (idx === activeIdx) tryRevealNextAfterIndex(idx);
+                        }}
+                      />
+                    )}
+                    {q.type === "single" && (
+                      <SingleChoice
+                        options={q.options ?? []}
+                        value={singleVal}
+                        onChange={(v) => {
+                          setAnswer(q.id, v);
+                          if (idx === activeIdx) tryRevealNextAfterIndex(idx);
+                        }}
+                      />
+                    )}
+                    {q.type === "multi" && (
+                      <MultiChoiceAdvance
+                        options={q.options ?? []}
+                        value={multiVal}
+                        onAnswersChange={(v) => setAnswer(q.id, v)}
+                        onContinue={(selected) => {
+                          if (!selected.length) return;
+                          if (coerceAnswer(q, selected) === null) return;
+                          if (idx === activeIdx) tryRevealNextAfterIndex(idx);
+                        }}
+                      />
+                    )}
+                  </div>
+                </article>
               </div>
             );
           })}
+
+        {!showCompletion && revealedCount < total
+          ? questions.slice(revealedCount, Math.min(revealedCount + 2, total)).map((q, k) => {
+              const qi = revealedCount + k;
+              return <UpcomingQuestionPreview key={q.id} q={q} qNum={qi + 1} total={total} />;
+            })
+          : null}
+
+        {showCompletion ? (
+          <div className="rounded-3xl border border-slate-200/80 bg-white p-8 text-center shadow-[0_18px_48px_-32px_rgba(15,23,42,0.14)]">
+            <p className="text-lg font-semibold text-slate-900">You&apos;ve reached the end</p>
+            <p className="mt-2 text-sm text-slate-600">
+              {canFinish
+                ? "Tap answered rows below the header if you want to change them; then finish when you're ready."
+                : "Some answers still look incomplete."}
+            </p>
+          </div>
+        ) : null}
         </div>
       </main>
 
@@ -452,13 +489,40 @@ export function AssessmentRunner({
           <button
             type="button"
             onClick={() => void handleFinish()}
-            disabled={!canFinish || phase === "hiding"}
+            disabled={!canFinish}
             className="rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/20 disabled:opacity-40"
           >
             {requirePayment ? "Finish & continue to checkout" : "Finish & unlock results"}
           </button>
         </div>
       </footer>
+    </div>
+  );
+}
+
+/** Grey teaser for the next unanswered questions (shown below the current card). */
+function UpcomingQuestionPreview({ q, qNum, total }: { q: AssessmentQuestion; qNum: number; total: number }) {
+  return (
+    <div
+      className="pointer-events-none select-none rounded-3xl border border-dashed border-slate-300/90 bg-white/72 p-5 shadow-inner shadow-slate-200/30 saturate-[0.9] sm:p-7"
+      aria-hidden
+    >
+      <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">Preview · up next</p>
+      <p className="mt-2 text-[11px] font-semibold tabular-nums tracking-wide text-slate-400 sm:text-xs">
+        Question {qNum} of {total}
+      </p>
+      <h3 className="mt-3 text-sm font-semibold leading-snug text-slate-500 sm:text-[0.95rem]">{q.prompt}</h3>
+      {q.type === "likert" ? (
+        <div className="mt-6 opacity-80">
+          <LikertScaleNumeric scaleMin={q.scaleMin ?? 1} scaleMax={q.scaleMax ?? 5} preview readOnly />
+        </div>
+      ) : null}
+      {q.type === "single" ? (
+        <p className="mt-6 text-xs leading-relaxed text-slate-400">Tap an option once you reach this step.</p>
+      ) : null}
+      {q.type === "multi" ? (
+        <p className="mt-6 text-xs leading-relaxed text-slate-400">Select options once you unlock this prompt.</p>
+      ) : null}
     </div>
   );
 }
@@ -592,7 +656,7 @@ function SingleChoice({
   );
 }
 
-/** Multi-choice: pick then Continue (card still advances like likert/single). */
+/** Multi-choice: pick selections then Continue (reveals next question when answered). */
 function MultiChoiceAdvance({
   options,
   value,
