@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api/admin-auth";
+import { firebaseAdminErrorHint, isFirebaseAdminUnauthenticatedError } from "@/lib/firebase/admin-firestore-errors";
 import { getAdminFirestore } from "@/lib/firebase/server";
 
 function serializeValue(v: unknown): unknown {
@@ -22,9 +23,24 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ attemptId: 
 
   const { attemptId } = await ctx.params;
   const db = getAdminFirestore();
-  if (!db) return NextResponse.json({ error: "Server misconfigured" }, { status: 503 });
+  if (!db)
+    return NextResponse.json(
+      { error: "Server misconfigured", hint: firebaseAdminErrorHint() },
+      { status: 503 },
+    );
 
-  const snap = await db.collection("attempts").doc(attemptId).get();
+  let snap;
+  try {
+    snap = await db.collection("attempts").doc(attemptId).get();
+  } catch (e) {
+    if (isFirebaseAdminUnauthenticatedError(e)) {
+      return NextResponse.json(
+        { error: "Firebase Admin credentials rejected", hint: firebaseAdminErrorHint() },
+        { status: 503 },
+      );
+    }
+    throw e;
+  }
   if (!snap.exists) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const x = snap.data() ?? {};

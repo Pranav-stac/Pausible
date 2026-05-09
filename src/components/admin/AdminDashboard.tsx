@@ -22,6 +22,8 @@ type Stats = {
   byAssessment: Record<string, number>;
   byProvider: Record<string, number>;
   last30Days: { day: string; count: number; paid: number; pending: number }[];
+  degraded?: boolean;
+  degradedMessage?: string;
 };
 
 type AttemptRow = {
@@ -95,6 +97,12 @@ export function AdminDashboard() {
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
+  const [infraNotice, setInfraNotice] = useState<string | null>(null);
+  const bumpInfraNotice = useCallback((message?: string | null) => {
+    const m = typeof message === "string" ? message.trim() : "";
+    if (m) setInfraNotice((prev) => prev ?? m);
+  }, []);
+
   const [attempts, setAttempts] = useState<AttemptRow[]>([]);
   const [assessRows, setAssessRows] = useState<AssessmentRow[]>([]);
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -140,6 +148,11 @@ export function AdminDashboard() {
             .join(" — "),
         );
       }
+      if (res.status === 503) {
+        throw new Error([base, j.reason && `reason=${j.reason}`, j.tokenUid && `tokenUid=${j.tokenUid}`, j.hint]
+          .filter(Boolean)
+          .join(" — "));
+      }
       throw new Error(base);
     }
     return res;
@@ -163,46 +176,72 @@ export function AdminDashboard() {
 
   const refreshStats = useCallback(async () => {
     const res = await api("/api/admin/stats");
-    setStats((await res.json()) as Stats);
-  }, [api]);
+    const j = (await res.json()) as Stats;
+    setStats(j);
+    bumpInfraNotice(j.degraded ? j.degradedMessage : null);
+  }, [api, bumpInfraNotice]);
 
   const refreshAttempts = useCallback(async () => {
     const res = await api("/api/admin/attempts?limit=200");
-    const j = (await res.json()) as { items: AttemptRow[] };
+    const j = (await res.json()) as {
+      items: AttemptRow[];
+      firestoreDegraded?: boolean;
+      firestoreMessage?: string;
+    };
     setAttempts(j.items);
-  }, [api]);
+    bumpInfraNotice(j.firestoreDegraded ? j.firestoreMessage : null);
+  }, [api, bumpInfraNotice]);
 
   const refreshAssessments = useCallback(async () => {
     const res = await api("/api/admin/assessments");
-    const j = (await res.json()) as { items: AssessmentRow[] };
+    const j = (await res.json()) as {
+      items: AssessmentRow[];
+      firestoreDegraded?: boolean;
+      firestoreMessage?: string;
+    };
     setAssessRows(j.items);
-  }, [api]);
+    bumpInfraNotice(j.firestoreDegraded ? j.firestoreMessage : null);
+  }, [api, bumpInfraNotice]);
 
   const refreshUsers = useCallback(async () => {
     const res = await api("/api/admin/users?max=200");
-    const j = (await res.json()) as { items: UserRow[] };
+    const j = (await res.json()) as {
+      items: UserRow[];
+      authDegraded?: boolean;
+      authMessage?: string;
+    };
     setUsers(j.items);
-  }, [api]);
+    bumpInfraNotice(j.authDegraded ? j.authMessage : null);
+  }, [api, bumpInfraNotice]);
 
   const refreshSettingsRemote = useCallback(async () => {
     const res = await api("/api/admin/settings");
-    const j = (await res.json()) as { requirePayment: boolean; priceInr: number; envDefaultPriceInr?: number };
+    const j = (await res.json()) as {
+      requirePayment: boolean;
+      priceInr: number;
+      envDefaultPriceInr?: number;
+      firestoreDegraded?: boolean;
+      firestoreMessage?: string;
+    };
     setRequirePayment(j.requirePayment);
     setPriceInrDraft(String(j.priceInr));
     if (typeof j.envDefaultPriceInr === "number") setEnvDefaultPriceInr(j.envDefaultPriceInr);
-  }, [api]);
+    bumpInfraNotice(j.firestoreDegraded ? j.firestoreMessage : null);
+  }, [api, bumpInfraNotice]);
 
   const refreshAnalytics = useCallback(async () => {
     setAnalyticsBusy(true);
     try {
       const res = await api("/api/admin/analytics?limit=1200");
-      setAnalyticsData((await res.json()) as AdminAnalyticsResponse);
+      const data = (await res.json()) as AdminAnalyticsResponse;
+      setAnalyticsData(data);
+      bumpInfraNotice(data.degraded ? data.degradedMessage : null);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Failed to load analytics");
     } finally {
       setAnalyticsBusy(false);
     }
-  }, [api]);
+  }, [api, bumpInfraNotice]);
 
   useEffect(() => {
     if (!canLoadAdminData) return;
@@ -543,9 +582,7 @@ export function AdminDashboard() {
           </Link>
           <h1 className="mt-4 text-xl font-semibold text-slate-900">Admin sign-in</h1>
           <p className="mt-2 text-sm text-slate-600">
-            Sign in with Google. <strong>Forbidden</strong> after that means your Firestore{" "}
-            <code className="text-xs">users/&lt;uid&gt;.role</code> is not{" "}
-            <code className="text-xs">&quot;admin&quot;</code>.
+            Sign in with Google.
           </p>
           <div className="mt-6 flex flex-col gap-3">
             <button
@@ -641,6 +678,18 @@ export function AdminDashboard() {
 
         <main className="flex-1 overflow-x-auto overflow-y-auto p-3 sm:p-4 lg:p-6">
           {msg ? <p className="mb-4 rounded-xl bg-emerald-50 px-4 py-2 text-sm text-emerald-900">{msg}</p> : null}
+          {infraNotice ? (
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+              <p className="min-w-0 flex-1 leading-relaxed">{infraNotice}</p>
+              <button
+                type="button"
+                onClick={() => setInfraNotice(null)}
+                className="shrink-0 rounded-lg border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-900 hover:bg-amber-100"
+              >
+                Dismiss
+              </button>
+            </div>
+          ) : null}
           {err ? <p className="mb-4 rounded-xl bg-red-50 px-4 py-2 text-sm text-red-800">{err}</p> : null}
 
           {tab === "overview" && stats ? (

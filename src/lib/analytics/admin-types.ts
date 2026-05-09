@@ -19,4 +19,7 @@ export type AdminAnalyticsResponse = {
   daily: { day: string; uniqueUids: number; uniqueSessions: number; events: number }[];
   topUsers: { uid: string; eventCount: number; lastSeen: string; byKind: Record<string, number> }[];
   recent: AdminSiteEventRow[];
+  /** Server Admin SDK rejected Firestore; response is intentionally empty-ish. */
+  degraded?: boolean;
+  degradedMessage?: string;
 };

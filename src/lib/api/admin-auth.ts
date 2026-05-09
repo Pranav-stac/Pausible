@@ -1,12 +1,17 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getAuth } from "firebase-admin/auth";
+import { firebaseAdminErrorHint, isFirebaseAdminUnauthenticatedError } from "@/lib/firebase/admin-firestore-errors";
 import { getAdminFirestore, initializeFirebaseAdmin } from "@/lib/firebase/server";
 
 export type AdminGate = { ok: true; uid: string } | { ok: false; response: NextResponse };
 
 function forbidden(details: Record<string, unknown>) {
   return NextResponse.json({ error: "Forbidden", ...details }, { status: 403 });
+}
+
+function serviceMisconfigured(details: Record<string, unknown>) {
+  return NextResponse.json({ error: "Service configuration error", ...details }, { status: 503 });
 }
 
 /**
@@ -57,7 +62,23 @@ export async function requireAdmin(req: NextRequest): Promise<AdminGate> {
     };
   }
 
-  const snap = await db.collection("users").doc(uid).get();
+  let snap;
+  try {
+    snap = await db.collection("users").doc(uid).get();
+  } catch (e) {
+    if (isFirebaseAdminUnauthenticatedError(e)) {
+      return {
+        ok: false,
+        response: serviceMisconfigured({
+          tokenUid: uid,
+          reason: "firebase_admin_firestore_unauthenticated",
+          hint: firebaseAdminErrorHint(),
+        }),
+      };
+    }
+    throw e;
+  }
+
   if (!snap.exists) {
     return {
       ok: false,

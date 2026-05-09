@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { requireAdmin } from "@/lib/api/admin-auth";
+import { firebaseAdminErrorHint, isFirebaseAdminUnauthenticatedError } from "@/lib/firebase/admin-firestore-errors";
 import { getAdminFirestore } from "@/lib/firebase/server";
 import { DEFAULT_PRICE_INR, effectiveAssessmentPriceInr } from "@/lib/pricing";
 
@@ -13,16 +14,32 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       requirePayment: true,
       priceInr: effectiveAssessmentPriceInr(undefined),
+      firestoreDegraded: true,
+      firestoreMessage: firebaseAdminErrorHint(),
     });
 
-  const snap = await db.doc("app_settings/global").get();
-  const d = snap.exists ? ((snap.data() ?? {}) as { requirePayment?: boolean; priceInr?: unknown }) : {};
-  return NextResponse.json({
-    requirePayment: snap.exists ? d.requirePayment !== false : true,
-    priceInr: effectiveAssessmentPriceInr(d.priceInr),
-    envDefaultPriceInr:
-      DEFAULT_PRICE_INR >= 1 && DEFAULT_PRICE_INR <= 500_000 ? Math.round(DEFAULT_PRICE_INR) : 499,
-  });
+  try {
+    const snap = await db.doc("app_settings/global").get();
+    const d = snap.exists ? ((snap.data() ?? {}) as { requirePayment?: boolean; priceInr?: unknown }) : {};
+    return NextResponse.json({
+      requirePayment: snap.exists ? d.requirePayment !== false : true,
+      priceInr: effectiveAssessmentPriceInr(d.priceInr),
+      envDefaultPriceInr:
+        DEFAULT_PRICE_INR >= 1 && DEFAULT_PRICE_INR <= 500_000 ? Math.round(DEFAULT_PRICE_INR) : 499,
+    });
+  } catch (e) {
+    if (isFirebaseAdminUnauthenticatedError(e)) {
+      return NextResponse.json({
+        requirePayment: true,
+        priceInr: effectiveAssessmentPriceInr(undefined),
+        envDefaultPriceInr:
+          DEFAULT_PRICE_INR >= 1 && DEFAULT_PRICE_INR <= 500_000 ? Math.round(DEFAULT_PRICE_INR) : 499,
+        firestoreDegraded: true,
+        firestoreMessage: firebaseAdminErrorHint(),
+      });
+    }
+    throw e;
+  }
 }
 
 export async function PATCH(req: NextRequest) {

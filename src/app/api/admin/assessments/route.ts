@@ -2,6 +2,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { requireAdmin } from "@/lib/api/admin-auth";
+import { firebaseAdminErrorHint, isFirebaseAdminUnauthenticatedError } from "@/lib/firebase/admin-firestore-errors";
 import { getAdminFirestore } from "@/lib/firebase/server";
 import type { AssessmentDefinition } from "@/types/models";
 
@@ -10,22 +11,34 @@ export async function GET(req: NextRequest) {
   if (!gate.ok) return gate.response;
 
   const db = getAdminFirestore();
-  if (!db) return NextResponse.json({ items: [] });
+  if (!db)
+    return NextResponse.json({ items: [], firestoreDegraded: true, firestoreMessage: firebaseAdminErrorHint() });
 
-  const snap = await db.collection("assessments").get();
-  const items = snap.docs.map((d) => {
-    const x = d.data() as Partial<AssessmentDefinition>;
-    const q = x.questions && typeof x.questions === "object" ? Object.keys(x.questions).length : 0;
-    return {
-      id: d.id,
-      title: x.title ?? d.id,
-      active: x.active !== false,
-      questionCount: q,
-      updatedAt: x.updatedAt?.toDate?.()?.toISOString?.() ?? null,
-    };
-  });
-  items.sort((a, b) => a.title.localeCompare(b.title));
-  return NextResponse.json({ items });
+  try {
+    const snap = await db.collection("assessments").get();
+    const items = snap.docs.map((d) => {
+      const x = d.data() as Partial<AssessmentDefinition>;
+      const q = x.questions && typeof x.questions === "object" ? Object.keys(x.questions).length : 0;
+      return {
+        id: d.id,
+        title: x.title ?? d.id,
+        active: x.active !== false,
+        questionCount: q,
+        updatedAt: x.updatedAt?.toDate?.()?.toISOString?.() ?? null,
+      };
+    });
+    items.sort((a, b) => a.title.localeCompare(b.title));
+    return NextResponse.json({ items });
+  } catch (e) {
+    if (isFirebaseAdminUnauthenticatedError(e)) {
+      return NextResponse.json({
+        items: [],
+        firestoreDegraded: true,
+        firestoreMessage: firebaseAdminErrorHint(),
+      });
+    }
+    throw e;
+  }
 }
 
 export async function POST(req: NextRequest) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api/admin-auth";
+import { firebaseAdminErrorHint, isFirebaseAdminUnauthenticatedError } from "@/lib/firebase/admin-firestore-errors";
 import { getAdminAuth, getAdminFirestore } from "@/lib/firebase/server";
 
 export async function GET(req: NextRequest) {
@@ -7,10 +8,27 @@ export async function GET(req: NextRequest) {
   if (!gate.ok) return gate.response;
 
   const auth = getAdminAuth();
-  if (!auth) return NextResponse.json({ items: [], note: "Configure admin SDK" });
+  if (!auth)
+    return NextResponse.json({
+      items: [],
+      authDegraded: true,
+      authMessage: firebaseAdminErrorHint(),
+    });
 
   const max = Math.min(500, Math.max(10, Number(req.nextUrl.searchParams.get("max") ?? "100")));
-  const res = await auth.listUsers(max);
+  let res;
+  try {
+    res = await auth.listUsers(max);
+  } catch (e) {
+    if (isFirebaseAdminUnauthenticatedError(e)) {
+      return NextResponse.json({
+        items: [],
+        authDegraded: true,
+        authMessage: firebaseAdminErrorHint(),
+      });
+    }
+    throw e;
+  }
   const uids = res.users.map((u) => u.uid);
 
   const db = getAdminFirestore();

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/api/admin-auth";
-import type { AdminAnalyticsResponse, AdminSiteEventRow } from "@/lib/analytics/admin-types";
-import { getAdminFirestore } from "@/lib/firebase/server";
 import type { Timestamp } from "firebase-admin/firestore";
+import type { AdminAnalyticsResponse, AdminSiteEventRow } from "@/lib/analytics/admin-types";
+import { requireAdmin } from "@/lib/api/admin-auth";
+import { firebaseAdminErrorHint, isFirebaseAdminUnauthenticatedError } from "@/lib/firebase/admin-firestore-errors";
+import { getAdminFirestore } from "@/lib/firebase/server";
 
 function tsMs(v: unknown): number {
   if (v && typeof v === "object") {
@@ -20,25 +21,43 @@ export async function GET(req: NextRequest) {
   const gate = await requireAdmin(req);
   if (!gate.ok) return gate.response;
 
+  const empty = (): AdminAnalyticsResponse => ({
+    sampled: 0,
+    byKind: {},
+    uniqueUids7d: 0,
+    uniqueUids30d: 0,
+    uniqueSessions7d: 0,
+    uniqueSessions30d: 0,
+    daily: [],
+    topUsers: [],
+    recent: [],
+  });
+
   const db = getAdminFirestore();
   if (!db) {
     return NextResponse.json({
-      sampled: 0,
-      byKind: {},
-      uniqueUids7d: 0,
-      uniqueUids30d: 0,
-      uniqueSessions7d: 0,
-      uniqueSessions30d: 0,
-      daily: [],
-      topUsers: [],
-      recent: [],
+      ...empty(),
+      degraded: true,
+      degradedMessage: firebaseAdminErrorHint(),
     } satisfies AdminAnalyticsResponse);
   }
 
   const limitParam = req.nextUrl.searchParams.get("limit");
   const limit = Math.min(2500, Math.max(50, Number(limitParam) || 900));
 
-  const snap = await db.collection("site_events").orderBy("createdAt", "desc").limit(limit).get();
+  let snap;
+  try {
+    snap = await db.collection("site_events").orderBy("createdAt", "desc").limit(limit).get();
+  } catch (e) {
+    if (isFirebaseAdminUnauthenticatedError(e)) {
+      return NextResponse.json({
+        ...empty(),
+        degraded: true,
+        degradedMessage: firebaseAdminErrorHint(),
+      } satisfies AdminAnalyticsResponse);
+    }
+    throw e;
+  }
 
   const now = Date.now();
   const d7 = now - 7 * 86400000;
