@@ -143,6 +143,27 @@ export function AssessmentRunner({
     }, CARD_FADE_OUT_MS);
   }, [phase, total]);
 
+  const goToPreviousQuestion = useCallback(() => {
+    if (hideTimeoutRef.current !== null) {
+      window.clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
+      setPhase("show");
+      setActiveIndex((prev) => {
+        if (total <= 0) return prev;
+        if (prev >= total) return Math.max(0, total - 1);
+        return Math.max(0, prev - 1);
+      });
+      return;
+    }
+    setPhase("show");
+    setActiveIndex((prev) => {
+      if (total <= 0) return prev;
+      if (prev >= total) return Math.max(0, total - 1);
+      if (prev <= 0) return prev;
+      return prev - 1;
+    });
+  }, [total]);
+
   useEffect(() => {
     if (!assessment || !attemptUid || !attemptIdRef.current) return;
     if (Object.keys(answers).length === 0) return;
@@ -232,6 +253,8 @@ export function AssessmentRunner({
     if (!questions.length) return false;
     return questions.every((q) => coerceAnswer(q, answers[q.id]) !== null);
   }, [questions, answers]);
+
+  const canGoBack = total > 0 && (activeIndex > 0 || activeIndex >= total);
 
   if (!ready || attemptUid === null) {
     return (
@@ -411,17 +434,25 @@ export function AssessmentRunner({
 
       <footer className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200/75 bg-white/95 px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-10px_36px_-24px_rgba(15,23,42,0.12)] backdrop-blur-md">
         <div className="mx-auto flex max-w-lg flex-wrap items-center justify-between gap-3 sm:max-w-xl lg:max-w-[40rem]">
-          <p className="text-[11px] font-medium text-slate-700">
-            {answeredCount}/{total} answered
-          </p>
           <button
             type="button"
-            onClick={() => void handleFinish()}
-            disabled={!canFinish}
-            className="rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/20 disabled:opacity-40"
+            disabled={!canGoBack}
+            onClick={() => goToPreviousQuestion()}
+            className="min-h-[44px] shrink-0 rounded-full border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 shadow-sm hover:border-slate-400 hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-40"
           >
-            {requirePayment ? "Finish & continue to checkout" : "Finish & unlock results"}
+            ← Previous question
           </button>
+          <div className="flex min-w-[160px] flex-1 flex-wrap items-center justify-end gap-3 sm:flex-nowrap">
+            <p className="text-[11px] font-medium text-slate-700">{answeredCount}/{total} answered</p>
+            <button
+              type="button"
+              onClick={() => void handleFinish()}
+              disabled={!canFinish || phase === "hiding"}
+              className="rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/20 disabled:opacity-40"
+            >
+              {requirePayment ? "Finish & continue to checkout" : "Finish & unlock results"}
+            </button>
+          </div>
         </div>
       </footer>
     </div>
