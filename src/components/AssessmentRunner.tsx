@@ -7,9 +7,7 @@ import { BrandLogo } from "@/components/BrandLogo";
 import { trackAssessmentComplete, trackAssessmentStart } from "@/lib/analytics/track";
 import { fetchAssessment } from "@/lib/data/assessment-service";
 import { SESSION_ATTEMPT_CLAIM_KEY, claimStorageKey } from "@/lib/data/attempt-claim-client";
-import { fetchAttempt, upsertAttempt, finalizeAttemptPayment } from "@/lib/data/attempt-service";
-import { publishShareSnapshot } from "@/lib/data/share-service";
-import { randomShareToken } from "@/lib/share-token";
+import { upsertAttempt } from "@/lib/data/attempt-service";
 import type { AssessmentDefinition, AssessmentQuestion } from "@/types/models";
 import { coerceAnswer, computeScores } from "@/lib/scoring/engine";
 import { useFirebaseAuth } from "@/lib/firebase/auth-context";
@@ -75,7 +73,7 @@ export function AssessmentRunner({
   const assessmentSessionIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    setLocalUid(getOrCreateLocalUid());
+    queueMicrotask(() => setLocalUid(getOrCreateLocalUid()));
   }, []);
 
   const attemptUid = effectiveUid ?? localUid;
@@ -111,7 +109,7 @@ export function AssessmentRunner({
   }, [assessment]);
 
   useEffect(() => {
-    setExpandedPastIndex(null);
+    queueMicrotask(() => setExpandedPastIndex(null));
   }, [revealedCount]);
 
   useEffect(() => {
@@ -248,22 +246,8 @@ export function AssessmentRunner({
       requirePayment,
     });
 
-    if (!requirePayment) {
-      const token = randomShareToken();
-      await finalizeAttemptPayment({
-        uid: attemptUid,
-        attemptId: id,
-        shareToken: token,
-        paymentProvider: "free",
-        paymentId: "free-mode",
-      });
-      const paidRow = await fetchAttempt(id);
-      if (paidRow) await publishShareSnapshot(assessment, paidRow, token);
-      router.push(`/results/${encodeURIComponent(id)}`);
-      return;
-    }
-
-    router.push(`/checkout?attemptId=${encodeURIComponent(id)}`);
+    const next = requirePayment ? "checkout" : "results";
+    router.push(`/after-assessment/${encodeURIComponent(id)}?next=${next}`);
   }, [answers, assessment, attemptUid, questions, requirePayment, router]);
 
   const fillAllRandomTesting = useCallback(() => {

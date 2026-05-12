@@ -60,6 +60,8 @@ export type AttemptScores = {
 
 export type AttemptDoc = {
   uid: string;
+  ownerType?: "anonymous" | "google" | "local";
+  ownerEmail?: string | null;
   assessmentId: string;
   answers: AttemptAnswers;
   scores?: AttemptScores | null;
@@ -69,6 +71,7 @@ export type AttemptDoc = {
   shareToken?: string | null;
   /** Private history — never expose via share route */
   isLatestShareEligible?: boolean;
+  claimedAt?: Timestamp;
   createdAt?: Timestamp;
   paidAt?: Timestamp;
 };

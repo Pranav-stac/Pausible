@@ -50,12 +50,23 @@ export async function POST(req: NextRequest) {
   }
 
   if (ownerUid === user.uid) {
-    await ref.update({ claimSecret: FieldValue.delete() }).catch(() => {});
+    await ref
+      .update({
+        claimSecret: FieldValue.delete(),
+        ownerType: "google",
+        ownerEmail: user.email ?? null,
+        claimedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      })
+      .catch(() => {});
     return NextResponse.json({ ok: true, transferred: false });
   }
 
   await ref.update({
     uid: user.uid,
+    ownerType: "google",
+    ownerEmail: user.email ?? null,
+    claimedAt: FieldValue.serverTimestamp(),
     claimSecret: FieldValue.delete(),
     updatedAt: FieldValue.serverTimestamp(),
   });

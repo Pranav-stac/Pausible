@@ -20,6 +20,8 @@ export async function GET(req: NextRequest) {
       return {
         id: d.id,
         uid: String(x.uid ?? ""),
+        ownerType: x.ownerType === "google" || x.ownerType === "local" ? String(x.ownerType) : "anonymous",
+        ownerEmail: x.ownerEmail != null ? String(x.ownerEmail) : null,
         assessmentId: String(x.assessmentId ?? ""),
         paymentStatus: String(x.paymentStatus ?? ""),
         paymentProvider: x.paymentProvider != null ? String(x.paymentProvider) : null,
@@ -28,6 +30,7 @@ export async function GET(req: NextRequest) {
         isLatestShareEligible: Boolean(x.isLatestShareEligible),
         createdAt: x.createdAt?.toDate?.()?.toISOString?.() ?? null,
         paidAt: x.paidAt?.toDate?.()?.toISOString?.() ?? null,
+        claimedAt: x.claimedAt?.toDate?.()?.toISOString?.() ?? null,
         answerCount:
           x.answers && typeof x.answers === "object"
             ? Object.keys(x.answers as Record<string, unknown>).length

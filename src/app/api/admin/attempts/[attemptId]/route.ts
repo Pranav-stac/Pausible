@@ -50,6 +50,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ attemptId: 
   return NextResponse.json({
     id: snap.id,
     uid: String(x.uid ?? ""),
+    ownerType: x.ownerType === "google" || x.ownerType === "local" ? String(x.ownerType) : "anonymous",
+    ownerEmail: x.ownerEmail != null ? String(x.ownerEmail) : null,
     assessmentId: String(x.assessmentId ?? ""),
     paymentStatus: String(x.paymentStatus ?? ""),
     paymentProvider: x.paymentProvider != null ? String(x.paymentProvider) : null,
@@ -58,6 +60,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ attemptId: 
     isLatestShareEligible: Boolean(x.isLatestShareEligible),
     createdAt: serializeValue(x.createdAt),
     paidAt: serializeValue(x.paidAt),
+    claimedAt: serializeValue(x.claimedAt),
     answersCount: Object.keys(answers).length,
     answersPreview: answers,
     scores,

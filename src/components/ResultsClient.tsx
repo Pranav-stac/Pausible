@@ -14,6 +14,7 @@ import type { SerializedAttempt } from "@/lib/local/attempts";
 import { getArchetypeCopy } from "@/lib/results/archetype";
 import { dimensionRowsForAttempt } from "@/lib/results/dimension-rows";
 import { ResultsStoryPosterSection } from "@/components/results/ResultsStoryPosterSection";
+import { useAppSettings } from "@/lib/hooks/useAppSettings";
 
 function ResultsTopBar() {
   return (
@@ -39,11 +40,9 @@ export function ResultsClient() {
   const params = useParams<{ attemptId: string }>();
   const attemptId = params.attemptId;
   const router = useRouter();
-  const { effectiveUid, ready, linkGoogle, signInWithGoogle, user } = useFirebaseAuth();
-  const hasGoogleIdentity = Boolean(user && !user.isAnonymous && user.email);
-  /** Firebase anonymous users are signed in; they must be able to load their own results without Google. */
-  const isFirebaseAnonymous = Boolean(user?.isAnonymous);
+  const { effectiveUid, ready, hasGoogleIdentity, user } = useFirebaseAuth();
   const mustUseGoogle = isFirebaseConfigured();
+  const { requirePayment, loading: settingsLoading } = useAppSettings();
 
   const [attempt, setAttempt] = useState<SerializedAttempt | null>(null);
   const [assessment, setAssessment] = useState<AssessmentDefinition | null>(null);
@@ -52,7 +51,7 @@ export function ResultsClient() {
   const [fetching, setFetching] = useState(true);
 
   useEffect(() => {
-    if (!ready || !attemptId || !effectiveUid) return;
+    if (!ready || settingsLoading || !attemptId || !effectiveUid) return;
     if (mustUseGoogle && !hasGoogleIdentity) return;
 
     let cancelled = false;
@@ -83,6 +82,10 @@ export function ResultsClient() {
         setFetching(false);
         return;
       }
+      if (requirePayment && row.paymentStatus !== "paid") {
+        router.replace(`/checkout?attemptId=${encodeURIComponent(attemptId)}`);
+        return;
+      }
       setAttempt(row);
 
       try {
@@ -110,7 +113,7 @@ export function ResultsClient() {
     return () => {
       cancelled = true;
     };
-  }, [attemptId, effectiveUid, hasGoogleIdentity, isFirebaseAnonymous, mustUseGoogle, ready]);
+  }, [attemptId, effectiveUid, hasGoogleIdentity, mustUseGoogle, ready, requirePayment, router, settingsLoading]);
 
   const arch = useMemo(
     () => (assessment && attempt?.scores ? getArchetypeCopy(assessment, attempt.scores.archetypeKey) : null),
@@ -161,7 +164,7 @@ export function ResultsClient() {
     }
   }, [shareUrl]);
 
-  if (!ready) {
+  if (!ready || settingsLoading) {
     return (
       <div className="min-h-screen bg-white scheme-light text-slate-900">
         <div className="p-10 text-center text-sm text-slate-600">Loading results…</div>
@@ -169,95 +172,28 @@ export function ResultsClient() {
     );
   }
 
-  if (mustUseGoogle && !hasGoogleIdentity && !isFirebaseAnonymous) {
+  if (mustUseGoogle && !hasGoogleIdentity) {
     return (
       <div className="min-h-screen bg-white scheme-light text-slate-900">
         <ResultsTopBar />
         <div className="mx-auto max-w-lg px-4 py-12 text-center sm:py-16">
           <h1 className="text-lg font-semibold text-slate-900">Sign in to view results</h1>
-          {!user && effectiveUid ? (
-            <>
-              <p className="mt-3 text-sm leading-relaxed text-slate-600">
-                Firebase couldn&apos;t attach a browser profile (guest anonymous auth may be disabled or still
-                starting). Use Google sign-in to load this attempt, or refresh the page.
-              </p>
-              <div className="mt-8 flex flex-col items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => void signInWithGoogle()}
-                  className="rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-900"
-                >
-                  Sign in with Google
-                </button>
-                <button
-                  type="button"
-                  onClick={() => window.location.reload()}
-                  className="text-sm font-semibold text-slate-600 underline decoration-slate-300 underline-offset-2 hover:text-slate-900"
-                >
-                  Refresh page
-                </button>
-                <Link href="/" className="text-sm font-semibold text-sky-700 hover:text-indigo-800">
-                  ← Home
-                </Link>
-              </div>
-            </>
-          ) : !user && !effectiveUid ? (
-            <>
-              <p className="mt-3 text-sm leading-relaxed text-slate-600">
-                No session id yet. Check that Firebase Auth is configured, then reload.
-              </p>
-              <div className="mt-8 flex flex-col items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => window.location.reload()}
-                  className="rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50"
-                >
-                  Reload
-                </button>
-                <Link href="/" className="text-sm font-semibold text-sky-700 hover:text-indigo-800">
-                  ← Home
-                </Link>
-              </div>
-            </>
-          ) : user?.isAnonymous ? (
-            <>
-              <p className="mt-3 text-sm leading-relaxed text-slate-600">
-                Link Google from this browser to keep your current attempt tied to one account.&nbsp;
-                <span className="font-semibold text-slate-700">Do not tap “Sign in” in another tab</span>—that replaces
-                the guest session and this link won&apos;t resolve until you link here.
-              </p>
-              <div className="mt-8 flex flex-col items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => void linkGoogle()}
-                  className="rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-900"
-                >
-                  Link Google
-                </button>
-                <Link href="/" className="text-sm font-semibold text-sky-700 hover:text-indigo-800">
-                  ← Home
-                </Link>
-              </div>
-            </>
-          ) : (
-            <>
-              <p className="mt-3 text-sm leading-relaxed text-slate-600">
-                Your Google identity is needed to load paid results from Firebase for this deployment.
-              </p>
-              <div className="mt-8 flex flex-col items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => void signInWithGoogle()}
-                  className="rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-900"
-                >
-                  Sign in with Google
-                </button>
-                <Link href="/" className="text-sm font-semibold text-sky-700 hover:text-indigo-800">
-                  ← Home
-                </Link>
-              </div>
-            </>
-          )}
+          <p className="mt-3 text-sm leading-relaxed text-slate-600">
+            Results are only unlocked after Google sign-in. If this assessment was submitted from this browser, we will
+            attach it to your Google account before opening the result.
+          </p>
+          <div className="mt-8 flex flex-col items-center gap-3">
+            <button
+              type="button"
+              onClick={() => router.push(`/after-assessment/${encodeURIComponent(attemptId)}?next=results`)}
+              className="rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-900"
+            >
+              Sign in to unlock results
+            </button>
+            <Link href="/" className="text-sm font-semibold text-sky-700 hover:text-indigo-800">
+              ← Home
+            </Link>
+          </div>
         </div>
       </div>
     );

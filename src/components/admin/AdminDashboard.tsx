@@ -29,6 +29,8 @@ type Stats = {
 type AttemptRow = {
   id: string;
   uid: string;
+  ownerType: "anonymous" | "google" | "local";
+  ownerEmail: string | null;
   assessmentId: string;
   paymentStatus: string;
   paymentProvider: string | null;
@@ -37,6 +39,7 @@ type AttemptRow = {
   isLatestShareEligible: boolean;
   createdAt: string | null;
   paidAt: string | null;
+  claimedAt: string | null;
   answerCount: number;
   archetypeKey: string | null;
 };
@@ -87,8 +90,7 @@ function firestoreJsonReplacer(_key: string, value: unknown) {
 
 export function AdminDashboard() {
   const router = useRouter();
-  const { user, ready: authReady, signInWithGoogle, linkGoogle, signOut } = useFirebaseAuth();
-  const hasGoogleIdentity = Boolean(user && !user.isAnonymous && user.email);
+  const { user, ready: authReady, hasGoogleIdentity, signInWithGoogle, linkGoogle, signOut } = useFirebaseAuth();
   const firebaseOn = isFirebaseConfigured();
   const canLoadAdminData = firebaseOn && authReady && hasGoogleIdentity;
 
@@ -125,6 +127,25 @@ export function AdminDashboard() {
     await signOut();
     router.push("/");
   }, [router, signOut]);
+
+  const handleAdminSignIn = useCallback(async () => {
+    setErr(null);
+    try {
+      await signInWithGoogle();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Google sign-in failed");
+    }
+  }, [signInWithGoogle]);
+
+  const handleAdminLinkGoogle = useCallback(async () => {
+    setErr(null);
+    try {
+      await linkGoogle();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Google link failed");
+    }
+  }, [linkGoogle]);
+
 
   const api = useCallback(async (path: string, init?: RequestInit) => {
     setErr(null);
@@ -584,10 +605,13 @@ export function AdminDashboard() {
           <p className="mt-2 text-sm text-slate-600">
             Sign in with Google.
           </p>
+          {err ? (
+            <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">{err}</p>
+          ) : null}
           <div className="mt-6 flex flex-col gap-3">
             <button
               type="button"
-              onClick={() => void signInWithGoogle()}
+              onClick={() => void handleAdminSignIn()}
               className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white"
             >
               Sign in with Google
@@ -595,7 +619,7 @@ export function AdminDashboard() {
             {user?.isAnonymous ? (
               <button
                 type="button"
-                onClick={() => void linkGoogle()}
+                onClick={() => void handleAdminLinkGoogle()}
                 className="rounded-full border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-800"
               >
                 Link Google
@@ -834,28 +858,35 @@ export function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody className="text-slate-700">
-                      {attempts.map((row) => (
-                        <tr
-                          key={row.id}
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => setAttemptDrawerId(row.id)}
-                          onKeyDown={(e) =>
-                            e.key === "Enter" || e.key === " " ? (e.preventDefault(), setAttemptDrawerId(row.id)) : null
-                          }
-                          className="cursor-pointer border-t border-slate-100 hover:bg-sky-50/60"
-                        >
-                          <td className="px-3 py-2 font-mono text-[11px]">{row.id.slice(0, 12)}…</td>
-                          <td className="px-3 py-2 font-mono text-[11px]">{row.uid.slice(0, 10)}…</td>
-                          <td className="px-3 py-2">{row.assessmentId}</td>
-                          <td className="px-3 py-2 font-semibold">{row.paymentStatus}</td>
-                          <td className="px-3 py-2 tabular-nums">{row.answerCount}</td>
-                          <td className="px-3 py-2 text-[11px]">{row.archetypeKey ?? "—"}</td>
-                          <td className="px-3 py-2">{row.paymentProvider ?? "—"}</td>
-                          <td className="px-3 py-2 text-[10px]">{row.shareToken?.slice(0, 8) ?? "—"}</td>
-                          <td className="px-3 py-2 text-[10px] text-slate-500">{row.createdAt?.slice(0, 16) ?? "—"}</td>
-                        </tr>
-                      ))}
+                      {attempts.map((row) => {
+                        const ownerLabel =
+                          row.ownerType === "google" ? row.ownerEmail ?? uidEmail.get(row.uid) ?? "Google user" : "Anonymous";
+                        return (
+                          <tr
+                            key={row.id}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => setAttemptDrawerId(row.id)}
+                            onKeyDown={(e) =>
+                              e.key === "Enter" || e.key === " " ? (e.preventDefault(), setAttemptDrawerId(row.id)) : null
+                            }
+                            className="cursor-pointer border-t border-slate-100 hover:bg-sky-50/60"
+                          >
+                            <td className="px-3 py-2 font-mono text-[11px]">{row.id.slice(0, 12)}…</td>
+                            <td className="px-3 py-2">
+                              <div className="font-semibold text-slate-800">{ownerLabel}</div>
+                              <div className="mt-0.5 font-mono text-[10px] text-slate-500">{row.uid.slice(0, 10)}…</div>
+                            </td>
+                            <td className="px-3 py-2">{row.assessmentId}</td>
+                            <td className="px-3 py-2 font-semibold">{row.paymentStatus}</td>
+                            <td className="px-3 py-2 tabular-nums">{row.answerCount}</td>
+                            <td className="px-3 py-2 text-[11px]">{row.archetypeKey ?? "—"}</td>
+                            <td className="px-3 py-2">{row.paymentProvider ?? "—"}</td>
+                            <td className="px-3 py-2 text-[10px]">{row.shareToken?.slice(0, 8) ?? "—"}</td>
+                            <td className="px-3 py-2 text-[10px] text-slate-500">{row.createdAt?.slice(0, 16) ?? "—"}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

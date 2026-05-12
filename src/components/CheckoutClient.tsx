@@ -47,7 +47,7 @@ export function CheckoutClient({ bootstrapPriceInr }: { bootstrapPriceInr: numbe
   const router = useRouter();
   const params = useSearchParams();
   const attemptId = params.get("attemptId");
-  const { effectiveUid, ready } = useFirebaseAuth();
+  const { effectiveUid, ready, hasGoogleIdentity } = useFirebaseAuth();
 
   const [referral, setReferral] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -61,15 +61,16 @@ export function CheckoutClient({ bootstrapPriceInr }: { bootstrapPriceInr: numbe
   const lastCheckoutOpenAttempt = useRef<string | null>(null);
   useEffect(() => {
     if (!ready || !effectiveUid || !attemptId) return;
+    if (isFirebaseConfigured() && !hasGoogleIdentity) return;
     if (lastCheckoutOpenAttempt.current === attemptId) return;
     lastCheckoutOpenAttempt.current = attemptId;
     const path =
       typeof window !== "undefined" ? `${window.location.pathname}${window.location.search}` : "/checkout";
     void trackCheckoutOpen({ uid: effectiveUid, attemptId, path });
-  }, [attemptId, effectiveUid, ready]);
+  }, [attemptId, effectiveUid, hasGoogleIdentity, ready]);
 
   const completeDevOnClient = useCallback(async () => {
-    if (!attemptId || !effectiveUid) return;
+    if (!attemptId || !effectiveUid || (isFirebaseConfigured() && !hasGoogleIdentity)) return;
     await tryClaimAttemptForSession(attemptId);
     const attempt = await fetchAttempt(attemptId);
     if (!attempt || attempt.uid !== effectiveUid) throw new Error("Attempt not found for this session");
@@ -88,7 +89,7 @@ export function CheckoutClient({ bootstrapPriceInr }: { bootstrapPriceInr: numbe
     const path = typeof window !== "undefined" ? window.location.pathname : "/checkout";
     void trackPurchaseComplete({ uid: effectiveUid, attemptId, path, provider: "dev" });
     router.push(`/results/${encodeURIComponent(attemptId)}`);
-  }, [attemptId, effectiveUid, router]);
+  }, [attemptId, effectiveUid, hasGoogleIdentity, router]);
 
   const runDev = useCallback(async () => {
     if (!attemptId || !effectiveUid) return;
@@ -105,7 +106,7 @@ export function CheckoutClient({ bootstrapPriceInr }: { bootstrapPriceInr: numbe
 
   const runHosted = useCallback(
     async (provider: "stripe" | "razorpay" | "paypal") => {
-      if (!attemptId || !effectiveUid) return;
+      if (!attemptId || !effectiveUid || (isFirebaseConfigured() && !hasGoogleIdentity)) return;
       setBusy(provider);
       setError(null);
       try {
@@ -166,7 +167,7 @@ export function CheckoutClient({ bootstrapPriceInr }: { bootstrapPriceInr: numbe
         setBusy(null);
       }
     },
-    [attemptId, effectiveUid, referral, router, storedRef],
+    [attemptId, effectiveUid, hasGoogleIdentity, referral, router, storedRef],
   );
 
   if (!ready) {
@@ -180,6 +181,27 @@ export function CheckoutClient({ bootstrapPriceInr }: { bootstrapPriceInr: numbe
         <Link href="/assessment/default" className="mt-4 inline-block text-sm font-semibold text-sky-600">
           Go to assessment
         </Link>
+      </div>
+    );
+  }
+
+  if (isFirebaseConfigured() && !hasGoogleIdentity) {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-20 text-center">
+        <Link href="/" className="text-sm font-semibold text-sky-600">
+          ← Home
+        </Link>
+        <h1 className="mt-4 text-lg font-semibold text-slate-900">Sign in to continue checkout</h1>
+        <p className="mt-2 text-sm leading-relaxed text-slate-600">
+          Checkout is available after Google sign-in so the paid result is attached to your account.
+        </p>
+        <button
+          type="button"
+          onClick={() => router.push(`/after-assessment/${encodeURIComponent(attemptId)}?next=checkout`)}
+          className="mt-8 rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white"
+        >
+          Sign in with Google
+        </button>
       </div>
     );
   }

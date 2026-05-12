@@ -23,15 +23,23 @@ import {
   type SerializedAttempt,
 } from "@/lib/local/attempts";
 
+type AttemptOwnerType = NonNullable<SerializedAttempt["ownerType"]>;
+
 /** Firestore writes require a signed-in user; otherwise use localStorage (same as no Firebase). */
 function persistLocally(): boolean {
   if (!isFirebaseConfigured()) return true;
   return getFirebaseAuth()?.currentUser == null;
 }
 
+function parseOwnerType(value: unknown): AttemptOwnerType | undefined {
+  return value === "anonymous" || value === "google" || value === "local" ? value : undefined;
+}
+
 export type WritableAttempt = {
   id: string;
   uid: string;
+  ownerType?: "anonymous" | "google" | "local";
+  ownerEmail?: string | null;
   assessmentId: string;
   answers: AttemptAnswers;
   scores?: AttemptScores | null;
@@ -48,6 +56,8 @@ function toSerialized(a: WritableAttempt & { createdAtIso?: string; paidAtIso?: 
   return {
     id: a.id,
     uid: a.uid,
+    ownerType: a.ownerType,
+    ownerEmail: a.ownerEmail,
     assessmentId: a.assessmentId,
     answers: a.answers,
     scores: a.scores,
@@ -71,9 +81,14 @@ export async function upsertAttempt(data: WritableAttempt): Promise<void> {
 
   const ref = doc(db, "attempts", data.id);
   const exists = await getDoc(ref).then((s) => s.exists());
+  const authUser = getFirebaseAuth()?.currentUser;
+  const ownerType = data.ownerType ?? (authUser?.isAnonymous ? "anonymous" : authUser?.email ? "google" : "local");
+  const ownerEmail = data.ownerEmail ?? authUser?.email ?? null;
 
   const payload: Record<string, unknown> = {
     uid: data.uid,
+    ownerType,
+    ownerEmail,
     assessmentId: data.assessmentId,
     answers: data.answers,
     scores: data.scores ?? null,
@@ -122,6 +137,8 @@ export async function fetchAttempt(attemptId: string): Promise<SerializedAttempt
   return {
     id: snap.id,
     uid: String(d.uid),
+    ownerType: parseOwnerType(d.ownerType),
+    ownerEmail: d.ownerEmail != null ? String(d.ownerEmail) : null,
     assessmentId: String(d.assessmentId),
     answers: d.answers as AttemptAnswers,
     scores: (d.scores ?? null) as AttemptScores | null,
@@ -148,6 +165,8 @@ export async function listMyAttempts(uid: string): Promise<SerializedAttempt[]> 
     return {
       id: s.id,
       uid: String(d.uid),
+      ownerType: parseOwnerType(d.ownerType),
+      ownerEmail: d.ownerEmail != null ? String(d.ownerEmail) : null,
       assessmentId: String(d.assessmentId),
       answers: d.answers as AttemptAnswers,
       scores: (d.scores ?? null) as AttemptScores | null,

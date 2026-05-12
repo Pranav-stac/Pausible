@@ -13,6 +13,14 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
+    function claimSecretIsValid(data) {
+      return !data.keys().hasAny(['claimSecret'])
+        || (data.claimSecret is string && data.claimSecret.size() <= 256);
+    }
+    function ownerMetadataIsValid(data) {
+      return !data.keys().hasAny(['ownerType'])
+        || data.ownerType in ['anonymous', 'google', 'local'];
+    }
 
     match /assessments/{assessmentId} {
       allow read: if true;
@@ -23,9 +31,15 @@ service cloud.firestore {
       allow read: if callerIsFirestoreAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
       allow create: if signedIn()
         && request.resource.data.uid == request.auth.uid
-        && (!request.resource.data.keys().hasAny(['claimSecret'])
-          || (request.resource.data.claimSecret is string && request.resource.data.claimSecret.size() <= 256));
-      allow update, delete: if callerIsFirestoreAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
+        && ownerMetadataIsValid(request.resource.data)
+        && claimSecretIsValid(request.resource.data);
+      allow update: if callerIsFirestoreAdmin()
+        || (signedIn()
+          && resource.data.uid == request.auth.uid
+          && request.resource.data.uid == resource.data.uid
+          && !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['uid', 'ownerType', 'ownerEmail', 'claimedAt', 'claimSecret']));
+      allow delete: if callerIsFirestoreAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
     }
 
     match /share_snapshots/{token} {

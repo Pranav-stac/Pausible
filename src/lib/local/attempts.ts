@@ -6,6 +6,8 @@ const ATTEMPTS_KEY = "pausible_attempts_v1";
 export type SerializedAttempt = {
   id: string;
   uid: string;
+  ownerType?: "anonymous" | "google" | "local";
+  ownerEmail?: string | null;
   assessmentId: string;
   answers: AttemptAnswers;
   scores?: AttemptScores | null;

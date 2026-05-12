@@ -1,17 +1,17 @@
 "use client";
 
 import {
-  GoogleAuthProvider,
-  linkWithPopup,
+  getRedirectResult,
   onAuthStateChanged,
   signInAnonymously,
-  signInWithPopup,
   signOut as firebaseSignOut,
   type User,
 } from "firebase/auth";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { isFirebaseConfigured } from "@/lib/firebase/config";
+import { connectGoogleAccount, type GoogleConnectOutcome } from "@/lib/firebase/google-auth-flow";
+import { userHasGoogleIdentity } from "@/lib/firebase/google-identity";
 import { syncUserProfile } from "@/lib/firebase/user-profile";
 import { getOrCreateLocalUid } from "@/lib/local/uid";
 
@@ -19,10 +19,14 @@ type AuthCtx = {
   user: User | null;
   ready: boolean;
   mode: "firebase" | "local";
+  uid: string | null;
   effectiveUid: string | null;
+  isAnonymous: boolean;
+  hasGoogleIdentity: boolean;
   signInAnonymous: () => Promise<void>;
-  linkGoogle: () => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
+  linkOrSignInWithGoogle: () => Promise<GoogleConnectOutcome>;
+  linkGoogle: () => Promise<GoogleConnectOutcome>;
+  signInWithGoogle: () => Promise<GoogleConnectOutcome>;
   signOut: () => Promise<void>;
 };
 
@@ -47,14 +51,23 @@ export function FirebaseAuthProvider({ children }: { children: React.ReactNode }
       return;
     }
 
+    void getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) void syncUserProfile(result.user);
+      })
+      .catch(() => {
+        /* Auth state listener below still handles normal sessions. */
+      });
+
     return onAuthStateChanged(auth, (u) => {
-      setUser(u);
       if (u) {
+        setUser(u);
         void syncUserProfile(u);
         setReady(true);
         return;
       }
       // Avoid ready+null user: children (e.g. results) would gate on Google and spin forever.
+      setUser(null);
       setReady(false);
       void signInAnonymously(auth)
         .then(() => {
@@ -68,35 +81,43 @@ export function FirebaseAuthProvider({ children }: { children: React.ReactNode }
   }, [canUseFirebase]);
 
   const value = useMemo<AuthCtx>(
-    () => ({
-      user,
-      ready,
-      mode: canUseFirebase ? "firebase" : "local",
-      effectiveUid: user?.uid ?? localUid,
-      signInAnonymous: async () => {
+    () => {
+      const uid = user?.uid ?? localUid;
+      const hasGoogleIdentity = userHasGoogleIdentity(user);
+      const isAnonymous = Boolean(user?.isAnonymous);
+      const linkOrSignInWithGoogle = async () => {
         const auth = getFirebaseAuth();
-        if (!auth) return;
-        await signInAnonymously(auth);
-      },
-      linkGoogle: async () => {
-        const auth = getFirebaseAuth();
-        const u = auth?.currentUser;
-        if (!auth || !u) return;
-        const provider = new GoogleAuthProvider();
-        await linkWithPopup(u, provider);
-      },
-      signInWithGoogle: async () => {
-        const auth = getFirebaseAuth();
-        if (!auth) return;
-        const provider = new GoogleAuthProvider();
-        await signInWithPopup(auth, provider);
-      },
-      signOut: async () => {
-        const auth = getFirebaseAuth();
-        if (!auth) return;
-        await firebaseSignOut(auth);
-      },
-    }),
+        if (!auth) return "cancelled" as const;
+        return connectGoogleAccount(auth, auth.currentUser);
+      };
+
+      return {
+        user,
+        ready,
+        mode: canUseFirebase ? "firebase" : "local",
+        uid,
+        effectiveUid: uid,
+        isAnonymous,
+        hasGoogleIdentity,
+        signInAnonymous: async () => {
+          const auth = getFirebaseAuth();
+          if (!auth) return;
+          await signInAnonymously(auth);
+        },
+        linkOrSignInWithGoogle,
+        linkGoogle: linkOrSignInWithGoogle,
+        signInWithGoogle: async () => {
+          const auth = getFirebaseAuth();
+          if (!auth) return "cancelled";
+          return connectGoogleAccount(auth, null);
+        },
+        signOut: async () => {
+          const auth = getFirebaseAuth();
+          if (!auth) return;
+          await firebaseSignOut(auth);
+        },
+      };
+    },
     [user, ready, localUid, canUseFirebase],
   );
 
@@ -110,10 +131,14 @@ export function useFirebaseAuth(): AuthCtx {
       user: null,
       ready: true,
       mode: "local",
+      uid: null,
       effectiveUid: null,
+      isAnonymous: false,
+      hasGoogleIdentity: false,
       signInAnonymous: async () => {},
-      linkGoogle: async () => {},
-      signInWithGoogle: async () => {},
+      linkOrSignInWithGoogle: async () => "cancelled",
+      linkGoogle: async () => "cancelled",
+      signInWithGoogle: async () => "cancelled",
       signOut: async () => {},
     };
   }
