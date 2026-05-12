@@ -6,7 +6,7 @@ import Link from "next/link";
 import { BrandLogo } from "@/components/BrandLogo";
 import { trackAssessmentComplete, trackAssessmentStart } from "@/lib/analytics/track";
 import { fetchAssessment } from "@/lib/data/assessment-service";
-import { SESSION_ATTEMPT_CLAIM_KEY } from "@/lib/data/attempt-claim-client";
+import { SESSION_ATTEMPT_CLAIM_KEY, claimStorageKey } from "@/lib/data/attempt-claim-client";
 import { fetchAttempt, upsertAttempt, finalizeAttemptPayment } from "@/lib/data/attempt-service";
 import { publishShareSnapshot } from "@/lib/data/share-service";
 import { randomShareToken } from "@/lib/share-token";
@@ -96,6 +96,7 @@ export function AssessmentRunner({
     claimSecretRef.current = `${crypto.randomUUID()}${crypto.randomUUID()}`.replace(/-/g, "");
     try {
       if (typeof window !== "undefined") {
+        localStorage.setItem(claimStorageKey(attemptIdRef.current), claimSecretRef.current);
         sessionStorage.setItem(
           SESSION_ATTEMPT_CLAIM_KEY,
           JSON.stringify({ attemptId: attemptIdRef.current, claimSecret: claimSecretRef.current }),

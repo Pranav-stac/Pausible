@@ -41,6 +41,8 @@ export function ResultsClient() {
   const router = useRouter();
   const { effectiveUid, ready, linkGoogle, signInWithGoogle, user } = useFirebaseAuth();
   const hasGoogleIdentity = Boolean(user && !user.isAnonymous && user.email);
+  /** Firebase anonymous users are signed in; they must be able to load their own results without Google. */
+  const isFirebaseAnonymous = Boolean(user?.isAnonymous);
   const mustUseGoogle = isFirebaseConfigured();
 
   const [attempt, setAttempt] = useState<SerializedAttempt | null>(null);
@@ -108,7 +110,7 @@ export function ResultsClient() {
     return () => {
       cancelled = true;
     };
-  }, [attemptId, effectiveUid, hasGoogleIdentity, mustUseGoogle, ready]);
+  }, [attemptId, effectiveUid, hasGoogleIdentity, isFirebaseAnonymous, mustUseGoogle, ready]);
 
   const arch = useMemo(
     () => (assessment && attempt?.scores ? getArchetypeCopy(assessment, attempt.scores.archetypeKey) : null),
@@ -167,7 +169,7 @@ export function ResultsClient() {
     );
   }
 
-  if (mustUseGoogle && !hasGoogleIdentity) {
+  if (mustUseGoogle && !hasGoogleIdentity && !isFirebaseAnonymous) {
     return (
       <div className="min-h-screen bg-white scheme-light text-slate-900">
         <ResultsTopBar />
