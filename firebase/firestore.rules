@@ -21,7 +21,10 @@ service cloud.firestore {
 
     match /attempts/{attemptId} {
       allow read: if callerIsFirestoreAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
-      allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && (!request.resource.data.keys().hasAny(['claimSecret'])
+          || (request.resource.data.claimSecret is string && request.resource.data.claimSecret.size() <= 256));
       allow update, delete: if callerIsFirestoreAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
     }
 

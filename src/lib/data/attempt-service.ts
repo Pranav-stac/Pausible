@@ -40,6 +40,8 @@ export type WritableAttempt = {
   paymentId?: string;
   shareToken?: string | null;
   isLatestShareEligible?: boolean;
+  /** Same-tab proof so a later Google sign-in can claim this attempt (see /api/attempts/claim). */
+  claimSecret?: string | null;
 };
 
 function toSerialized(a: WritableAttempt & { createdAtIso?: string; paidAtIso?: string }): SerializedAttempt {
@@ -70,23 +72,23 @@ export async function upsertAttempt(data: WritableAttempt): Promise<void> {
   const ref = doc(db, "attempts", data.id);
   const exists = await getDoc(ref).then((s) => s.exists());
 
-  await setDoc(
-    ref,
-    {
-      uid: data.uid,
-      assessmentId: data.assessmentId,
-      answers: data.answers,
-      scores: data.scores ?? null,
-      paymentStatus: data.paymentStatus,
-      paymentProvider: data.paymentProvider ?? null,
-      paymentId: data.paymentId ?? null,
-      shareToken: data.shareToken ?? null,
-      isLatestShareEligible: Boolean(data.isLatestShareEligible),
-      updatedAt: serverTimestamp(),
-      ...(exists ? {} : { createdAt: serverTimestamp() }),
-    },
-    { merge: true },
-  );
+  const payload: Record<string, unknown> = {
+    uid: data.uid,
+    assessmentId: data.assessmentId,
+    answers: data.answers,
+    scores: data.scores ?? null,
+    paymentStatus: data.paymentStatus,
+    paymentProvider: data.paymentProvider ?? null,
+    paymentId: data.paymentId ?? null,
+    shareToken: data.shareToken ?? null,
+    isLatestShareEligible: Boolean(data.isLatestShareEligible),
+    updatedAt: serverTimestamp(),
+    ...(exists ? {} : { createdAt: serverTimestamp() }),
+  };
+  if (data.claimSecret != null && data.claimSecret !== "") {
+    payload.claimSecret = data.claimSecret;
+  }
+  await setDoc(ref, payload, { merge: true });
 }
 
 export async function patchAttempt(attemptId: string, patch: Partial<WritableAttempt>): Promise<void> {
@@ -109,7 +111,12 @@ export async function fetchAttempt(attemptId: string): Promise<SerializedAttempt
   }
   const db = getFirebaseDb();
   if (!db) return null;
-  const snap = await getDoc(doc(db, "attempts", attemptId));
+  let snap;
+  try {
+    snap = await getDoc(doc(db, "attempts", attemptId));
+  } catch {
+    return null;
+  }
   if (!snap.exists()) return null;
   const d = snap.data();
   return {

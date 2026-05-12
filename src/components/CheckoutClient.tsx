@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFirebaseAuth } from "@/lib/firebase/auth-context";
 import { fetchAttempt, finalizeAttemptPayment } from "@/lib/data/attempt-service";
+import { tryClaimAttemptForSession } from "@/lib/data/attempt-claim-client";
 import { fetchAssessment } from "@/lib/data/assessment-service";
 import { publishShareSnapshot } from "@/lib/data/share-service";
 import { randomShareToken } from "@/lib/share-token";
@@ -69,6 +70,7 @@ export function CheckoutClient({ bootstrapPriceInr }: { bootstrapPriceInr: numbe
 
   const completeDevOnClient = useCallback(async () => {
     if (!attemptId || !effectiveUid) return;
+    await tryClaimAttemptForSession(attemptId);
     const attempt = await fetchAttempt(attemptId);
     if (!attempt || attempt.uid !== effectiveUid) throw new Error("Attempt not found for this session");
     const assessment = await fetchAssessment(attempt.assessmentId);
@@ -107,6 +109,7 @@ export function CheckoutClient({ bootstrapPriceInr }: { bootstrapPriceInr: numbe
       setBusy(provider);
       setError(null);
       try {
+        await tryClaimAttemptForSession(attemptId);
         const headers: Record<string, string> = { "Content-Type": "application/json" };
         if (isFirebaseConfigured()) {
           const token = await getIdToken();

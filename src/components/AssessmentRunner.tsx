@@ -6,6 +6,7 @@ import Link from "next/link";
 import { BrandLogo } from "@/components/BrandLogo";
 import { trackAssessmentComplete, trackAssessmentStart } from "@/lib/analytics/track";
 import { fetchAssessment } from "@/lib/data/assessment-service";
+import { SESSION_ATTEMPT_CLAIM_KEY } from "@/lib/data/attempt-claim-client";
 import { fetchAttempt, upsertAttempt, finalizeAttemptPayment } from "@/lib/data/attempt-service";
 import { publishShareSnapshot } from "@/lib/data/share-service";
 import { randomShareToken } from "@/lib/share-token";
@@ -68,6 +69,8 @@ export function AssessmentRunner({
   const [expandedPastIndex, setExpandedPastIndex] = useState<number | null>(null);
   const questionRefs = useRef<(HTMLDivElement | null)[]>([]);
   const attemptIdRef = useRef("");
+  /** Same-tab proof stored on the attempt so Google sign-in can reclaim this run (see /api/attempts/claim). */
+  const claimSecretRef = useRef("");
   const startTrackedRef = useRef<string | null>(null);
   const assessmentSessionIdRef = useRef<string | null>(null);
 
@@ -90,6 +93,17 @@ export function AssessmentRunner({
     if (assessmentSessionIdRef.current === assessment.id) return;
     assessmentSessionIdRef.current = assessment.id;
     attemptIdRef.current = crypto.randomUUID();
+    claimSecretRef.current = `${crypto.randomUUID()}${crypto.randomUUID()}`.replace(/-/g, "");
+    try {
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem(
+          SESSION_ATTEMPT_CLAIM_KEY,
+          JSON.stringify({ attemptId: attemptIdRef.current, claimSecret: claimSecretRef.current }),
+        );
+      }
+    } catch {
+      /* quota / private mode */
+    }
     setAnswers({});
     setRevealedCount(1);
     setExpandedPastIndex(null);
@@ -179,6 +193,8 @@ export function AssessmentRunner({
     if (Object.keys(answers).length === 0) return;
 
     const id = attemptIdRef.current;
+    const claim =
+      claimSecretRef.current.length >= 16 ? { claimSecret: claimSecretRef.current } : {};
     const t = window.setTimeout(() => {
       void upsertAttempt({
         id,
@@ -189,6 +205,7 @@ export function AssessmentRunner({
         paymentStatus: "pending",
         shareToken: null,
         isLatestShareEligible: false,
+        ...claim,
       });
     }, DEBOUNCE_SAVE_MS);
 
@@ -207,6 +224,8 @@ export function AssessmentRunner({
 
     const id = attemptIdRef.current;
     const scores = computeScores(assessment, merged);
+    const claim =
+      claimSecretRef.current.length >= 16 ? { claimSecret: claimSecretRef.current } : {};
 
     await upsertAttempt({
       id,
@@ -217,6 +236,7 @@ export function AssessmentRunner({
       paymentStatus: "pending",
       shareToken: null,
       isLatestShareEligible: false,
+      ...claim,
     });
 
     const pvPath = typeof window !== "undefined" ? window.location.pathname : "/";

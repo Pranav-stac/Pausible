@@ -7,6 +7,7 @@ import { NavAuthActions } from "@/components/NavAuthActions";
 import { useFirebaseAuth } from "@/lib/firebase/auth-context";
 import { isFirebaseConfigured } from "@/lib/firebase/config";
 import { fetchAttempt, listMyAttempts } from "@/lib/data/attempt-service";
+import { tryClaimAttemptForSession } from "@/lib/data/attempt-claim-client";
 import { fetchAssessment } from "@/lib/data/assessment-service";
 import type { AssessmentDefinition } from "@/types/models";
 import type { SerializedAttempt } from "@/lib/local/attempts";
@@ -61,11 +62,22 @@ export function ResultsClient() {
       setAssessment(null);
       setHistory([]);
 
-      const row = await fetchAttempt(attemptId);
+      let row = await fetchAttempt(attemptId);
       if (cancelled) return;
 
       if (!row || row.uid !== effectiveUid) {
-        setError("Not found");
+        await tryClaimAttemptForSession(attemptId);
+        if (cancelled) return;
+        row = await fetchAttempt(attemptId);
+      }
+      if (cancelled) return;
+
+      if (!row || row.uid !== effectiveUid) {
+        setError(
+          hasGoogleIdentity
+            ? "Not found for this Google account. If you finished as a guest then signed in with Google, open this link in the same browser tab where you took the assessment (we attach a one-time claim there). Next time, use Link Google on the guest session instead of Sign in."
+            : "Not found",
+        );
         setFetching(false);
         return;
       }
