@@ -54,10 +54,16 @@ export function FirebaseAuthProvider({ children }: { children: React.ReactNode }
         setReady(true);
         return;
       }
-      void signInAnonymously(auth).catch(() => {
-        setLocalUid(getOrCreateLocalUid());
-        setReady(true);
-      });
+      // Avoid ready+null user: children (e.g. results) would gate on Google and spin forever.
+      setReady(false);
+      void signInAnonymously(auth)
+        .then(() => {
+          /* onAuthStateChanged will fire with anonymous user */
+        })
+        .catch(() => {
+          setLocalUid(getOrCreateLocalUid());
+          setReady(true);
+        });
     });
   }, [canUseFirebase]);
 

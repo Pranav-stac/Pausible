@@ -156,21 +156,56 @@ export function ResultsClient() {
   }
 
   if (mustUseGoogle && !hasGoogleIdentity) {
-    if (!user) {
-      return (
-        <div className="min-h-screen bg-white scheme-light text-slate-900">
-          <ResultsTopBar />
-          <div className="p-10 text-center text-sm text-slate-600">Preparing your session…</div>
-        </div>
-      );
-    }
-
     return (
       <div className="min-h-screen bg-white scheme-light text-slate-900">
         <ResultsTopBar />
         <div className="mx-auto max-w-lg px-4 py-12 text-center sm:py-16">
           <h1 className="text-lg font-semibold text-slate-900">Sign in to view results</h1>
-          {user.isAnonymous ? (
+          {!user && effectiveUid ? (
+            <>
+              <p className="mt-3 text-sm leading-relaxed text-slate-600">
+                Firebase couldn&apos;t attach a browser profile (guest anonymous auth may be disabled or still
+                starting). Use Google sign-in to load this attempt, or refresh the page.
+              </p>
+              <div className="mt-8 flex flex-col items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => void signInWithGoogle()}
+                  className="rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-900"
+                >
+                  Sign in with Google
+                </button>
+                <button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  className="text-sm font-semibold text-slate-600 underline decoration-slate-300 underline-offset-2 hover:text-slate-900"
+                >
+                  Refresh page
+                </button>
+                <Link href="/" className="text-sm font-semibold text-sky-700 hover:text-indigo-800">
+                  ← Home
+                </Link>
+              </div>
+            </>
+          ) : !user && !effectiveUid ? (
+            <>
+              <p className="mt-3 text-sm leading-relaxed text-slate-600">
+                No session id yet. Check that Firebase Auth is configured, then reload.
+              </p>
+              <div className="mt-8 flex flex-col items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  className="rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50"
+                >
+                  Reload
+                </button>
+                <Link href="/" className="text-sm font-semibold text-sky-700 hover:text-indigo-800">
+                  ← Home
+                </Link>
+              </div>
+            </>
+          ) : user?.isAnonymous ? (
             <>
               <p className="mt-3 text-sm leading-relaxed text-slate-600">
                 Link Google from this browser to keep your current attempt tied to one account.&nbsp;
