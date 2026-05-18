@@ -13,6 +13,7 @@ import { coerceAnswer } from "@/lib/scoring/engine";
 import { computeAttemptScores } from "@/lib/scoring/compute-attempt-scores";
 import { fetchPersonaScoringConfig } from "@/lib/data/persona-scoring-config-client";
 import { useFirebaseAuth } from "@/lib/firebase/auth-context";
+import { isFirebaseConfigured } from "@/lib/firebase/config";
 import { useAppSettings } from "@/lib/hooks/useAppSettings";
 import { defaultAssessmentId } from "@/data/default-assessment";
 import { assessmentTestToolsAllowed, randomAnswersForQuestions } from "@/lib/testing/random-assessment-fill";
@@ -54,13 +55,14 @@ export function AssessmentRunner({
   bootstrapRequirePayment: boolean | null;
 }) {
   const router = useRouter();
-  const { effectiveUid, ready } = useFirebaseAuth();
+  const { effectiveUid, ready, ensureAnonymousSession } = useFirebaseAuth();
   const serverPaymentHint = typeof bootstrapRequirePayment === "boolean" ? bootstrapRequirePayment : undefined;
   const { requirePayment } = useAppSettings(serverPaymentHint);
   const [assessment, setAssessment] = useState<AssessmentDefinition | null>(() =>
     bootstrapAssessment != null ? bootstrapAssessment : null,
   );
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, number | string | string[]>>({});
   const [localUid, setLocalUid] = useState<string | null>(null);
   /** Renders question cards 0..revealedCount-1; increments when the latest visible question is answered. */
@@ -223,6 +225,15 @@ export function AssessmentRunner({
       merged[q.id] = c;
     }
 
+    let saveUid = attemptUid;
+    if (isFirebaseConfigured()) {
+      const firebaseUid = await ensureAnonymousSession();
+      if (!firebaseUid) {
+        throw new Error("Could not save your assessment. Please check your connection and try again.");
+      }
+      saveUid = firebaseUid;
+    }
+
     const id = attemptIdRef.current;
     const personaConfig = await fetchPersonaScoringConfig();
     const scores = computeAttemptScores(merged, personaConfig);
@@ -232,7 +243,7 @@ export function AssessmentRunner({
 
     await upsertAttempt({
       id,
-      uid: attemptUid,
+      uid: saveUid,
       assessmentId: assessment.id,
       answers: merged,
       scores,
@@ -245,7 +256,7 @@ export function AssessmentRunner({
 
     const pvPath = typeof window !== "undefined" ? window.location.pathname : "/";
     await trackAssessmentComplete({
-      uid: attemptUid,
+      uid: saveUid,
       assessmentId: assessment.id,
       path: pvPath,
       requirePayment,
@@ -253,7 +264,7 @@ export function AssessmentRunner({
 
     const next = requirePayment ? "checkout" : "results";
     router.push(`/after-assessment/${encodeURIComponent(id)}?next=${next}`);
-  }, [answers, assessment, attemptUid, questions, requirePayment, router]);
+  }, [answers, assessment, attemptUid, ensureAnonymousSession, questions, requirePayment, router]);
 
   const fillAllRandomTesting = useCallback(() => {
     if (!questions.length || !assessment) return;
@@ -494,16 +505,26 @@ export function AssessmentRunner({
       </main>
 
       <footer className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200/75 bg-white/95 px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-10px_36px_-24px_rgba(15,23,42,0.12)] backdrop-blur-md">
-        <div className="mx-auto flex max-w-lg flex-wrap items-center justify-end gap-3 sm:max-w-xl lg:max-w-[40rem]">
-          <p className="text-[11px] font-medium text-slate-700">{answeredCount}/{total} answered</p>
-          <button
-            type="button"
-            onClick={() => void handleFinish()}
-            disabled={!canFinish}
-            className="rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/20 disabled:opacity-40"
-          >
-            {requirePayment ? "Finish & continue to checkout" : "Finish & unlock results"}
-          </button>
+        <div className="mx-auto flex max-w-lg flex-col gap-2 sm:max-w-xl lg:max-w-[40rem]">
+          {submitError ? <p className="text-center text-xs text-red-700">{submitError}</p> : null}
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <p className="text-[11px] font-medium text-slate-700">
+              {answeredCount}/{total} answered
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setSubmitError(null);
+                void handleFinish().catch((e: unknown) => {
+                  setSubmitError(e instanceof Error ? e.message : "Could not submit. Please try again.");
+                });
+              }}
+              disabled={!canFinish}
+              className="rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/20 disabled:opacity-40"
+            >
+              {requirePayment ? "Finish & continue to checkout" : "Finish & unlock results"}
+            </button>
+          </div>
         </div>
       </footer>
     </div>

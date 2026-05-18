@@ -24,6 +24,8 @@ type AuthCtx = {
   isAnonymous: boolean;
   hasGoogleIdentity: boolean;
   signInAnonymous: () => Promise<void>;
+  /** Creates an anonymous Firebase user when needed (e.g. after finishing an assessment). */
+  ensureAnonymousSession: () => Promise<string | null>;
   linkOrSignInWithGoogle: () => Promise<GoogleConnectOutcome>;
   linkGoogle: () => Promise<GoogleConnectOutcome>;
   signInWithGoogle: () => Promise<GoogleConnectOutcome>;
@@ -60,23 +62,9 @@ export function FirebaseAuthProvider({ children }: { children: React.ReactNode }
       });
 
     return onAuthStateChanged(auth, (u) => {
-      if (u) {
-        setUser(u);
-        void syncUserProfile(u);
-        setReady(true);
-        return;
-      }
-      // Avoid ready+null user: children (e.g. results) would gate on Google and spin forever.
-      setUser(null);
-      setReady(false);
-      void signInAnonymously(auth)
-        .then(() => {
-          /* onAuthStateChanged will fire with anonymous user */
-        })
-        .catch(() => {
-          setLocalUid(getOrCreateLocalUid());
-          setReady(true);
-        });
+      setUser(u);
+      if (u) void syncUserProfile(u);
+      setReady(true);
     });
   }, [canUseFirebase]);
 
@@ -103,6 +91,21 @@ export function FirebaseAuthProvider({ children }: { children: React.ReactNode }
           const auth = getFirebaseAuth();
           if (!auth) return;
           await signInAnonymously(auth);
+        },
+        ensureAnonymousSession: async () => {
+          const auth = getFirebaseAuth();
+          if (!auth) return null;
+          if (auth.currentUser?.uid) return auth.currentUser.uid;
+          try {
+            await signInAnonymously(auth);
+          } catch {
+            return null;
+          }
+          for (let i = 0; i < 40; i++) {
+            if (auth.currentUser?.uid) return auth.currentUser.uid;
+            await new Promise((r) => setTimeout(r, 50));
+          }
+          return null;
         },
         linkOrSignInWithGoogle,
         linkGoogle: linkOrSignInWithGoogle,
@@ -136,6 +139,7 @@ export function useFirebaseAuth(): AuthCtx {
       isAnonymous: false,
       hasGoogleIdentity: false,
       signInAnonymous: async () => {},
+      ensureAnonymousSession: async () => null,
       linkOrSignInWithGoogle: async () => "cancelled",
       linkGoogle: async () => "cancelled",
       signInWithGoogle: async () => "cancelled",
