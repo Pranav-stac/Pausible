@@ -46,6 +46,12 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ attemptId: 
   const x = snap.data() ?? {};
   const answers = typeof x.answers === "object" && x.answers ? (x.answers as Record<string, unknown>) : {};
   const scores = typeof x.scores === "object" ? x.scores : null;
+  const personaAnalysis =
+    x.personaAnalysis && typeof x.personaAnalysis === "object"
+      ? x.personaAnalysis
+      : scores && typeof scores === "object" && (scores as { persona?: unknown }).persona
+        ? (scores as { persona: unknown }).persona
+        : null;
 
   return NextResponse.json({
     id: snap.id,
@@ -64,6 +70,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ attemptId: 
     answersCount: Object.keys(answers).length,
     answersPreview: answers,
     scores,
+    personaAnalysis,
     resultsUrl: `/results/${snap.id}`,
   });
 }

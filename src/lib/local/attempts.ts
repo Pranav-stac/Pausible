@@ -1,4 +1,5 @@
 import type { AttemptAnswers, AttemptScores } from "@/types/models";
+import type { PersonaAnalysis } from "@/lib/scoring/persona-types";
 import { getOrCreateLocalUid } from "@/lib/local/uid";
 
 const ATTEMPTS_KEY = "pausible_attempts_v1";
@@ -11,6 +12,7 @@ export type SerializedAttempt = {
   assessmentId: string;
   answers: AttemptAnswers;
   scores?: AttemptScores | null;
+  personaAnalysis?: PersonaAnalysis | null;
   paymentStatus: "pending" | "paid" | "failed";
   paymentProvider?: "stripe" | "razorpay" | "paypal" | "dev" | "free";
   paymentId?: string;

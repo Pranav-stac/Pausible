@@ -11,7 +11,9 @@ import { tryClaimAttemptForSession } from "@/lib/data/attempt-claim-client";
 import { fetchAssessment } from "@/lib/data/assessment-service";
 import type { AssessmentDefinition } from "@/types/models";
 import type { SerializedAttempt } from "@/lib/local/attempts";
-import { getArchetypeCopy } from "@/lib/results/archetype";
+import { personaCopy, personaLabel } from "@/lib/results/persona-display";
+import { PERSONA_KEYS, type PersonaKey } from "@/lib/scoring/persona-types";
+import { PERSONA_DISPLAY } from "@/lib/scoring/persona-defaults";
 import { dimensionRowsForAttempt } from "@/lib/results/dimension-rows";
 import { ResultsStoryPosterSection } from "@/components/results/ResultsStoryPosterSection";
 import { useAppSettings } from "@/lib/hooks/useAppSettings";
@@ -115,10 +117,17 @@ export function ResultsClient() {
     };
   }, [attemptId, effectiveUid, hasGoogleIdentity, mustUseGoogle, ready, requirePayment, router, settingsLoading]);
 
-  const arch = useMemo(
-    () => (assessment && attempt?.scores ? getArchetypeCopy(assessment, attempt.scores.archetypeKey) : null),
-    [assessment, attempt],
-  );
+  const primaryPersona = attempt?.scores?.archetypeKey;
+  const secondaryPersona = attempt?.scores?.secondaryArchetypeKey;
+  const primaryCopy = useMemo(() => personaCopy(primaryPersona), [primaryPersona]);
+  const secondaryCopy = useMemo(() => personaCopy(secondaryPersona), [secondaryPersona]);
+  const personaMix = useMemo(() => {
+    const pcts = attempt?.scores?.persona?.personaPercentages;
+    if (!pcts) return [];
+    return [...PERSONA_KEYS]
+      .map((k) => ({ key: k, label: PERSONA_DISPLAY[k].label, pct: pcts[k] ?? 0 }))
+      .sort((a, b) => b.pct - a.pct);
+  }, [attempt?.scores?.persona]);
 
   const dimensionRows = useMemo(
     () => (assessment && attempt ? dimensionRowsForAttempt(assessment, attempt) : []),
@@ -139,16 +148,17 @@ export function ResultsClient() {
   }
 
   const storyPoster = useMemo(() => {
-    const sum = arch?.summary?.trim() ?? "";
+    const sum = primaryCopy?.summary?.trim() ?? "";
     const line = sum.length > 160 ? `${sum.slice(0, 157)}…` : sum || "Fitness behavioral spotlight — dimensional mix from your latest assessment.";
+    const label = personaLabel(primaryPersona);
     return {
-      archetypeLabel: arch?.label ?? "Your profile",
+      archetypeLabel: label,
       line,
       dimensions: dimensionRows.slice(0, 6).map((d) => ({ label: d.label, pct: d.pct })),
-      hashtags: ["Pausible", `Paus${archetypeHashtagSlug(arch?.label)}`, "FitnessMind"],
+      hashtags: ["Pausible", `Paus${archetypeHashtagSlug(label)}`, "FitnessMind"],
       siteSlug: `${posterHostSlug} · spotlight`,
     };
-  }, [arch, dimensionRows, posterHostSlug]);
+  }, [primaryCopy, primaryPersona, dimensionRows, posterHostSlug]);
   const shareUrl = useMemo(() => {
     if (!attempt?.shareToken || !attempt.isLatestShareEligible || attempt.paymentStatus !== "paid") return null;
     if (typeof window === "undefined") return null;
@@ -278,9 +288,25 @@ export function ResultsClient() {
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
         <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Latest paid spotlight</p>
-            <h1 className="mt-2 text-4xl font-semibold tracking-tight text-slate-950">{arch?.label ?? "Your profile"}</h1>
-            <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-600">{arch?.summary}</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Your behavioral personas</p>
+            <h1 className="mt-2 text-4xl font-semibold tracking-tight text-slate-950">
+              {personaLabel(primaryPersona)}
+            </h1>
+            {secondaryPersona ? (
+              <p className="mt-2 text-lg font-medium text-sky-800">
+                Secondary: {personaLabel(secondaryPersona)}
+                {attempt?.scores?.persona?.personaPercentages[secondaryPersona as PersonaKey] != null ? (
+                  <span className="text-slate-500">
+                    {" "}
+                    ({attempt.scores.persona.personaPercentages[secondaryPersona as PersonaKey].toFixed(1)}% match)
+                  </span>
+                ) : null}
+              </p>
+            ) : null}
+            <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-600">{primaryCopy?.summary}</p>
+            {secondaryCopy ? (
+              <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-500">{secondaryCopy.summary}</p>
+            ) : null}
           </div>
           <div className="md:w-80">
             <div className="rounded-3xl bg-linear-to-br from-[#061238] via-[#071746] to-[#031132] p-[1px] shadow-[0_30px_80px_-30px_rgba(12,25,78,.6)]">
@@ -349,10 +375,33 @@ export function ResultsClient() {
           />
         </div>
 
+        {personaMix.length > 0 ? (
+          <div className="mt-10 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-slate-900">Persona match breakdown</h2>
+            <p className="mt-1 text-sm text-slate-600">Softmax weights from your trait profile vs reference centroids.</p>
+            <ul className="mt-5 space-y-3">
+              {personaMix.map(({ key, label, pct }) => (
+                <li key={key}>
+                  <div className="flex justify-between text-sm font-medium text-slate-800">
+                    <span>{label}</span>
+                    <span className="tabular-nums text-slate-600">{pct.toFixed(1)}%</span>
+                  </div>
+                  <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className="h-full rounded-full bg-linear-to-r from-sky-500 to-indigo-500"
+                      style={{ width: `${Math.min(100, pct)}%` }}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
         <div className="mt-10 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-900">Playbook</h2>
           <ul className="mt-4 grid gap-6 sm:grid-cols-2">
-            {(arch?.bullets ?? []).map((b) => (
+            {(primaryCopy?.bullets ?? []).map((b) => (
               <li key={b} className="flex gap-3 rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
                 <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-[#61aaff] to-[#7dd8ff] text-[11px] font-bold text-[#061018]">
                   ✓

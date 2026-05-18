@@ -7,12 +7,16 @@ import { doc, getDoc } from "firebase/firestore";
 import type { AssessmentDefinition } from "@/types/models";
 import { AssessmentUiEditor } from "@/components/admin/AssessmentUiEditor";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { AttemptPersonaDetail } from "@/components/admin/AttemptPersonaDetail";
+import { PersonaCentroidsEditor } from "@/components/admin/PersonaCentroidsEditor";
+import { personaLabel } from "@/lib/results/persona-display";
+import type { PersonaAnalysis } from "@/lib/scoring/persona-types";
 import { getFirebaseAuth, getFirebaseDb } from "@/lib/firebase/client";
 import { isFirebaseConfigured } from "@/lib/firebase/config";
 import { useFirebaseAuth } from "@/lib/firebase/auth-context";
 import type { AdminAnalyticsResponse } from "@/lib/analytics/admin-types";
 
-type Tab = "overview" | "attempts" | "assessments" | "users" | "analytics" | "settings";
+type Tab = "overview" | "attempts" | "assessments" | "users" | "analytics" | "personas" | "settings";
 
 type Stats = {
   attemptCount: number;
@@ -42,6 +46,8 @@ type AttemptRow = {
   claimedAt: string | null;
   answerCount: number;
   archetypeKey: string | null;
+  secondaryArchetypeKey: string | null;
+  primaryPersonaPct: number | null;
 };
 
 type UserRow = {
@@ -851,7 +857,8 @@ export function AdminDashboard() {
                         <th className="px-3 py-2">Assessment</th>
                         <th className="px-3 py-2">Status</th>
                         <th className="px-3 py-2">Answers</th>
-                        <th className="px-3 py-2">Archetype</th>
+                        <th className="px-3 py-2">Primary persona</th>
+                        <th className="px-3 py-2">Secondary</th>
                         <th className="px-3 py-2">Provider</th>
                         <th className="px-3 py-2">Share</th>
                         <th className="px-3 py-2">Created</th>
@@ -880,7 +887,15 @@ export function AdminDashboard() {
                             <td className="px-3 py-2">{row.assessmentId}</td>
                             <td className="px-3 py-2 font-semibold">{row.paymentStatus}</td>
                             <td className="px-3 py-2 tabular-nums">{row.answerCount}</td>
-                            <td className="px-3 py-2 text-[11px]">{row.archetypeKey ?? "—"}</td>
+                            <td className="px-3 py-2 text-[11px]">
+                              {row.archetypeKey ? personaLabel(row.archetypeKey) : "—"}
+                              {row.primaryPersonaPct != null ? (
+                                <span className="text-slate-500"> · {row.primaryPersonaPct.toFixed(1)}%</span>
+                              ) : null}
+                            </td>
+                            <td className="px-3 py-2 text-[11px]">
+                              {row.secondaryArchetypeKey ? personaLabel(row.secondaryArchetypeKey) : "—"}
+                            </td>
                             <td className="px-3 py-2">{row.paymentProvider ?? "—"}</td>
                             <td className="px-3 py-2 text-[10px]">{row.shareToken?.slice(0, 8) ?? "—"}</td>
                             <td className="px-3 py-2 text-[10px] text-slate-500">{row.createdAt?.slice(0, 16) ?? "—"}</td>
@@ -1250,6 +1265,14 @@ export function AdminDashboard() {
             </div>
           ) : null}
 
+          {tab === "personas" ? (
+            <PersonaCentroidsEditor
+              api={api}
+              onMessage={setMsg}
+              onError={setErr}
+            />
+          ) : null}
+
           {tab === "settings" ? (
             <div className="mx-auto max-w-2xl space-y-6">
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -1354,16 +1377,27 @@ export function AdminDashboard() {
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 text-xs">
-              <dl className="space-y-2">
-                {Object.entries(attemptDrawer).map(([k, v]) => (
-                  <div key={k}>
-                    <dt className="font-semibold capitalize text-slate-500">{k}</dt>
-                    <dd className="mt-0.5 overflow-x-auto font-mono text-[11px] text-slate-800">
-                      {typeof v === "object" ? JSON.stringify(v).slice(0, 1800) : String(v)}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
+              <AttemptPersonaDetail
+                analysis={
+                  (attemptDrawer.personaAnalysis as PersonaAnalysis | undefined) ??
+                  ((attemptDrawer.scores as { persona?: PersonaAnalysis } | null)?.persona ?? null)
+                }
+              />
+              <details className="mt-6">
+                <summary className="cursor-pointer font-semibold text-slate-600">Raw attempt metadata</summary>
+                <dl className="mt-2 space-y-2">
+                  {Object.entries(attemptDrawer)
+                    .filter(([k]) => !["personaAnalysis", "answersPreview", "scores"].includes(k))
+                    .map(([k, v]) => (
+                      <div key={k}>
+                        <dt className="font-semibold capitalize text-slate-500">{k}</dt>
+                        <dd className="mt-0.5 overflow-x-auto font-mono text-[11px] text-slate-800">
+                          {typeof v === "object" ? JSON.stringify(v).slice(0, 1200) : String(v)}
+                        </dd>
+                      </div>
+                    ))}
+                </dl>
+              </details>
               <div className="mt-6 flex gap-2">
                 <Link
                   href={(attemptDrawer.resultsUrl as string) ?? `#`}

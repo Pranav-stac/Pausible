@@ -1,4 +1,5 @@
 import type { Timestamp } from "firebase/firestore";
+import type { PersonaAnalysis } from "@/lib/scoring/persona-types";
 
 /** Builder-driven question types */
 export type QuestionType = "likert" | "single" | "multi";
@@ -54,8 +55,14 @@ export type AssessmentDefinition = {
 export type AttemptAnswers = Record<string, number | string | string[]>;
 
 export type AttemptScores = {
+  /** Trait average scores on the 1–7 likert scale */
   dimensions: Record<string, number>;
+  /** Primary persona key (highest match %) */
   archetypeKey?: string;
+  /** Secondary persona key (second-highest match %) */
+  secondaryArchetypeKey?: string;
+  /** Full persona pipeline output (item → facet → trait → match) */
+  persona?: PersonaAnalysis;
 };
 
 export type AttemptDoc = {
@@ -65,6 +72,8 @@ export type AttemptDoc = {
   assessmentId: string;
   answers: AttemptAnswers;
   scores?: AttemptScores | null;
+  /** Denormalized copy of scores.persona for admin queries */
+  personaAnalysis?: PersonaAnalysis | null;
   paymentStatus: "pending" | "paid" | "failed";
   paymentProvider?: "stripe" | "razorpay" | "paypal" | "dev" | "free";
   paymentId?: string;
@@ -92,6 +101,8 @@ export type AppSettingsDoc = {
   requirePayment?: boolean;
   /** Integer INR charged at checkout; unset uses `NEXT_PUBLIC_ASSESSMENT_PRICE_INR` */
   priceInr?: number;
+  /** Softmax temperature for persona Si = exp(alpha * -distance); default 1 */
+  personaAlpha?: number;
   updatedAt?: Timestamp;
 };
 

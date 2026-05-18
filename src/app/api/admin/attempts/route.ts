@@ -39,6 +39,22 @@ export async function GET(req: NextRequest) {
           x.scores && typeof x.scores === "object" && (x.scores as { archetypeKey?: string }).archetypeKey
             ? String((x.scores as { archetypeKey?: string }).archetypeKey)
             : null,
+        secondaryArchetypeKey:
+          x.scores && typeof x.scores === "object" && (x.scores as { secondaryArchetypeKey?: string }).secondaryArchetypeKey
+            ? String((x.scores as { secondaryArchetypeKey?: string }).secondaryArchetypeKey)
+            : null,
+        primaryPersonaPct: (() => {
+          const persona =
+            x.personaAnalysis && typeof x.personaAnalysis === "object"
+              ? x.personaAnalysis
+              : x.scores && typeof x.scores === "object"
+                ? (x.scores as { persona?: { primaryPersona?: string; personaPercentages?: Record<string, number> } })
+                    .persona
+                : null;
+          if (!persona?.primaryPersona || !persona.personaPercentages) return null;
+          const p = persona.personaPercentages[persona.primaryPersona];
+          return typeof p === "number" ? p : null;
+        })(),
       };
     });
 

@@ -1,6 +1,7 @@
 import type { AssessmentDefinition } from "@/types/models";
 import type { SerializedAttempt } from "@/lib/local/attempts";
 import { dimensionMaxContributions, dimensionPercentages } from "@/lib/scoring/dimension-caps";
+import { traitMeterPercent } from "@/lib/results/persona-display";
 
 export type DimensionRow = { key: string; label: string; pct: number };
 
@@ -15,6 +16,17 @@ export function dimensionRowsForAttempt(
 ): DimensionRow[] {
   const dims = attempt?.scores?.dimensions;
   if (!dims) return [];
+
+  const personaTraits = attempt?.scores?.persona?.traitAverages;
+  if (personaTraits) {
+    const prio = ["openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism"] as const;
+    return prio.map((k) => ({
+      key: k,
+      label: dimensionLabel(k),
+      pct: traitMeterPercent(personaTraits[k] ?? 0),
+    }));
+  }
+
   const caps = dimensionMaxContributions(assessment);
   const raw = dimensionPercentages(dims, caps);
   const prio = ["openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism"] as const;

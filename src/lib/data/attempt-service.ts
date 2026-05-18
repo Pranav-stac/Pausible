@@ -15,6 +15,7 @@ import {
 import { getFirebaseAuth, getFirebaseDb } from "@/lib/firebase/client";
 import { isFirebaseConfigured } from "@/lib/firebase/config";
 import type { AttemptAnswers, AttemptScores } from "@/types/models";
+import type { PersonaAnalysis } from "@/lib/scoring/persona-types";
 import {
   localGetAttempt,
   localListAttemptsForUser,
@@ -43,6 +44,7 @@ export type WritableAttempt = {
   assessmentId: string;
   answers: AttemptAnswers;
   scores?: AttemptScores | null;
+  personaAnalysis?: PersonaAnalysis | null;
   paymentStatus: SerializedAttempt["paymentStatus"];
   paymentProvider?: SerializedAttempt["paymentProvider"];
   paymentId?: string;
@@ -61,6 +63,7 @@ function toSerialized(a: WritableAttempt & { createdAtIso?: string; paidAtIso?: 
     assessmentId: a.assessmentId,
     answers: a.answers,
     scores: a.scores,
+    personaAnalysis: a.personaAnalysis ?? a.scores?.persona ?? null,
     paymentStatus: a.paymentStatus,
     paymentProvider: a.paymentProvider,
     paymentId: a.paymentId,
@@ -92,6 +95,7 @@ export async function upsertAttempt(data: WritableAttempt): Promise<void> {
     assessmentId: data.assessmentId,
     answers: data.answers,
     scores: data.scores ?? null,
+    personaAnalysis: data.personaAnalysis ?? data.scores?.persona ?? null,
     paymentStatus: data.paymentStatus,
     paymentProvider: data.paymentProvider ?? null,
     paymentId: data.paymentId ?? null,
@@ -142,6 +146,7 @@ export async function fetchAttempt(attemptId: string): Promise<SerializedAttempt
     assessmentId: String(d.assessmentId),
     answers: d.answers as AttemptAnswers,
     scores: (d.scores ?? null) as AttemptScores | null,
+    personaAnalysis: (d.personaAnalysis ?? (d.scores as AttemptScores | null)?.persona ?? null) as PersonaAnalysis | null,
     paymentStatus: d.paymentStatus,
     paymentProvider: d.paymentProvider,
     paymentId: d.paymentId,
@@ -170,6 +175,7 @@ export async function listMyAttempts(uid: string): Promise<SerializedAttempt[]> 
       assessmentId: String(d.assessmentId),
       answers: d.answers as AttemptAnswers,
       scores: (d.scores ?? null) as AttemptScores | null,
+      personaAnalysis: (d.personaAnalysis ?? (d.scores as AttemptScores | null)?.persona ?? null) as PersonaAnalysis | null,
       paymentStatus: d.paymentStatus,
       paymentProvider: d.paymentProvider,
       paymentId: d.paymentId,

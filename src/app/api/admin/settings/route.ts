@@ -4,6 +4,8 @@ import { requireAdmin } from "@/lib/api/admin-auth";
 import { firebaseAdminErrorHint, isFirebaseAdminUnauthenticatedError } from "@/lib/firebase/admin-firestore-errors";
 import { getAdminFirestore } from "@/lib/firebase/server";
 import { DEFAULT_PRICE_INR, effectiveAssessmentPriceInr } from "@/lib/pricing";
+import { effectivePersonaAlpha } from "@/lib/server/persona-config";
+import type { AppSettingsDoc } from "@/types/models";
 
 export async function GET(req: NextRequest) {
   const gate = await requireAdmin(req);
@@ -20,10 +22,11 @@ export async function GET(req: NextRequest) {
 
   try {
     const snap = await db.doc("app_settings/global").get();
-    const d = snap.exists ? ((snap.data() ?? {}) as { requirePayment?: boolean; priceInr?: unknown }) : {};
+    const d = snap.exists ? ((snap.data() ?? {}) as AppSettingsDoc) : {};
     return NextResponse.json({
       requirePayment: snap.exists ? d.requirePayment !== false : true,
       priceInr: effectiveAssessmentPriceInr(d.priceInr),
+      personaAlpha: effectivePersonaAlpha(d),
       envDefaultPriceInr:
         DEFAULT_PRICE_INR >= 1 && DEFAULT_PRICE_INR <= 500_000 ? Math.round(DEFAULT_PRICE_INR) : 499,
     });
@@ -32,6 +35,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({
         requirePayment: true,
         priceInr: effectiveAssessmentPriceInr(undefined),
+        personaAlpha: effectivePersonaAlpha(undefined),
         envDefaultPriceInr:
           DEFAULT_PRICE_INR >= 1 && DEFAULT_PRICE_INR <= 500_000 ? Math.round(DEFAULT_PRICE_INR) : 499,
         firestoreDegraded: true,
@@ -60,6 +64,7 @@ export async function PATCH(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as {
     requirePayment?: boolean;
     priceInr?: number | null;
+    personaAlpha?: number | null;
   };
 
   const patch: Record<string, unknown> = { updatedAt: FieldValue.serverTimestamp() };
@@ -85,20 +90,35 @@ export async function PATCH(req: NextRequest) {
     }
   }
 
+  if ("personaAlpha" in body) {
+    touched = true;
+    if (body.personaAlpha === null) {
+      patch.personaAlpha = FieldValue.delete();
+    } else if (typeof body.personaAlpha === "number") {
+      const a = body.personaAlpha;
+      if (!Number.isFinite(a) || a <= 0 || a > 20) {
+        return NextResponse.json({ error: "personaAlpha must be between 0 (exclusive) and 20" }, { status: 400 });
+      }
+      patch.personaAlpha = a;
+    } else {
+      return NextResponse.json({ error: "personaAlpha must be a finite number or null" }, { status: 400 });
+    }
+  }
+
   if (!touched) {
-    return NextResponse.json({ error: "Send requirePayment and/or priceInr" }, { status: 400 });
+    return NextResponse.json({ error: "Send requirePayment, priceInr, and/or personaAlpha" }, { status: 400 });
   }
 
   const ref = db.doc("app_settings/global");
   await ref.set(patch, { merge: true });
 
   const snap2 = await ref.get();
-  const d2 =
-    snap2.exists ? ((snap2.data() ?? {}) as { requirePayment?: boolean; priceInr?: unknown }) : {};
+  const d2 = snap2.exists ? ((snap2.data() ?? {}) as AppSettingsDoc) : {};
   return NextResponse.json({
     ok: true,
     requirePayment: snap2.exists ? d2.requirePayment !== false : true,
     priceInr: effectiveAssessmentPriceInr(d2.priceInr),
+    personaAlpha: effectivePersonaAlpha(d2),
     envDefaultPriceInr:
       DEFAULT_PRICE_INR >= 1 && DEFAULT_PRICE_INR <= 500_000 ? Math.round(DEFAULT_PRICE_INR) : 499,
   });

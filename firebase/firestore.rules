@@ -65,6 +65,11 @@ service cloud.firestore {
       allow write: if callerIsFirestoreAdmin();
     }
 
+    match /persona_centroids/{docId} {
+      allow read: if true;
+      allow write: if callerIsFirestoreAdmin();
+    }
+
     match /discount_campaigns/{code} {
       allow read: if signedIn();
       allow write: if callerIsFirestoreAdmin();

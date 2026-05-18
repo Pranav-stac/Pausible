@@ -51,7 +51,7 @@ export function NavAuthActions({ layout = "toolbar" }: { layout?: "toolbar" | "d
       </>
     );
   }
-  const label = user?.isAnonymous ? "Link Google" : "Sign in";
+  const label = "Sign in";
 
   const onClick = async () => {
     setBusy(true);

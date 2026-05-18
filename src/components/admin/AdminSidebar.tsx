@@ -6,6 +6,7 @@ const nav: { id: string; label: string; sub?: string }[] = [
   { id: "assessments", label: "Assessments", sub: "Visual + JSON" },
   { id: "users", label: "Users", sub: "Roles & activity" },
   { id: "analytics", label: "Analytics", sub: "Visitors & events" },
+  { id: "personas", label: "Personas", sub: "Centroids & alpha" },
   { id: "settings", label: "Settings", sub: "Billing & export" },
 ];
 

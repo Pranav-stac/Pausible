@@ -19,12 +19,11 @@ type NextStep = "results" | "checkout";
 export function AfterAssessmentGate({ attemptId }: { attemptId: string }) {
   const params = useSearchParams();
   const next = (params.get("next") === "checkout" ? "checkout" : "results") as NextStep;
-  const { ready, hasGoogleIdentity, signInWithGoogle } = useFirebaseAuth();
+  const { ready, hasGoogleIdentity, signInWithGoogle, linkGoogle, user } = useFirebaseAuth();
   const { requirePayment, loading: settingsLoading } = useAppSettings();
   const resolvedNext: NextStep = requirePayment ? "checkout" : next;
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [submittedAsGuest, setSubmittedAsGuest] = useState(false);
 
   const destPath = useMemo(
     () =>
@@ -65,7 +64,7 @@ export function AfterAssessmentGate({ attemptId }: { attemptId: string }) {
   }, [attemptId, destPath, resolvedNext]);
 
   useEffect(() => {
-    if (!ready || settingsLoading || !isFirebaseConfigured() || !hasGoogleIdentity || submittedAsGuest) return;
+    if (!ready || settingsLoading || !isFirebaseConfigured() || !hasGoogleIdentity) return;
     void (async () => {
       setBusy(true);
       setErr(null);
@@ -77,7 +76,7 @@ export function AfterAssessmentGate({ attemptId }: { attemptId: string }) {
         setBusy(false);
       }
     })();
-  }, [ready, settingsLoading, hasGoogleIdentity, submittedAsGuest, continueAfterGoogle]);
+  }, [ready, settingsLoading, hasGoogleIdentity, continueAfterGoogle]);
 
   const onConnectGoogle = useCallback(async () => {
     setErr(null);
@@ -88,7 +87,7 @@ export function AfterAssessmentGate({ attemptId }: { attemptId: string }) {
     }
     setBusy(true);
     try {
-      const outcome = await signInWithGoogle();
+      const outcome = user?.isAnonymous ? await linkGoogle() : await signInWithGoogle();
       if (outcome === "completed") {
         await continueAfterGoogle();
       }
@@ -97,11 +96,7 @@ export function AfterAssessmentGate({ attemptId }: { attemptId: string }) {
     } finally {
       setBusy(false);
     }
-  }, [continueAfterGoogle, signInWithGoogle]);
-
-  const onContinueGuest = useCallback(() => {
-    setSubmittedAsGuest(true);
-  }, []);
+  }, [continueAfterGoogle, linkGoogle, signInWithGoogle, user?.isAnonymous]);
 
   if (!ready || settingsLoading) {
     return (
@@ -124,46 +119,6 @@ export function AfterAssessmentGate({ attemptId }: { attemptId: string }) {
     );
   }
 
-  if (submittedAsGuest) {
-    return (
-      <div className="min-h-screen bg-linear-to-b from-slate-100 via-white to-sky-50/40 px-4 py-12">
-        <div className="mx-auto max-w-md">
-          <div className="mb-8 flex justify-center">
-            <Link href="/" className="rounded-lg outline-offset-4" aria-label="Pausible home">
-              <BrandLogo heightClass="h-8" withWordmark wordmarkClassName="text-lg" />
-            </Link>
-          </div>
-
-          <div className="rounded-3xl border border-slate-200/90 bg-white p-8 text-center shadow-[0_24px_60px_-28px_rgba(15,23,42,0.2)]">
-            <h1 className="text-xl font-semibold tracking-tight text-slate-900">Assessment submitted</h1>
-            <p className="mt-3 text-sm leading-relaxed text-slate-600">
-              Your responses were saved as an anonymous submission for admin review. Results are only unlocked after
-              Google sign-in.
-            </p>
-            <div className="mt-8 flex flex-col gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setSubmittedAsGuest(false);
-                  void onConnectGoogle();
-                }}
-                className="rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-900"
-              >
-                Sign in to unlock results
-              </button>
-              <Link
-                href="/"
-                className="rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-800 hover:bg-slate-50"
-              >
-                Back home
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-linear-to-b from-slate-100 via-white to-sky-50/40 px-4 py-12">
       <div className="mx-auto max-w-md">
@@ -174,10 +129,11 @@ export function AfterAssessmentGate({ attemptId }: { attemptId: string }) {
         </div>
 
         <div className="rounded-3xl border border-slate-200/90 bg-white p-8 shadow-[0_24px_60px_-28px_rgba(15,23,42,0.2)]">
-          <h1 className="text-center text-xl font-semibold tracking-tight text-slate-900">Save your assessment</h1>
+          <h1 className="text-center text-xl font-semibold tracking-tight text-slate-900">Sign in to see your results</h1>
           <p className="mt-3 text-center text-sm leading-relaxed text-slate-600">
-            Sign in with Google to attach this run to your account and open {resolvedNext === "checkout" ? "checkout" : "your results"}.
-            If you skip, admins will still see the response as anonymous, but results will stay locked.
+            Your assessment is saved. Sign in with Google to attach it to your account and open{" "}
+            {resolvedNext === "checkout" ? "checkout" : "your results"} — results are not available without Google
+            sign-in.
           </p>
 
           {err ? (
@@ -186,22 +142,14 @@ export function AfterAssessmentGate({ attemptId }: { attemptId: string }) {
             </p>
           ) : null}
 
-          <div className="mt-8 flex flex-col gap-3">
+          <div className="mt-8">
             <button
               type="button"
               disabled={busy}
               onClick={() => void onConnectGoogle()}
-              className="rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-900 disabled:opacity-50"
+              className="w-full rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-900 disabled:opacity-50"
             >
-              {busy ? "Working…" : "Continue with Google"}
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={onContinueGuest}
-              className="rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-50"
-            >
-              Submit anonymously
+              {busy ? "Working…" : "Sign in with Google"}
             </button>
           </div>
 

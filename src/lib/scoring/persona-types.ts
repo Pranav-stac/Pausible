@@ -1,0 +1,61 @@
+/** Six fitness behavioral personas (centroid keys). */
+export const PERSONA_KEYS = [
+  "self_regulated_planner",
+  "social_motivator",
+  "stress_sensitive",
+  "curious_explorer",
+  "resilient_performer",
+  "brittle_avoidant",
+] as const;
+
+export type PersonaKey = (typeof PERSONA_KEYS)[number];
+
+export const TRAIT_KEYS = [
+  "openness",
+  "conscientiousness",
+  "extraversion",
+  "agreeableness",
+  "neuroticism",
+] as const;
+
+export type TraitKey = (typeof TRAIT_KEYS)[number];
+
+export const TRAIT_LABELS: Record<TraitKey, string> = {
+  openness: "Openness",
+  conscientiousness: "Conscientiousness",
+  extraversion: "Extraversion",
+  agreeableness: "Agreeableness",
+  neuroticism: "Neuroticism",
+};
+
+/** Centroid scores per trait for one persona (1–7 scale). */
+export type PersonaCentroidVector = Record<TraitKey, number>;
+
+/** Full centroid table: persona → trait averages. */
+export type PersonaCentroidTable = Record<PersonaKey, PersonaCentroidVector>;
+
+export type QuestionItemResponse = {
+  questionId: string;
+  facetId: string;
+  trait: string;
+  question: string;
+  responseScore: number;
+};
+
+export type PersonaAnalysis = {
+  itemResponses: QuestionItemResponse[];
+  facetAverages: Record<string, number>;
+  traitAverages: Record<TraitKey, number>;
+  personaDistances: Record<PersonaKey, number>;
+  personaSi: Record<PersonaKey, number>;
+  personaPercentages: Record<PersonaKey, number>;
+  primaryPersona: PersonaKey;
+  secondaryPersona: PersonaKey;
+  alpha: number;
+  computedAt: string;
+};
+
+export type PersonaScoringConfig = {
+  centroids: PersonaCentroidTable;
+  alpha: number;
+};

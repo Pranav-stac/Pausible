@@ -10,7 +10,7 @@ import { fetchAttempt } from "@/lib/data/attempt-service";
 import { fetchAssessment } from "@/lib/data/assessment-service";
 import { localResolveShareToken } from "@/lib/local/attempts";
 import type { ShareSnapshot } from "@/lib/data/share-service";
-import { getArchetypeCopy } from "@/lib/results/archetype";
+import { personaCopy, personaLabel } from "@/lib/results/persona-display";
 
 export function SharePublicClient() {
   const params = useParams<{ token: string }>();
@@ -50,7 +50,9 @@ export function SharePublicClient() {
           if (!cancelled) setError("This assessment is unavailable.");
           return;
         }
-        const arch = getArchetypeCopy(assessment, attempt.scores?.archetypeKey);
+        const arch = personaCopy(attempt.scores?.archetypeKey);
+        const primaryLabel = personaLabel(attempt.scores?.archetypeKey);
+        const secondaryLabel = personaLabel(attempt.scores?.secondaryArchetypeKey);
         if (!cancelled) {
           setData({
             token,
@@ -59,8 +61,14 @@ export function SharePublicClient() {
             assessmentId: attempt.assessmentId,
             assessmentTitle: assessment.title,
             archetypeKey: attempt.scores?.archetypeKey,
-            archetypeLabel: arch?.label ?? "Your profile",
-            summary: arch?.summary ?? "",
+            archetypeLabel: primaryLabel,
+            secondaryArchetypeKey: attempt.scores?.secondaryArchetypeKey,
+            secondaryArchetypeLabel: secondaryLabel,
+            summary:
+              arch?.summary ??
+              (attempt.scores?.secondaryArchetypeKey
+                ? `Primary: ${primaryLabel} · Secondary: ${secondaryLabel}`
+                : ""),
             bullets: arch?.bullets ?? [],
           });
         }

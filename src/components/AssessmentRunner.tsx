@@ -9,7 +9,9 @@ import { fetchAssessment } from "@/lib/data/assessment-service";
 import { SESSION_ATTEMPT_CLAIM_KEY, claimStorageKey } from "@/lib/data/attempt-claim-client";
 import { upsertAttempt } from "@/lib/data/attempt-service";
 import type { AssessmentDefinition, AssessmentQuestion } from "@/types/models";
-import { coerceAnswer, computeScores } from "@/lib/scoring/engine";
+import { coerceAnswer } from "@/lib/scoring/engine";
+import { computeAttemptScores } from "@/lib/scoring/compute-attempt-scores";
+import { fetchPersonaScoringConfig } from "@/lib/data/persona-scoring-config-client";
 import { useFirebaseAuth } from "@/lib/firebase/auth-context";
 import { useAppSettings } from "@/lib/hooks/useAppSettings";
 import { defaultAssessmentId } from "@/data/default-assessment";
@@ -222,7 +224,9 @@ export function AssessmentRunner({
     }
 
     const id = attemptIdRef.current;
-    const scores = computeScores(assessment, merged);
+    const personaConfig = await fetchPersonaScoringConfig();
+    const scores = computeAttemptScores(merged, personaConfig);
+    const personaAnalysis = scores.persona ?? null;
     const claim =
       claimSecretRef.current.length >= 16 ? { claimSecret: claimSecretRef.current } : {};
 
@@ -232,6 +236,7 @@ export function AssessmentRunner({
       assessmentId: assessment.id,
       answers: merged,
       scores,
+      personaAnalysis,
       paymentStatus: "pending",
       shareToken: null,
       isLatestShareEligible: false,

@@ -2,8 +2,9 @@ import crypto from "node:crypto";
 import { FieldValue } from "firebase-admin/firestore";
 import { getAdminFirestore } from "@/lib/firebase/server";
 import type { AssessmentDefinition, AttemptAnswers } from "@/types/models";
-import { computeScores } from "@/lib/scoring/engine";
-import { getArchetypeCopy } from "@/lib/results/archetype";
+import { computeAttemptScores } from "@/lib/scoring/compute-attempt-scores";
+import { personaCopy, personaLabel } from "@/lib/results/persona-display";
+import { loadPersonaScoringConfigAdmin } from "@/lib/server/persona-config";
 
 export async function markAttemptPaidViaAdmin(input: {
   uid: string;
@@ -29,8 +30,14 @@ export async function markAttemptPaidViaAdmin(input: {
   const assessment = assessmentSnap.data() as AssessmentDefinition;
 
   const answers = (attemptData.answers ?? {}) as AttemptAnswers;
-  const scores = attemptData.scores ?? computeScores(assessment, answers);
-  const arch = getArchetypeCopy(assessment, scores.archetypeKey);
+  const personaConfig = await loadPersonaScoringConfigAdmin();
+  const scores =
+    attemptData.scores ??
+    computeAttemptScores(answers, personaConfig);
+  const persona = scores.persona;
+  const arch = personaCopy(scores.archetypeKey);
+  const primaryLabel = personaLabel(scores.archetypeKey);
+  const secondaryLabel = personaLabel(scores.secondaryArchetypeKey);
 
   const shareToken = crypto.randomBytes(10).toString("hex");
 
@@ -44,6 +51,7 @@ export async function markAttemptPaidViaAdmin(input: {
 
   batch.update(attemptRef, {
     scores,
+    personaAnalysis: persona ?? null,
     paymentStatus: "paid",
     paymentProvider: input.paymentProvider,
     paymentId: input.paymentId,
@@ -62,9 +70,16 @@ export async function markAttemptPaidViaAdmin(input: {
       assessmentId,
       assessmentTitle: assessment.title,
       archetypeKey: scores.archetypeKey,
-      archetypeLabel: arch?.label ?? "Your profile",
-      summary: arch?.summary ?? "Your Pausible behavioral snapshot.",
+      archetypeLabel: primaryLabel,
+      secondaryArchetypeKey: scores.secondaryArchetypeKey,
+      secondaryArchetypeLabel: secondaryLabel,
+      summary:
+        arch?.summary ??
+        (persona
+          ? `Primary: ${primaryLabel} · Secondary: ${secondaryLabel}`
+          : "Your Pausible behavioral snapshot."),
       bullets: arch?.bullets ?? [],
+      personaPercentages: persona?.personaPercentages ?? null,
       createdAt: FieldValue.serverTimestamp(),
     },
     { merge: true },
