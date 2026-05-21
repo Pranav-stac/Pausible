@@ -15,6 +15,7 @@ import { getFirebaseAuth, getFirebaseDb } from "@/lib/firebase/client";
 import { isFirebaseConfigured } from "@/lib/firebase/config";
 import { useFirebaseAuth } from "@/lib/firebase/auth-context";
 import type { AdminAnalyticsResponse } from "@/lib/analytics/admin-types";
+import { wellnessContextAssessmentId } from "@/data/wellness-context-questionnaire";
 
 type Tab = "overview" | "attempts" | "assessments" | "users" | "analytics" | "personas" | "settings";
 
@@ -474,6 +475,17 @@ export function AdminDashboard() {
     setEditorJson(JSON.stringify(snap.data(), firestoreJsonReplacer, 2));
   }, []);
 
+  const seedWellnessContext = useCallback(async () => {
+    try {
+      await api("/api/admin/assessments/seed-wellness-context", { method: "POST" });
+      setMsg("Synced wellness context questionnaire to Firestore.");
+      await refreshAssessments();
+      void openEditorUi("wellness-context");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Wellness context seed failed");
+    }
+  }, [api, openEditorUi, refreshAssessments]);
+
   const createBlankAssessment = useCallback(async () => {
     try {
       const res = await api("/api/admin/assessments", {
@@ -926,6 +938,13 @@ export function AdminDashboard() {
                 >
                   Sync default (question.json)
                 </button>
+                <button
+                  type="button"
+                  onClick={() => void seedWellnessContext()}
+                  className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-900"
+                >
+                  Sync wellness context
+                </button>
                 <label className="inline-flex cursor-pointer items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold">
                   Import JSON
                   <input
@@ -988,13 +1007,19 @@ export function AdminDashboard() {
                             >
                               JSON
                             </button>
-                            <Link
-                              href={`/assessment/${encodeURIComponent(row.id)}`}
-                              target="_blank"
-                              className="text-xs font-semibold text-indigo-600"
-                            >
-                              Preview
-                            </Link>
+                            {row.id === wellnessContextAssessmentId ? (
+                              <span className="text-xs text-slate-500" title="Shown after the personality inventory">
+                                After inventory
+                              </span>
+                            ) : (
+                              <Link
+                                href={`/assessment/${encodeURIComponent(row.id)}`}
+                                target="_blank"
+                                className="text-xs font-semibold text-indigo-600"
+                              >
+                                Preview
+                              </Link>
+                            )}
                           </div>
                         </td>
                       </tr>

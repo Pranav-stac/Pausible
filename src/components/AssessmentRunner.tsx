@@ -235,11 +235,30 @@ export function AssessmentRunner({
     }
 
     const id = attemptIdRef.current;
+    const claim =
+      claimSecretRef.current.length >= 16 ? { claimSecret: claimSecretRef.current } : {};
+
+    const proceedToWellnessContext = assessment.id === defaultAssessmentId;
+
+    if (proceedToWellnessContext) {
+      await upsertAttempt({
+        id,
+        uid: saveUid,
+        assessmentId: assessment.id,
+        answers: merged,
+        scores: null,
+        paymentStatus: "pending",
+        shareToken: null,
+        isLatestShareEligible: false,
+        ...claim,
+      });
+      router.push(`/wellness-context/${encodeURIComponent(id)}`);
+      return;
+    }
+
     const personaConfig = await fetchPersonaScoringConfig();
     const scores = computeAttemptScores(merged, personaConfig);
     const personaAnalysis = scores.persona ?? null;
-    const claim =
-      claimSecretRef.current.length >= 16 ? { claimSecret: claimSecretRef.current } : {};
 
     await upsertAttempt({
       id,
@@ -496,7 +515,9 @@ export function AssessmentRunner({
             <p className="text-lg font-semibold text-slate-900">You&apos;ve reached the end</p>
             <p className="mt-2 text-sm text-slate-600">
               {canFinish
-                ? "Tap answered rows below the header if you want to change them; then finish when you're ready."
+                ? assessment.id === defaultAssessmentId
+                  ? "Next you’ll answer a short wellness context questionnaire — then we’ll run your persona results."
+                  : "Tap answered rows below the header if you want to change them; then finish when you're ready."
                 : "Some answers still look incomplete."}
             </p>
           </div>
@@ -522,7 +543,11 @@ export function AssessmentRunner({
               disabled={!canFinish}
               className="rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/20 disabled:opacity-40"
             >
-              {requirePayment ? "Finish & continue to checkout" : "Finish & unlock results"}
+              {assessment.id === defaultAssessmentId
+                ? "Continue to wellness context"
+                : requirePayment
+                  ? "Finish & continue to checkout"
+                  : "Finish & unlock results"}
             </button>
           </div>
         </div>

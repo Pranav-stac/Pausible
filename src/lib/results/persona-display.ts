@@ -1,4 +1,4 @@
-import { PERSONA_DISPLAY } from "@/lib/scoring/persona-defaults";
+import { PERSONA_ANIMAL, PERSONA_DISPLAY } from "@/lib/scoring/persona-defaults";
 import type { PersonaAnalysis, PersonaKey } from "@/lib/scoring/persona-types";
 import type { AttemptScores } from "@/types/models";
 
@@ -11,6 +11,11 @@ export function personaLabel(key?: string | null): string {
 export function personaCopy(key?: string | null) {
   if (!key) return null;
   return PERSONA_DISPLAY[key as PersonaKey] ?? null;
+}
+
+export function personaAnimal(key?: string | null) {
+  if (!key) return null;
+  return PERSONA_ANIMAL[key as PersonaKey] ?? null;
 }
 
 export function personaFromScores(scores?: AttemptScores | null): PersonaAnalysis | null {

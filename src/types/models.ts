@@ -17,6 +17,11 @@ export type AssessmentQuestion = {
   reverse?: boolean;
   /** Likert: optional per-point labels */
   options?: string[];
+  /** Likert: custom endpoint labels (e.g. stress scale) */
+  scaleMinLabel?: string;
+  scaleMaxLabel?: string;
+  /** Multi-select: cap selections (omit = unlimited) */
+  maxSelections?: number;
   /** Scoring: dimension key and weight per option index (single/multi) or per score (likert uses value as score) */
   weights: Record<string, number>;
 };

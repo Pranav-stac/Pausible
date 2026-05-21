@@ -2,6 +2,18 @@ import type { PersonaCentroidTable, PersonaKey, TraitKey } from "@/lib/scoring/p
 
 export const DEFAULT_PERSONA_ALPHA = 1;
 
+export const PERSONA_ANIMAL: Record<
+  PersonaKey,
+  { name: string; emoji: string; imagePath: string }
+> = {
+  self_regulated_planner: { name: "Steady Elephant", emoji: "🐘", imagePath: "/Personas/Elephant.jpeg" },
+  social_motivator: { name: "Pack Wolf", emoji: "🐺", imagePath: "/Personas/Wolf.jpeg" },
+  stress_sensitive: { name: "Watchful Deer", emoji: "🦌", imagePath: "/Personas/Deer.jpeg" },
+  curious_explorer: { name: "Curious Fox", emoji: "🦊", imagePath: "/Personas/Fox.jpeg" },
+  resilient_performer: { name: "Steadfast Bear", emoji: "🐻", imagePath: "/Personas/Bear.jpeg" },
+  brittle_avoidant: { name: "Shielded Turtle", emoji: "🐢", imagePath: "/Personas/Turtle.jpeg" },
+};
+
 export const PERSONA_DISPLAY: Record<
   PersonaKey,
   { label: string; summary: string; bullets: string[] }

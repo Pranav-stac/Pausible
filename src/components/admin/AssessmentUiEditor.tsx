@@ -1,12 +1,43 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { wellnessContextAssessmentId, WELLNESS_CONTEXT_PREFIX } from "@/data/wellness-context-questionnaire";
 import type { AssessmentDefinition, AssessmentQuestion, AssessmentSection } from "@/types/models";
 
-function newQuestionId(existing: Record<string, AssessmentQuestion>): string {
+function newQuestionId(
+  existing: Record<string, AssessmentQuestion>,
+  assessmentId?: string,
+): string {
+  const isWellness = assessmentId === wellnessContextAssessmentId;
   let n = 1;
+  if (isWellness) {
+    while (existing[`${WELLNESS_CONTEXT_PREFIX}custom_${n}`]) n++;
+    return `${WELLNESS_CONTEXT_PREFIX}custom_${n}`;
+  }
   while (existing[`q_${n}`]) n++;
   return `q_${n}`;
+}
+
+function defaultNewQuestion(assessmentId: string, qid: string): AssessmentQuestion {
+  const isWellness = assessmentId === wellnessContextAssessmentId;
+  if (isWellness) {
+    return {
+      id: qid,
+      prompt: "New question",
+      type: "single",
+      options: ["Option 1", "Option 2"],
+      weights: {},
+    };
+  }
+  return {
+    id: qid,
+    prompt: "New question",
+    type: "likert",
+    scaleMin: 1,
+    scaleMax: 7,
+    reverse: false,
+    weights: { openness: 1 },
+  };
 }
 
 function newSectionId(sections: AssessmentSection[]): string {
@@ -62,22 +93,14 @@ export function AssessmentUiEditor({
 
   const addSection = useCallback(() => {
     const id = newSectionId(draft.sections);
-    const qid = newQuestionId(draft.questions);
-    const newQ: AssessmentQuestion = {
-      id: qid,
-      prompt: "New question",
-      type: "likert",
-      scaleMin: 1,
-      scaleMax: 7,
-      reverse: false,
-      weights: { openness: 1 },
-    };
+    const qid = newQuestionId(draft.questions, draft.id);
+    const newQ = defaultNewQuestion(draft.id, qid);
     updateAssessment({
       sections: [...draft.sections, { id, title: "New section", questionIds: [qid] }],
       questions: { ...draft.questions, [qid]: newQ },
     });
     setActiveQ(qid);
-  }, [draft.sections, draft.questions, updateAssessment]);
+  }, [draft.id, draft.sections, draft.questions, updateAssessment]);
 
   const removeSection = useCallback(
     (sectionId: string) => {
@@ -96,16 +119,8 @@ export function AssessmentUiEditor({
 
   const addQuestionToSection = useCallback(
     (sectionId: string) => {
-      const qid = newQuestionId(draft.questions);
-      const newQ: AssessmentQuestion = {
-        id: qid,
-        prompt: "New question",
-        type: "likert",
-        scaleMin: 1,
-        scaleMax: 7,
-        reverse: false,
-        weights: { openness: 1 },
-      };
+      const qid = newQuestionId(draft.questions, draft.id);
+      const newQ = defaultNewQuestion(draft.id, qid);
       const sections = draft.sections.map((s) =>
         s.id === sectionId ? { ...s, questionIds: [...s.questionIds, qid] } : s,
       );
@@ -115,7 +130,7 @@ export function AssessmentUiEditor({
       });
       setActiveQ(qid);
     },
-    [draft.sections, draft.questions, updateAssessment],
+    [draft.id, draft.sections, draft.questions, updateAssessment],
   );
 
   const removeQuestionFromSection = useCallback(
@@ -143,6 +158,7 @@ export function AssessmentUiEditor({
     [draft, onChange],
   );
 
+  const isWellnessContext = draft.id === wellnessContextAssessmentId;
   const archetypes = draft.interpretation?.archetypes ?? [];
 
   const setArchetypes = useCallback(
@@ -181,7 +197,14 @@ export function AssessmentUiEditor({
         <p className="font-semibold">Visual editor tips</p>
         <ul className="mt-2 list-disc space-y-1 pl-4 text-xs leading-relaxed text-sky-900/95">
           <li>Tap a question id in any section to load it in the editor on the right (desktop).</li>
-          <li>Weights use one trait per line — same keys as scoring (example: conscientiousness: 1).</li>
+          {isWellnessContext ? (
+            <>
+              <li>Wellness context: use single/multi/likert; options are one per line. Shown after the personality inventory.</li>
+              <li>New question ids use the {WELLNESS_CONTEXT_PREFIX} prefix automatically.</li>
+            </>
+          ) : (
+            <li>Weights use one trait per line — same keys as scoring (example: conscientiousness: 1).</li>
+          )}
           <li>Inactive assessments are hidden from public takers; save in Admin before testing.</li>
         </ul>
       </div>
@@ -233,12 +256,20 @@ export function AssessmentUiEditor({
           <div className="mt-3 space-y-4">
             {sectionList.map((s) => (
               <div key={s.id} className="rounded-lg border border-slate-100 bg-slate-50/80 p-3">
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col gap-2">
                   <input
                     value={s.title}
                     onChange={(e) => updateSection(s.id, { title: e.target.value })}
-                    className="min-w-[120px] flex-1 rounded border border-slate-200 px-2 py-1 text-sm font-semibold"
+                    className="min-w-[120px] w-full rounded border border-slate-200 px-2 py-1 text-sm font-semibold"
                   />
+                  <input
+                    value={s.description ?? ""}
+                    onChange={(e) => updateSection(s.id, { description: e.target.value })}
+                    placeholder="Section description (optional)"
+                    className="w-full rounded border border-slate-200 px-2 py-1 text-xs text-slate-700"
+                  />
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={() => void addQuestionToSection(s.id)}
@@ -358,29 +389,88 @@ export function AssessmentUiEditor({
                       className="mt-1 w-full rounded border border-slate-200 px-2 py-1 text-sm"
                     />
                   </label>
-                  <label className="col-span-2 flex items-center gap-2 text-sm">
+                  <label className="col-span-2 text-xs font-semibold text-slate-700">
+                    Min endpoint label
                     <input
-                      type="checkbox"
-                      checked={Boolean(q.reverse)}
-                      onChange={(e) => updateQuestion(q.id, { reverse: e.target.checked })}
+                      value={q.scaleMinLabel ?? ""}
+                      onChange={(e) => updateQuestion(q.id, { scaleMinLabel: e.target.value })}
+                      placeholder="e.g. Very low stress"
+                      className="mt-1 w-full rounded border border-slate-200 px-2 py-1 text-sm"
                     />
-                    Reverse-keyed item
                   </label>
+                  <label className="col-span-2 text-xs font-semibold text-slate-700">
+                    Max endpoint label
+                    <input
+                      value={q.scaleMaxLabel ?? ""}
+                      onChange={(e) => updateQuestion(q.id, { scaleMaxLabel: e.target.value })}
+                      placeholder="e.g. Extremely stressful"
+                      className="mt-1 w-full rounded border border-slate-200 px-2 py-1 text-sm"
+                    />
+                  </label>
+                  {!isWellnessContext ? (
+                    <label className="col-span-2 flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(q.reverse)}
+                        onChange={(e) => updateQuestion(q.id, { reverse: e.target.checked })}
+                      />
+                      Reverse-keyed item
+                    </label>
+                  ) : null}
                 </div>
               ) : null}
-              <label className="block text-xs font-semibold text-slate-700">
-                Dimension weights <span className="font-normal text-slate-400">one per line: key: weight</span>
-                <textarea
-                  value={weightsToText(q.weights)}
-                  onChange={(e) => updateQuestion(q.id, { weights: textToWeights(e.target.value) })}
-                  rows={4}
-                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 font-mono text-xs"
-                />
-              </label>
+              {q.type === "single" || q.type === "multi" ? (
+                <label className="block text-xs font-semibold text-slate-700">
+                  Options <span className="font-normal text-slate-400">one per line</span>
+                  <textarea
+                    value={(q.options ?? []).join("\n")}
+                    onChange={(e) =>
+                      updateQuestion(q.id, {
+                        options: e.target.value
+                          .split("\n")
+                          .map((x) => x.trim())
+                          .filter(Boolean),
+                      })
+                    }
+                    rows={6}
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  />
+                </label>
+              ) : null}
+              {q.type === "multi" ? (
+                <label className="block text-xs font-semibold text-slate-700">
+                  Max selections
+                  <input
+                    type="number"
+                    min={1}
+                    value={q.maxSelections ?? ""}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      updateQuestion(q.id, {
+                        maxSelections: v === "" ? undefined : Math.max(1, Number(v)),
+                      });
+                    }}
+                    placeholder="Unlimited"
+                    className="mt-1 w-full rounded border border-slate-200 px-2 py-1 text-sm"
+                  />
+                </label>
+              ) : null}
+              {!isWellnessContext ? (
+                <label className="block text-xs font-semibold text-slate-700">
+                  Dimension weights <span className="font-normal text-slate-400">one per line: key: weight</span>
+                  <textarea
+                    value={weightsToText(q.weights)}
+                    onChange={(e) => updateQuestion(q.id, { weights: textToWeights(e.target.value) })}
+                    rows={4}
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 font-mono text-xs"
+                  />
+                </label>
+              ) : null}
             </div>
           )}
         </div>
 
+        {!isWellnessContext ? (
         <div className="rounded-xl border border-slate-200 bg-white p-4">
           <div className="flex items-center justify-between">
             <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Archetypes (scoring)</h4>
@@ -493,6 +583,7 @@ export function AssessmentUiEditor({
             ))}
           </div>
         </div>
+        ) : null}
       </div>
       </div>
     </div>

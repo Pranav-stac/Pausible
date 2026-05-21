@@ -11,12 +11,16 @@ import { tryClaimAttemptForSession } from "@/lib/data/attempt-claim-client";
 import { fetchAssessment } from "@/lib/data/assessment-service";
 import type { AssessmentDefinition } from "@/types/models";
 import type { SerializedAttempt } from "@/lib/local/attempts";
-import { personaCopy, personaLabel } from "@/lib/results/persona-display";
+import { personaAnimal, personaCopy, personaLabel } from "@/lib/results/persona-display";
 import { PERSONA_KEYS, type PersonaKey } from "@/lib/scoring/persona-types";
 import { PERSONA_DISPLAY } from "@/lib/scoring/persona-defaults";
 import { dimensionRowsForAttempt } from "@/lib/results/dimension-rows";
+import { PausibleResultsReport } from "@/components/results/PausibleResultsReport";
 import { ResultsStoryPosterSection } from "@/components/results/ResultsStoryPosterSection";
+import { buildResultsReportModel } from "@/lib/results/build-results-report";
 import { useAppSettings } from "@/lib/hooks/useAppSettings";
+
+type ResultsView = "summary" | "report";
 
 function ResultsTopBar() {
   return (
@@ -51,6 +55,7 @@ export function ResultsClient() {
   const [history, setHistory] = useState<SerializedAttempt[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [fetching, setFetching] = useState(true);
+  const [resultsView, setResultsView] = useState<ResultsView>("summary");
 
   useEffect(() => {
     if (!ready || settingsLoading || !attemptId || !effectiveUid) return;
@@ -120,6 +125,7 @@ export function ResultsClient() {
   const primaryPersona = attempt?.scores?.archetypeKey;
   const secondaryPersona = attempt?.scores?.secondaryArchetypeKey;
   const primaryCopy = useMemo(() => personaCopy(primaryPersona), [primaryPersona]);
+  const primaryAnimal = useMemo(() => personaAnimal(primaryPersona), [primaryPersona]);
   const secondaryCopy = useMemo(() => personaCopy(secondaryPersona), [secondaryPersona]);
   const personaMix = useMemo(() => {
     const pcts = attempt?.scores?.persona?.personaPercentages;
@@ -146,6 +152,15 @@ export function ResultsClient() {
       .slice(0, 22);
     return fused || "ProfileGlow";
   }
+
+  const reportModel = useMemo(() => {
+    if (!attempt || !assessment) return null;
+    const name =
+      user?.displayName?.trim() ||
+      user?.email?.split("@")[0] ||
+      "Your profile";
+    return buildResultsReportModel({ attempt, assessment, participantName: name });
+  }, [attempt, assessment, user?.displayName, user?.email]);
 
   const storyPoster = useMemo(() => {
     const sum = primaryCopy?.summary?.trim() ?? "";
@@ -282,16 +297,58 @@ export function ResultsClient() {
     );
   }
 
+  if (resultsView === "report" && reportModel) {
+    return (
+      <div className="min-h-screen bg-slate-100 scheme-light text-slate-900">
+        <ResultsTopBar />
+        <PausibleResultsReport
+          model={reportModel}
+          attemptId={attempt.id}
+          onBack={() => setResultsView("summary")}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-linear-to-b from-slate-50 to-white scheme-light text-slate-900">
       <ResultsTopBar />
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
-        <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="inline-flex rounded-full border border-slate-200 bg-white p-1 shadow-sm">
+            <button
+              type="button"
+              className="rounded-full bg-slate-950 px-4 py-2 text-xs font-semibold text-white"
+            >
+              Summary
+            </button>
+            <button
+              type="button"
+              onClick={() => setResultsView("report")}
+              disabled={!reportModel}
+              className="rounded-full px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+            >
+              Full report
+            </button>
+          </div>
+          {reportModel ? (
+            <p className="text-xs text-slate-500">
+              Print-ready breakdown · persona mix, traits, context · export as PDF
+            </p>
+          ) : null}
+        </div>
+
+        <div className="mt-8 flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Your behavioral personas</p>
             <h1 className="mt-2 text-4xl font-semibold tracking-tight text-slate-950">
               {personaLabel(primaryPersona)}
             </h1>
+            {primaryAnimal ? (
+              <p className="mt-2 text-lg font-semibold text-emerald-800">
+                {primaryAnimal.name} {primaryAnimal.emoji}
+              </p>
+            ) : null}
             {secondaryPersona ? (
               <p className="mt-2 text-lg font-medium text-sky-800">
                 Secondary: {personaLabel(secondaryPersona)}
@@ -476,6 +533,15 @@ export function ResultsClient() {
         </div>
 
         <div className="mt-10 flex flex-wrap gap-3">
+          {reportModel ? (
+            <button
+              type="button"
+              onClick={() => setResultsView("report")}
+              className="rounded-full border border-slate-900 bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50"
+            >
+              View full report
+            </button>
+          ) : null}
           <Link
             href="/assessment/default"
             className="rounded-full border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-900"
