@@ -3,6 +3,7 @@ import {
   GoogleAuthProvider,
   linkWithPopup,
   linkWithRedirect,
+  signInWithCredential,
   signInWithPopup,
   signInWithRedirect,
   type User,
@@ -42,6 +43,13 @@ export async function connectGoogleAccount(auth: Auth, currentUser: User | null)
     const code = firebaseAuthErrorCode(e);
 
     if (code === "auth/credential-already-in-use" || code === "auth/email-already-in-use") {
+      const credential = GoogleAuthProvider.credentialFromError(
+        e as Parameters<typeof GoogleAuthProvider.credentialFromError>[0],
+      );
+      if (credential) {
+        await signInWithCredential(auth, credential);
+        return "completed";
+      }
       if (!currentUser) throw e;
       try {
         await signInWithPopup(auth, provider);

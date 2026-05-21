@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  getRedirectResult,
   onAuthStateChanged,
   signInAnonymously,
   signOut as firebaseSignOut,
@@ -12,6 +11,7 @@ import { getFirebaseAuth } from "@/lib/firebase/client";
 import { isFirebaseConfigured } from "@/lib/firebase/config";
 import { connectGoogleAccount, type GoogleConnectOutcome } from "@/lib/firebase/google-auth-flow";
 import { userHasGoogleIdentity } from "@/lib/firebase/google-identity";
+import { consumeGoogleRedirectResult } from "@/lib/firebase/redirect-result";
 import { syncUserProfile } from "@/lib/firebase/user-profile";
 import { getOrCreateLocalUid } from "@/lib/local/uid";
 
@@ -53,19 +53,34 @@ export function FirebaseAuthProvider({ children }: { children: React.ReactNode }
       return;
     }
 
-    void getRedirectResult(auth)
+    let cancelled = false;
+    let redirectSettled = false;
+    let authStateSeen = false;
+
+    const tryMarkReady = () => {
+      if (!cancelled && redirectSettled && authStateSeen) setReady(true);
+    };
+
+    void consumeGoogleRedirectResult(auth)
       .then((result) => {
         if (result?.user) void syncUserProfile(result.user);
       })
-      .catch(() => {
-        /* Auth state listener below still handles normal sessions. */
+      .finally(() => {
+        redirectSettled = true;
+        tryMarkReady();
       });
 
-    return onAuthStateChanged(auth, (u) => {
+    const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
       if (u) void syncUserProfile(u);
-      setReady(true);
+      authStateSeen = true;
+      tryMarkReady();
     });
+
+    return () => {
+      cancelled = true;
+      unsub();
+    };
   }, [canUseFirebase]);
 
   const value = useMemo<AuthCtx>(

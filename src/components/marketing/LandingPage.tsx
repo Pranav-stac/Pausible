@@ -1,4 +1,5 @@
 import { AnnouncementBar } from "@/components/marketing/AnnouncementBar";
+import { ResumePendingAssessmentNavigation } from "@/components/marketing/ResumePendingAssessmentNavigation";
 import { DemoCTA } from "@/components/marketing/DemoCTA";
 import { FeatureBand } from "@/components/marketing/FeatureBand";
 import { Hero } from "@/components/marketing/Hero";
@@ -14,6 +15,7 @@ const START = "/assessment/default";
 export function LandingPage() {
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#f7f8fa]">
+      <ResumePendingAssessmentNavigation />
       <AnnouncementBar />
       <MarketingNav ctaHref={START} />
       <Hero ctaHref={START} />

@@ -11,12 +11,12 @@ import { tryClaimAttemptForSession } from "@/lib/data/attempt-claim-client";
 import { fetchAssessment } from "@/lib/data/assessment-service";
 import type { AssessmentDefinition } from "@/types/models";
 import type { SerializedAttempt } from "@/lib/local/attempts";
-import { personaAnimal, personaCopy, personaLabel } from "@/lib/results/persona-display";
+import { personaCopy, personaLabel } from "@/lib/results/persona-display";
 import { PERSONA_KEYS, type PersonaKey } from "@/lib/scoring/persona-types";
 import { PERSONA_DISPLAY } from "@/lib/scoring/persona-defaults";
 import { dimensionRowsForAttempt } from "@/lib/results/dimension-rows";
 import { PausibleResultsReport } from "@/components/results/PausibleResultsReport";
-import { ResultsStoryPosterSection } from "@/components/results/ResultsStoryPosterSection";
+import { ResultsBentoSummary } from "@/components/results/ResultsBentoSummary";
 import { buildResultsReportModel } from "@/lib/results/build-results-report";
 import { useAppSettings } from "@/lib/hooks/useAppSettings";
 
@@ -125,7 +125,6 @@ export function ResultsClient() {
   const primaryPersona = attempt?.scores?.archetypeKey;
   const secondaryPersona = attempt?.scores?.secondaryArchetypeKey;
   const primaryCopy = useMemo(() => personaCopy(primaryPersona), [primaryPersona]);
-  const primaryAnimal = useMemo(() => personaAnimal(primaryPersona), [primaryPersona]);
   const secondaryCopy = useMemo(() => personaCopy(secondaryPersona), [secondaryPersona]);
   const personaMix = useMemo(() => {
     const pcts = attempt?.scores?.persona?.personaPercentages;
@@ -310,16 +309,18 @@ export function ResultsClient() {
     );
   }
 
+  const secondaryPct =
+    secondaryPersona && attempt?.scores?.persona?.personaPercentages[secondaryPersona as PersonaKey] != null
+      ? attempt.scores.persona.personaPercentages[secondaryPersona as PersonaKey]
+      : null;
+
   return (
-    <div className="min-h-screen bg-linear-to-b from-slate-50 to-white scheme-light text-slate-900">
+    <div className="min-h-screen bg-linear-to-b from-slate-50 via-white to-sky-50/30 scheme-light text-slate-900">
       <ResultsTopBar />
-      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mx-auto max-w-6xl px-3 py-5 sm:px-6 sm:py-8">
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="inline-flex rounded-full border border-slate-200 bg-white p-1 shadow-sm">
-            <button
-              type="button"
-              className="rounded-full bg-slate-950 px-4 py-2 text-xs font-semibold text-white"
-            >
+            <button type="button" className="rounded-full bg-slate-950 px-4 py-2 text-xs font-semibold text-white">
               Summary
             </button>
             <button
@@ -332,226 +333,28 @@ export function ResultsClient() {
             </button>
           </div>
           {reportModel ? (
-            <p className="text-xs text-slate-500">
-              Print-ready breakdown · persona mix, traits, context · export as PDF
-            </p>
+            <p className="text-xs text-slate-500">Your snapshot · full report exports as PDF</p>
           ) : null}
         </div>
-
-        <div className="mt-8 flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Your behavioral personas</p>
-            <h1 className="mt-2 text-4xl font-semibold tracking-tight text-slate-950">
-              {personaLabel(primaryPersona)}
-            </h1>
-            {primaryAnimal ? (
-              <p className="mt-2 text-lg font-semibold text-emerald-800">
-                {primaryAnimal.name} {primaryAnimal.emoji}
-              </p>
-            ) : null}
-            {secondaryPersona ? (
-              <p className="mt-2 text-lg font-medium text-sky-800">
-                Secondary: {personaLabel(secondaryPersona)}
-                {attempt?.scores?.persona?.personaPercentages[secondaryPersona as PersonaKey] != null ? (
-                  <span className="text-slate-500">
-                    {" "}
-                    ({attempt.scores.persona.personaPercentages[secondaryPersona as PersonaKey].toFixed(1)}% match)
-                  </span>
-                ) : null}
-              </p>
-            ) : null}
-            <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-600">{primaryCopy?.summary}</p>
-            {secondaryCopy ? (
-              <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-500">{secondaryCopy.summary}</p>
-            ) : null}
-          </div>
-          <div className="md:w-80">
-            <div className="rounded-3xl bg-linear-to-br from-[#061238] via-[#071746] to-[#031132] p-[1px] shadow-[0_30px_80px_-30px_rgba(12,25,78,.6)]">
-              <div className="rounded-3xl bg-linear-to-br from-[#081633] to-[#040814] p-5 text-white">
-                <div className="text-xs font-semibold uppercase tracking-[0.3em] text-white/60">Snapshot</div>
-                <div className="mt-3 text-sm text-white/75">
-                  {(() => {
-                    const iso = attempt.paidAtIso ?? attempt.createdAtIso;
-                    return iso ? new Date(iso).toLocaleString() : "—";
-                  })()}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-10 rounded-3xl border border-[#1b3a76]/60 bg-linear-to-br from-[#071132] via-[#0c1c45] to-[#050816] p-8 text-white shadow-[0_42px_100px_-40px_rgba(125,216,255,0.22)] ring-2 ring-[#274f8f]/40">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#7dd8ff]/85">Dimensional breakdown</p>
-            <h2 className="mt-2 text-lg font-semibold tracking-tight text-white">Trait meters</h2>
-          </div>
-          <div className="mt-8 space-y-5">
-            {dimensionRows.length === 0 ? (
-              <p className="text-sm text-white/55">No dimension aggregates available for this snapshot.</p>
-            ) : (
-              dimensionRows.map(({ key, label, pct }, idx) => {
-                const hues = ["#61aaff", "#7dd8ff", "#93daff", "#5fd4ff"] as const;
-                const c = hues[idx % hues.length];
-                const c2 = hues[(idx + 1) % hues.length];
-                return (
-                  <div key={key}>
-                    <div className="flex justify-between gap-3 text-[11px] font-semibold uppercase tracking-wide text-white/55">
-                      <span>{label}</span>
-                      <span className="font-bold tabular-nums text-[#dfefff]">{pct}%</span>
-                    </div>
-                    <div className="mt-2 h-3 overflow-hidden rounded-full bg-white/[0.08] ring ring-white/[0.06]">
-                      <div
-                        className="h-full rounded-full"
-                        style={{
-                          width: `${pct}%`,
-                          background: `linear-gradient(90deg, ${c} 0%, ${c2} 100%)`,
-                          boxShadow: "0 0 18px rgba(125, 216, 255, 0.35)",
-                        }}
-                      />
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-
-        <div className="mt-10">
-          <ResultsStoryPosterSection
-            poster={storyPoster}
-            filenameSlug={`results-${attemptId}`}
-            shareSnippetUrl={shareUrl}
-            participant={
-              hasGoogleIdentity && user
-                ? {
-                    displayName: user.displayName?.trim() || user.email?.split("@")[0] || "Member",
-                    googlePhotoUrl: user.photoURL ?? null,
-                  }
-                : null
-            }
-          />
-        </div>
-
-        {personaMix.length > 0 ? (
-          <div className="mt-10 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">Persona match breakdown</h2>
-            <p className="mt-1 text-sm text-slate-600">Softmax weights from your trait profile vs reference centroids.</p>
-            <ul className="mt-5 space-y-3">
-              {personaMix.map(({ key, label, pct }) => (
-                <li key={key}>
-                  <div className="flex justify-between text-sm font-medium text-slate-800">
-                    <span>{label}</span>
-                    <span className="tabular-nums text-slate-600">{pct.toFixed(1)}%</span>
-                  </div>
-                  <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100">
-                    <div
-                      className="h-full rounded-full bg-linear-to-r from-sky-500 to-indigo-500"
-                      style={{ width: `${Math.min(100, pct)}%` }}
-                    />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-
-        <div className="mt-10 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-900">Playbook</h2>
-          <ul className="mt-4 grid gap-6 sm:grid-cols-2">
-            {(primaryCopy?.bullets ?? []).map((b) => (
-              <li key={b} className="flex gap-3 rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
-                <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-[#61aaff] to-[#7dd8ff] text-[11px] font-bold text-[#061018]">
-                  ✓
-                </span>
-                <span className="text-sm leading-relaxed text-slate-700">{b}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {shareUrl && (
-          <div className="mt-8 rounded-3xl bg-linear-to-r from-[#0b47ff] via-[#4a7dff] to-[#20b7ff] p-6 text-white shadow-lg">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-wide text-white/80">Share (latest only)</div>
-                <div className="mt-2 break-all text-sm text-white/95">{shareUrl}</div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => void copyShare()}
-                  className="rounded-full bg-white/15 px-4 py-2 text-sm font-semibold ring ring-white/30"
-                >
-                  Copy link
-                </button>
-                <a
-                  href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(
-                    `My Pausible fitness behavioral spotlight: ${shareUrl}`,
-                  )}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-full bg-white/15 px-4 py-2 text-sm font-semibold ring ring-white/30"
-                >
-                  Share on X
-                </a>
-                <a
-                  href={`https://wa.me/?text=${encodeURIComponent(`Pausible results: ${shareUrl}`)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-full bg-white/15 px-4 py-2 text-sm font-semibold ring ring-white/30"
-                >
-                  WhatsApp
-                </a>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="mt-12">
-          <div className="flex items-center justify-between gap-4">
-            <h3 className="text-lg font-semibold text-slate-900">Private history</h3>
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Not shareable</span>
-          </div>
-          <div className="mt-4 space-y-3">
-            {history.map((row) => (
-              <button
-                key={row.id}
-                type="button"
-                onClick={() => router.push(`/results/${row.id}`)}
-                className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm hover:border-slate-300"
-              >
-                <div>
-                  <div className="font-semibold text-slate-900">
-                    {new Date(row.createdAtIso ?? "").toLocaleString()} · {row.paymentStatus}
-                  </div>
-                  <div className="text-xs text-slate-500 font-mono">{row.id.slice(0, 10)}…</div>
-                </div>
-                {row.id === attemptId ? <span className="text-xs font-semibold text-sky-600">Viewing</span> : null}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-10 flex flex-wrap gap-3">
-          {reportModel ? (
-            <button
-              type="button"
-              onClick={() => setResultsView("report")}
-              className="rounded-full border border-slate-900 bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50"
-            >
-              View full report
-            </button>
-          ) : null}
-          <Link
-            href="/assessment/default"
-            className="rounded-full border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-900"
-          >
-            Retake (new payment)
-          </Link>
-          <Link href="/" className="rounded-full bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white">
-            Home
-          </Link>
-        </div>
+        <ResultsBentoSummary
+          attempt={attempt}
+          attemptId={attemptId}
+          primaryPersona={primaryPersona}
+          secondaryPersona={secondaryPersona}
+          secondaryPct={secondaryPct}
+          primaryCopy={primaryCopy}
+          secondaryCopy={secondaryCopy}
+          personaMix={personaMix}
+          dimensionRows={dimensionRows}
+          storyPoster={storyPoster}
+          shareUrl={shareUrl}
+          history={history}
+          hasGoogleIdentity={hasGoogleIdentity}
+          user={user}
+          onCopyShare={() => void copyShare()}
+          onOpenReport={() => setResultsView("report")}
+          hasReport={Boolean(reportModel)}
+        />
       </div>
     </div>
   );

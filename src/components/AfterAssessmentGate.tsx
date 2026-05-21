@@ -19,7 +19,7 @@ type NextStep = "results" | "checkout";
 export function AfterAssessmentGate({ attemptId }: { attemptId: string }) {
   const params = useSearchParams();
   const next = (params.get("next") === "checkout" ? "checkout" : "results") as NextStep;
-  const { ready, hasGoogleIdentity, signInWithGoogle, linkGoogle, user } = useFirebaseAuth();
+  const { ready, hasGoogleIdentity, linkOrSignInWithGoogle } = useFirebaseAuth();
   const { requirePayment, loading: settingsLoading } = useAppSettings();
   const resolvedNext: NextStep = requirePayment ? "checkout" : next;
   const [busy, setBusy] = useState(false);
@@ -70,6 +70,11 @@ export function AfterAssessmentGate({ attemptId }: { attemptId: string }) {
       setErr(null);
       try {
         await continueAfterGoogle();
+        try {
+          sessionStorage.removeItem("pausable_google_redirect_pending");
+        } catch {
+          /* ignore */
+        }
       } catch (e: unknown) {
         setErr(e instanceof Error ? e.message : "Could not finish sign-in.");
       } finally {
@@ -87,8 +92,21 @@ export function AfterAssessmentGate({ attemptId }: { attemptId: string }) {
     }
     setBusy(true);
     try {
-      const outcome = user?.isAnonymous ? await linkGoogle() : await signInWithGoogle();
+      const outcome = await linkOrSignInWithGoogle();
+      if (outcome === "redirect") {
+        try {
+          sessionStorage.setItem("pausable_google_redirect_pending", "1");
+        } catch {
+          /* private mode */
+        }
+        return;
+      }
       if (outcome === "completed") {
+        try {
+          sessionStorage.removeItem("pausable_google_redirect_pending");
+        } catch {
+          /* ignore */
+        }
         await continueAfterGoogle();
       }
     } catch (e: unknown) {
@@ -96,12 +114,22 @@ export function AfterAssessmentGate({ attemptId }: { attemptId: string }) {
     } finally {
       setBusy(false);
     }
-  }, [continueAfterGoogle, linkGoogle, signInWithGoogle, user?.isAnonymous]);
+  }, [continueAfterGoogle, linkOrSignInWithGoogle]);
 
-  if (!ready || settingsLoading) {
+  const returningFromGoogleRedirect =
+    typeof window !== "undefined" &&
+    (() => {
+      try {
+        return sessionStorage.getItem("pausable_google_redirect_pending") === "1";
+      } catch {
+        return false;
+      }
+    })();
+
+  if (!ready || settingsLoading || (returningFromGoogleRedirect && !hasGoogleIdentity && !err)) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 px-4 text-sm text-slate-600">
-        Preparing…
+        {returningFromGoogleRedirect ? "Completing Google sign-in…" : "Preparing…"}
       </div>
     );
   }

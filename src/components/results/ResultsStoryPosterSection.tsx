@@ -2,7 +2,11 @@
 
 import { useCallback, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { createRoot } from "react-dom/client";
-import { ResultsStoryPosterChrome, type ResultsStoryPosterData } from "@/components/results/ResultsStoryPosterChrome";
+import {
+  ResultsStoryPosterChrome,
+  type ResultsStoryPosterData,
+  type StoryPosterTheme,
+} from "@/components/results/ResultsStoryPosterChrome";
 
 const STORY_W = 540;
 const STORY_H = 960;
@@ -35,7 +39,7 @@ async function embedPortraitForRaster(raw?: string | null): Promise<string | und
   }
 }
 
-async function rasterizePosterToBlob(base: ResultsStoryPosterData): Promise<Blob> {
+async function rasterizePosterToBlob(base: ResultsStoryPosterData, exportTheme: StoryPosterTheme): Promise<Blob> {
   const { toBlob, toPng } = await import("html-to-image");
 
   const portrait = await embedPortraitForRaster(base.participantPhotoSrc);
@@ -43,11 +47,12 @@ async function rasterizePosterToBlob(base: ResultsStoryPosterData): Promise<Blob
 
   const host = document.createElement("div");
   host.setAttribute("data-pausible-story-export", "true");
+  const bg = exportTheme === "light" ? "#fafbfc" : "#050816";
   host.style.cssText = [
     "position:fixed",
     "left:0",
     "top:0",
-    `z-index:2147483646`,
+    "z-index:2147483646",
     `width:${STORY_W}px`,
     `height:${STORY_H}px`,
     "pointer-events:none",
@@ -56,7 +61,7 @@ async function rasterizePosterToBlob(base: ResultsStoryPosterData): Promise<Blob
     "overflow:hidden",
     "opacity:1",
     "visibility:visible",
-    "background:#050816",
+    `background:${bg}`,
     "caret-color:transparent",
   ].join(";");
 
@@ -67,19 +72,18 @@ async function rasterizePosterToBlob(base: ResultsStoryPosterData): Promise<Blob
     pixelRatio: 2,
     width: STORY_W,
     height: STORY_H,
-    backgroundColor: "#050816",
+    backgroundColor: bg,
     skipFonts: true,
   };
 
   let rootRet: ReturnType<typeof createRoot> | null = null;
   try {
     rootRet = createRoot(host);
-    rootRet.render(<ResultsStoryPosterChrome {...poster} />);
+    rootRet.render(<ResultsStoryPosterChrome {...poster} theme={exportTheme} />);
     await new Promise<void>((resolve) =>
       queueMicrotask(() =>
         requestAnimationFrame(() =>
-          requestAnimationFrame(() =>
-            queueMicrotask(() => resolve())),
+          requestAnimationFrame(() => queueMicrotask(() => resolve())),
         ),
       ),
     );
@@ -128,7 +132,6 @@ async function shareImageFile(blob: Blob, basename: string): Promise<boolean> {
   if (!navigator.share) return false;
   if (!navigator.canShare?.(data)) return false;
 
-  /** Omit title/text — some targets (e.g. Instagram) choke when combined with `files`. */
   await navigator.share(data);
   return true;
 }
@@ -141,23 +144,58 @@ function openWhatsAppStatusHint(extraUrl?: string | null) {
   window.open(`https://wa.me/?text=${encodeURIComponent(body)}`, "_blank", "noopener,noreferrer");
 }
 
+function PortraitPreview({
+  displayName,
+  photoSrc,
+}: {
+  displayName: string;
+  photoSrc: string | null;
+}) {
+  const initials = displayName
+    .trim()
+    .split(/\s+/u)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((x) => x[0]?.toUpperCase())
+    .join("") || "?";
+
+  return (
+    <div className="relative">
+      <div className="absolute -inset-1 rounded-full bg-linear-to-br from-sky-400 via-indigo-400 to-violet-400 opacity-80 blur-sm" aria-hidden />
+      <div className="relative size-20 overflow-hidden rounded-full ring-4 ring-white shadow-lg sm:size-24">
+        {photoSrc ? (
+          <img src={photoSrc} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+        ) : (
+          <div className="grid h-full w-full place-items-center bg-linear-to-br from-sky-100 to-indigo-100 text-2xl font-black text-indigo-900">
+            {initials}
+          </div>
+        )}
+      </div>
+      <span className="absolute -bottom-1 -right-1 rounded-full bg-emerald-500 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white shadow">
+        On card
+      </span>
+    </div>
+  );
+}
+
 export function ResultsStoryPosterSection({
   poster,
   participant,
   filenameSlug,
   shareSnippetUrl,
+  variant = "light",
 }: {
   poster: ResultsStoryPosterData;
   participant?: ResultsStoryPosterParticipant | null;
   filenameSlug: string;
-  /** Public share URL to include when opening WhatsApp (text fallback). */
   shareSnippetUrl?: string | null;
+  variant?: "light" | "dark";
 }) {
+  const exportTheme: StoryPosterTheme = variant === "light" ? "light" : "dark";
   const [busy, setBusy] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [photoOverrideBlobUrl, setPhotoOverrideBlobUrl] = useState<string | null>(null);
 
-  /** Revoke replaced blob URLs in state updater (avoid Strict Mode double-invoke wiping active preview). */
   const replaceOverrideUrl = useCallback((next: string | null) => {
     setPhotoOverrideBlobUrl((prev) => {
       if (prev?.startsWith("blob:") && prev !== next) URL.revokeObjectURL(prev);
@@ -166,14 +204,15 @@ export function ResultsStoryPosterSection({
   }, []);
 
   const rawPortraitSrc = photoOverrideBlobUrl ?? participant?.googlePhotoUrl ?? poster.participantPhotoSrc ?? null;
+  const displayName = participant?.displayName?.trim() ?? poster.participantDisplayName?.trim() ?? "";
 
   const mergedPoster = useMemo(
     (): ResultsStoryPosterData => ({
       ...poster,
-      participantDisplayName: participant?.displayName ?? poster.participantDisplayName ?? null,
+      participantDisplayName: displayName || null,
       participantPhotoSrc: rawPortraitSrc,
     }),
-    [participant, poster, rawPortraitSrc],
+    [displayName, poster, rawPortraitSrc],
   );
 
   const resetToGooglePortrait = useCallback(() => {
@@ -189,140 +228,185 @@ export function ResultsStoryPosterSection({
         window.alert("Please choose an image under 6MB.");
         return;
       }
-      const url = URL.createObjectURL(f);
-      replaceOverrideUrl(url);
+      replaceOverrideUrl(URL.createObjectURL(f));
     },
     [replaceOverrideUrl],
   );
 
-  /** Preview: scale from native 540×960 with top-left origin so nothing drifts sideways. */
-  const previewOuterW = 297;
+  const previewOuterW = 280;
   const previewScale = previewOuterW / STORY_W;
   const previewOuterH = Math.round(STORY_H * previewScale);
+
+  const rasterize = useCallback(async () => rasterizePosterToBlob(mergedPoster, exportTheme), [mergedPoster, exportTheme]);
 
   const handleDownload = useCallback(async () => {
     if (busy) return;
     setBusy(true);
     try {
-      const blob = await rasterizePosterToBlob(mergedPoster);
-      downloadBlob(blob, filenameSlug);
+      downloadBlob(await rasterize(), filenameSlug);
     } finally {
       setBusy(false);
     }
-  }, [busy, mergedPoster, filenameSlug]);
+  }, [busy, rasterize, filenameSlug]);
 
   const handleSystemShare = useCallback(async () => {
     if (busy) return;
     setBusy(true);
     try {
-      const blob = await rasterizePosterToBlob(mergedPoster);
+      const blob = await rasterize();
       const ok = await shareImageFile(blob, filenameSlug).catch(() => false);
       if (!ok) {
         downloadBlob(blob, filenameSlug);
         window.alert(
-          "Your browser can’t hand off the image automatically—PNG downloaded instead. Open the file from your downloads, tap Share (mobile), then pick Instagram or WhatsApp.",
+          "Your browser can't share the image directly — PNG downloaded instead. Open it from downloads, then share to Stories or WhatsApp.",
         );
       }
     } finally {
       setBusy(false);
     }
-  }, [busy, mergedPoster, filenameSlug]);
-
-  const handleWhatsApp = useCallback(() => {
-    openWhatsAppStatusHint(shareSnippetUrl);
-  }, [shareSnippetUrl]);
+  }, [busy, rasterize, filenameSlug]);
 
   return (
-    <div className="rounded-3xl border border-[#162042] bg-linear-to-br from-[#050816]/95 via-[#0a1530]/90 to-[#050816] p-7 shadow-[0_40px_100px_-40px_rgba(125,216,255,0.25)] ring-2 ring-[#234a7a]/55">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#7dd8ff]/90">Stories &amp; status</p>
-          <h2 className="mt-2 text-xl font-semibold tracking-tight text-white">Share your snapshot image</h2>
-          <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/62">
-            Includes your profile name &amp; photo on the Story card — photo defaults to Google, or pick a substitute for
-            export only.&nbsp;
-            <span className="text-white/72">Substitution lives in browser memory until you refresh; we don&apos;t store it.</span>
-          </p>
-        </div>
-        <div className="flex shrink-0 flex-col gap-2 sm:items-end">
-          <button
-            type="button"
-            disabled={busy}
-            title="Opens the OS share sheet (mobile). Prefer Instagram Stories or WhatsApp."
-            onClick={() => void handleSystemShare()}
-            className="w-full rounded-2xl bg-white px-5 py-3 text-center text-sm font-bold text-[#061018] shadow-lg shadow-black/35 disabled:opacity-50 sm:min-w-[220px]"
-          >
-            {busy ? "Preparing…" : "Share image…"}
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void handleDownload()}
-            className="w-full rounded-2xl border border-white/20 bg-black/35 px-5 py-3 text-center text-sm font-semibold text-white/95 shadow-inner shadow-black/30 disabled:opacity-50 sm:min-w-[220px]"
-          >
-            Download PNG (1080×1920)
-          </button>
-          <button
-            type="button"
-            onClick={handleWhatsApp}
-            className="w-full rounded-2xl border border-[#61aaff]/35 bg-black/25 px-5 py-3 text-center text-sm font-semibold text-[#c8efff] sm:min-w-[220px]"
-          >
-            WhatsApp (compose + tip)
-          </button>
-          <p className="hidden text-right text-[10px] leading-snug text-white/45 sm:block sm:max-w-[240px]">
-            IG has no upload URL — use Share or Save, then Stories.
-          </p>
-        </div>
+    <section className="results-bento-in scheme-light overflow-hidden rounded-[2rem] border border-slate-200/90 bg-white shadow-[0_24px_60px_-32px_rgba(15,23,42,0.15)]">
+      {/* Header */}
+      <div className="border-b border-slate-100 bg-linear-to-r from-sky-50/80 via-white to-violet-50/50 px-4 py-5 sm:px-7 sm:py-6">
+        <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-sky-700">Stories &amp; status</p>
+        <h2 className="mt-2 text-xl font-black tracking-tight text-slate-950 sm:text-2xl">Share your snapshot</h2>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">
+          Your name and photo appear top-left on the card. Export matches the preview — light, story-ready, 1080×1920.
+        </p>
       </div>
 
-      {participant?.displayName ? (
-        <div className="mt-7 flex flex-col gap-4 rounded-2xl border border-white/[0.1] bg-black/35 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/43">Shown on Story card</p>
-            <p className="mt-1 truncate text-sm font-semibold text-white">{participant.displayName.trim()}</p>
-            <p className="mt-1 max-w-xl text-[11px] leading-relaxed text-white/52">
-              {photoOverrideBlobUrl ? "Using your chosen image below — not saved anywhere." : "Portrait from Google; change stays in this browser only."}
-            </p>
+      <div className="grid grid-cols-1 gap-0 lg:grid-cols-[minmax(0,1fr)_auto]">
+        {/* Left: profile + actions bento */}
+        <div className="flex flex-col gap-4 border-b border-slate-100 p-4 sm:gap-5 sm:p-6 lg:border-b-0 lg:border-r">
+          {/* Profile bento */}
+          <div className="rounded-2xl border border-slate-200/90 bg-slate-50/80 p-4 sm:p-5">
+            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">On your story card</p>
+            <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
+              {displayName ? (
+                <PortraitPreview displayName={displayName} photoSrc={rawPortraitSrc} />
+              ) : (
+                <div className="size-20 rounded-full bg-slate-200 sm:size-24" />
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="text-lg font-bold leading-tight text-slate-950 sm:text-xl">{displayName || "Guest"}</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Position: top identity block · left portrait · right name
+                </p>
+                <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+                  {photoOverrideBlobUrl
+                    ? "Using your picked image (browser only, not saved)."
+                    : "Portrait from Google — swap anytime below."}
+                </p>
+              </div>
+            </div>
+
+            {participant?.displayName ? (
+              <div className="mt-5 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="min-h-11 flex-1 rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-bold text-white shadow-sm active:scale-[0.98] sm:flex-none"
+                >
+                  Pick photo
+                </button>
+                {photoOverrideBlobUrl ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={resetToGooglePortrait}
+                    className="min-h-11 rounded-xl border border-sky-200 bg-white px-4 py-2.5 text-xs font-bold text-sky-800"
+                  >
+                    Use Google
+                  </button>
+                ) : null}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="sr-only"
+                  onChange={onPickPortrait}
+                />
+              </div>
+            ) : null}
           </div>
-          <div className="flex shrink-0 flex-wrap gap-2">
+
+          {/* Layout legend */}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {[
+              { k: "Photo", v: "Top-left ring" },
+              { k: "Name", v: "Beside portrait" },
+              { k: "Persona", v: "Center headline" },
+              { k: "Traits", v: "Bottom meters" },
+            ].map((item) => (
+              <div key={item.k} className="rounded-xl border border-slate-100 bg-white px-3 py-2.5 text-center shadow-sm">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{item.k}</p>
+                <p className="mt-0.5 text-[11px] font-semibold text-slate-700">{item.v}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Actions */}
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
             <button
               type="button"
               disabled={busy}
-              onClick={() => fileInputRef.current?.click()}
-              className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-[#eaf8ff] hover:bg-white/15 disabled:opacity-50"
+              onClick={() => void handleSystemShare()}
+              className="min-h-12 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-bold text-white shadow-md disabled:opacity-50 active:scale-[0.98]"
             >
-              Pick image…
+              {busy ? "Preparing…" : "Share image"}
             </button>
-            {photoOverrideBlobUrl ? (
-              <button type="button" disabled={busy} onClick={resetToGooglePortrait} className="rounded-xl border border-[#61aaff]/35 bg-transparent px-3 py-2 text-xs font-semibold text-[#9fe8ff] hover:bg-black/35 disabled:opacity-50">
-                Use Google photo
-              </button>
-            ) : null}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              className="sr-only"
-              onChange={(e) => onPickPortrait(e)}
-            />
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void handleDownload()}
+              className="min-h-12 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-900 shadow-sm disabled:opacity-50"
+            >
+              Download PNG
+            </button>
+            <button
+              type="button"
+              onClick={() => openWhatsAppStatusHint(shareSnippetUrl)}
+              className="min-h-12 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-bold text-sky-900"
+            >
+              WhatsApp tip
+            </button>
           </div>
+          <p className="text-[11px] leading-relaxed text-slate-500">
+            Instagram has no direct upload URL — use Share or Save, then add from your gallery. WhatsApp opens a compose
+            helper with your link.
+          </p>
         </div>
-      ) : null}
 
-      <div className="relative mx-auto mt-10 flex justify-center pb-8 pt-6">
-        <div className="pointer-events-none absolute inset-x-[6%] top-[18%] h-[52%] rounded-[40%] bg-[#7dd8ff]/10 blur-[56px]" />
-        <div
-          className="relative mx-auto overflow-hidden rounded-[1.85rem] shadow-[0_52px_80px_-48px_rgb(125,216,255,0.35)] ring-2 ring-[#274f8f]/95"
-          style={{ width: previewOuterW, height: previewOuterH }}
-        >
-          <div style={{ width: STORY_W, height: STORY_H, transform: `scale(${previewScale})`, transformOrigin: "top left" }}>
-            <ResultsStoryPosterChrome {...mergedPoster} />
+        {/* Right: phone preview */}
+        <div className="flex flex-col items-center bg-linear-to-b from-slate-50/80 to-white px-4 py-8 sm:px-8 lg:min-w-[320px]">
+          <p className="mb-4 text-[10px] font-bold uppercase tracking-[0.24em] text-slate-400">Live preview</p>
+
+          {/* Phone frame */}
+          <div className="relative rounded-[2.5rem] bg-slate-900 p-2.5 shadow-[0_32px_64px_-24px_rgba(15,23,42,0.45)] ring-1 ring-slate-800">
+            <div className="absolute left-1/2 top-3 z-10 h-1.5 w-16 -translate-x-1/2 rounded-full bg-slate-800" aria-hidden />
+            <div
+              className="relative overflow-hidden rounded-[2rem] bg-white ring-1 ring-slate-700/50"
+              style={{ width: previewOuterW + 4, height: previewOuterH + 4 }}
+            >
+              <div
+                style={{
+                  width: STORY_W,
+                  height: STORY_H,
+                  transform: `scale(${previewScale})`,
+                  transformOrigin: "top left",
+                }}
+              >
+                <ResultsStoryPosterChrome {...mergedPoster} theme={exportTheme} />
+              </div>
+            </div>
           </div>
+
+          <p className="mt-5 text-center text-xs font-medium text-slate-500">540 × 960 · exports at 2× (1080×1920)</p>
         </div>
       </div>
-      <p className="text-center text-xs text-white/45">
-        WhatsApp opens a chat composer with link + reminder to attach the PNG for Status — there is no public “status-only” upload API.
-      </p>
-    </div>
+    </section>
   );
 }
