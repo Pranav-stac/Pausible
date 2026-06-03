@@ -1,4 +1,5 @@
 import questionBankRaw from "../../../question.json";
+import facetOrderJson from "@/data/ocean/facet-order.json";
 import type { TraitKey } from "@/lib/scoring/persona-types";
 import { traitKeyFromLabel } from "@/lib/scoring/persona-defaults";
 
@@ -10,45 +11,15 @@ export type QuestionBankItem = {
   code: string;
   trait: string;
   facet: string;
+  facetId?: string;
   text: string;
   is_reverse: boolean;
   order_index: number;
   is_active?: boolean;
 };
 
-/** Facet IDs in spec order (30 facets). */
-export const FACET_IDS_ORDERED = [
-  "O-NC",
-  "O-EI",
-  "O-RE",
-  "O-MB",
-  "O-SE",
-  "O-LA",
-  "C-MP",
-  "C-WA",
-  "C-SH",
-  "C-PT",
-  "C-IR",
-  "C-RM",
-  "E-SW",
-  "E-CN",
-  "E-CD",
-  "E-AT",
-  "E-ER",
-  "E-PB",
-  "A-CR",
-  "A-CF",
-  "A-EE",
-  "A-CC",
-  "A-AI",
-  "A-RH",
-  "N-HA",
-  "N-EP",
-  "N-SR",
-  "N-SV",
-  "N-IW",
-  "N-CO",
-] as const;
+/** Facet IDs in v5 questionnaire order (30 facets × 3 items). */
+export const FACET_IDS_ORDERED = facetOrderJson as readonly string[];
 
 export function facetIdFromQuestionCode(code: string): string {
   const m = code.match(/^([A-Z]-[A-Z]{2})-\d+$/);
@@ -66,12 +37,16 @@ export function facetsByTrait(): Record<TraitKey, string[]> {
   for (const row of activeQuestionBank()) {
     const traitKey = traitKeyFromLabel(row.trait);
     if (!traitKey) continue;
-    const facetId = facetIdFromQuestionCode(row.code);
+    const facetId = row.facetId ?? facetIdFromQuestionCode(row.code);
     if (!map[traitKey]) map[traitKey] = [];
     if (!map[traitKey].includes(facetId)) map[traitKey].push(facetId);
   }
   for (const t of Object.keys(map) as TraitKey[]) {
-    map[t].sort((a, b) => FACET_IDS_ORDERED.indexOf(a as (typeof FACET_IDS_ORDERED)[number]) - FACET_IDS_ORDERED.indexOf(b as (typeof FACET_IDS_ORDERED)[number]));
+    map[t].sort(
+      (a, b) =>
+        FACET_IDS_ORDERED.indexOf(a as (typeof FACET_IDS_ORDERED)[number]) -
+        FACET_IDS_ORDERED.indexOf(b as (typeof FACET_IDS_ORDERED)[number]),
+    );
   }
   return map;
 }

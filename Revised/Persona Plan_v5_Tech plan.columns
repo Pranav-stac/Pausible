@@ -1,0 +1,4 @@
+"name","type","length","leftDigits","rightDigits"
+"1","INTEGER","2","2","0"
+"Simple landing page","STRING","34","0","0"
+"Page with information about the tool","STRING","72","0","0"

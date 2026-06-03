@@ -1,0 +1,115 @@
+﻿Question ID,Question,Response Type,Response Value / Range,Triggered Tag Category,Triggered Tag
+CQ01,What is your date of birth?,Date input,Under 18,Context Fit,age_under_18
+CQ01,What is your date of birth?,Date input,18–24,Context Fit,age_18_24
+CQ01,What is your date of birth?,Date input,25–34,Context Fit,age_25_34
+CQ01,What is your date of birth?,Date input,35–44,Context Fit,age_35_44
+CQ01,What is your date of birth?,Date input,45–54,Context Fit,age_45_54
+CQ01,What is your date of birth?,Date input,55+,Context Fit,age_55_plus
+CQ02,What is your gender?,Single select,Male,Context Fit,gender_male
+CQ02,What is your gender?,Single select,Female,Context Fit,gender_female
+CQ02,What is your gender?,Single select,Non-binary,Context Fit,gender_non_binary
+CQ02,What is your gender?,Single select,Prefer not to say,Context Fit,gender_prefer_not_to_say
+CQ03,Which of the following best describes your current work or lifestyle situation?,Single select,Mostly desk-based work,Context Fit,work_desk_based
+CQ03,Which of the following best describes your current work or lifestyle situation?,Single select,Hybrid work,Context Fit,work_hybrid
+CQ03,Which of the following best describes your current work or lifestyle situation?,Single select,Remote work,Context Fit,work_remote
+CQ03,Which of the following best describes your current work or lifestyle situation?,Single select,Shift-based work,Context Fit,work_shift_based
+CQ03,Which of the following best describes your current work or lifestyle situation?,Single select,Physically demanding work,Context Fit,work_physically_demanding
+CQ03,Which of the following best describes your current work or lifestyle situation?,Single select,Travel-heavy work,Context Fit,work_travel_heavy
+CQ03,Which of the following best describes your current work or lifestyle situation?,Single select,Homemaker / caregiving responsibilities,Context Fit,lifestyle_caregiving
+CQ03,Which of the following best describes your current work or lifestyle situation?,Single select,Student,Context Fit,lifestyle_student
+CQ03,Which of the following best describes your current work or lifestyle situation?,Single select,Currently not working,Context Fit,lifestyle_not_working
+CQ04,How stressful is your current routine?,Scale,1–2 out of 7,Context Fit,stress_low
+CQ04,How stressful is your current routine?,Scale,3–5 out of 7,Context Fit,stress_moderate
+CQ04,How stressful is your current routine?,Scale,6–7 out of 7,Context Fit,stress_high
+CQ05,How much time can you realistically dedicate to your wellness routine on most days?,Single select,Less than 10 minutes,Context Fit,time_under_10_min
+CQ05,How much time can you realistically dedicate to your wellness routine on most days?,Single select,10–20 minutes,Context Fit,time_10_20_min
+CQ05,How much time can you realistically dedicate to your wellness routine on most days?,Single select,20–30 minutes,Context Fit,time_20_30_min
+CQ05,How much time can you realistically dedicate to your wellness routine on most days?,Single select,30–45 minutes,Context Fit,time_30_45_min
+CQ05,How much time can you realistically dedicate to your wellness routine on most days?,Single select,45–60 minutes,Context Fit,time_45_60_min
+CQ05,How much time can you realistically dedicate to your wellness routine on most days?,Single select,More than 60 minutes,Context Fit,time_over_60_min
+CQ06,Which option best describes your current fitness level?,Single select,Beginner: I rarely exercise or I am just starting out,Context Fit,fitness_beginner
+CQ06,Which option best describes your current fitness level?,Single select,Restarting: I used to exercise but have taken a break,Context Fit,fitness_restarting
+CQ06,Which option best describes your current fitness level?,Single select,Intermediate: I exercise occasionally but not consistently,Context Fit,fitness_intermediate
+CQ06,Which option best describes your current fitness level?,Single select,Consistent: I train regularly,Context Fit,fitness_consistent
+CQ06,Which option best describes your current fitness level?,Single select,Advanced: I follow structured training programs,Context Fit,fitness_advanced
+CQ07,Which option best describes your usual daily activity level?,Single select,"Sedentary: Mostly sitting, very little walking or movement",Context Fit,activity_sedentary
+CQ07,Which option best describes your usual daily activity level?,Single select,"Lightly active: Some walking or movement, but no regular physical workload",Context Fit,activity_light
+CQ07,Which option best describes your usual daily activity level?,Single select,"Moderately active: Regular walking, movement, or light physical activity most days",Context Fit,activity_moderate
+CQ07,Which option best describes your usual daily activity level?,Single select,"Very active: Physically active job, frequent movement, or regular intense activity",Context Fit,activity_very_active
+CQ08,How would you rate your sleep quality on most days?,Single select,Very poor,Context Fit,sleep_quality_very_poor
+CQ08,How would you rate your sleep quality on most days?,Single select,Poor,Context Fit,sleep_quality_poor
+CQ08,How would you rate your sleep quality on most days?,Single select,Average,Context Fit,sleep_quality_average
+CQ08,How would you rate your sleep quality on most days?,Single select,Good,Context Fit,sleep_quality_good
+CQ08,How would you rate your sleep quality on most days?,Single select,Excellent,Context Fit,sleep_quality_excellent
+CQ09,How many hours do you usually sleep per night?,Single select,Less than 5 hours,Context Fit,sleep_under_5_hours
+CQ09,How many hours do you usually sleep per night?,Single select,5–6 hours,Context Fit,sleep_5_6_hours
+CQ09,How many hours do you usually sleep per night?,Single select,6–7 hours,Context Fit,sleep_6_7_hours
+CQ09,How many hours do you usually sleep per night?,Single select,7–8 hours,Context Fit,sleep_7_8_hours
+CQ09,How many hours do you usually sleep per night?,Single select,More than 8 hours,Context Fit,sleep_over_8_hours
+CQ10,Where would you prefer to exercise or be physically active?,Single select,At home,Context Fit,environment_home
+CQ10,Where would you prefer to exercise or be physically active?,Single select,At a gym,Context Fit,environment_gym
+CQ10,Where would you prefer to exercise or be physically active?,Single select,Outdoors,Context Fit,environment_outdoors
+CQ10,Where would you prefer to exercise or be physically active?,Single select,Group classes,Context Fit,environment_group_classes
+CQ10,Where would you prefer to exercise or be physically active?,Single select,With a personal trainer,Context Fit,environment_personal_trainer
+CQ10,Where would you prefer to exercise or be physically active?,Single select,No preference,Context Fit,environment_no_preference
+CQ11,Which option best describes your usual food pattern?,Single select,Vegetarian,Context Fit,food_vegetarian
+CQ11,Which option best describes your usual food pattern?,Single select,Vegan,Context Fit,food_vegan
+CQ11,Which option best describes your usual food pattern?,Single select,Eggetarian,Context Fit,food_eggetarian
+CQ11,Which option best describes your usual food pattern?,Single select,Non-vegetarian,Context Fit,food_non_vegetarian
+CQ11,Which option best describes your usual food pattern?,Single select,Pescatarian,Context Fit,food_pescatarian
+CQ11,Which option best describes your usual food pattern?,Single select,No specific preference,Context Fit,food_no_preference
+CQ11,Which option best describes your usual food pattern?,Single select,Religious or cultural food restrictions,Context Fit,food_religious_cultural_restrictions
+CQ12,How much control do you usually have over your meals?,Single select,I mostly prepare my own meals,Context Fit,meal_control_self_prepared
+CQ12,How much control do you usually have over your meals?,Single select,My meals are mostly prepared by others,Context Fit,meal_control_prepared_by_others
+CQ12,How much control do you usually have over your meals?,Single select,I frequently eat out or order food,Context Fit,meal_control_frequent_eating_out
+CQ12,How much control do you usually have over your meals?,Single select,It is mixed and varies by day,Context Fit,meal_control_mixed
+CQ12,How much control do you usually have over your meals?,Single select,I mostly depend on office or cafeteria food,Context Fit,meal_control_office_cafeteria
+CQ13,How supportive is your environment for your wellness goals?,Single select,Strong support,Context Fit,support_strong
+CQ13,How supportive is your environment for your wellness goals?,Single select,Some support,Context Fit,support_some
+CQ13,How supportive is your environment for your wellness goals?,Single select,Neutral,Context Fit,support_neutral
+CQ13,How supportive is your environment for your wellness goals?,Single select,Unsupportive,Context Fit,support_unsupportive
+CQ13,How supportive is your environment for your wellness goals?,Single select,I prefer to do this on my own,Context Fit,support_self_directed
+CQ14,What are your main wellness goals?,Multi-select,Fat loss / weight loss,Goal Fit,goal_fat_loss
+CQ14,What are your main wellness goals?,Multi-select,Muscle gain,Goal Fit,goal_muscle_gain
+CQ14,What are your main wellness goals?,Multi-select,Strength,Goal Fit,goal_strength
+CQ14,What are your main wellness goals?,Multi-select,Better energy,Goal Fit,goal_energy
+CQ14,What are your main wellness goals?,Multi-select,Better sleep,Goal Fit,goal_sleep_improvement
+CQ14,What are your main wellness goals?,Multi-select,Stress reduction,Goal Fit,goal_stress_reduction
+CQ14,What are your main wellness goals?,Multi-select,Flexibility or mobility,Goal Fit,goal_flexibility_mobility
+CQ14,What are your main wellness goals?,Multi-select,Consistency and discipline,Goal Fit,goal_consistency_discipline
+CQ14,What are your main wellness goals?,Multi-select,Overall health,Goal Fit,goal_overall_health
+CQ14,What are your main wellness goals?,Multi-select,Body confidence / appearance,Goal Fit,goal_body_confidence
+CQ14,What are your main wellness goals?,Multi-select,Return to fitness after a break,Goal Fit,goal_return_to_fitness
+CQ14,What are your main wellness goals?,Multi-select,Better recovery,Goal Fit,goal_better_recovery
+CQ14,What are your main wellness goals?,Multi-select,Mental calm,Goal Fit,goal_mental_calm
+CQ14,What are your main wellness goals?,Multi-select,Sustainable routines,Goal Fit,goal_sustainable_routines
+CQ15,What are the biggest barriers that usually stop you from staying consistent?,Multi-select,Lack of time,Barrier Fit,barrier_lack_of_time
+CQ15,What are the biggest barriers that usually stop you from staying consistent?,Multi-select,Lack of consistency,Barrier Fit,barrier_lack_of_consistency
+CQ15,What are the biggest barriers that usually stop you from staying consistent?,Multi-select,Work stress,Barrier Fit,barrier_work_stress
+CQ15,What are the biggest barriers that usually stop you from staying consistent?,Multi-select,Poor sleep,Barrier Fit,barrier_poor_sleep
+CQ15,What are the biggest barriers that usually stop you from staying consistent?,Multi-select,Low motivation,Barrier Fit,barrier_low_motivation
+CQ15,What are the biggest barriers that usually stop you from staying consistent?,Multi-select,Emotional eating or cravings,Barrier Fit,barrier_emotional_eating_cravings
+CQ15,What are the biggest barriers that usually stop you from staying consistent?,Multi-select,Gym anxiety,Barrier Fit,barrier_gym_anxiety
+CQ15,What are the biggest barriers that usually stop you from staying consistent?,Multi-select,Lack of knowledge,Barrier Fit,barrier_lack_of_knowledge
+CQ15,What are the biggest barriers that usually stop you from staying consistent?,Multi-select,Travel or schedule disruption,Barrier Fit,barrier_travel_schedule_disruption
+CQ15,What are the biggest barriers that usually stop you from staying consistent?,Multi-select,Family responsibilities,Barrier Fit,barrier_family_responsibilities
+CQ15,What are the biggest barriers that usually stop you from staying consistent?,Multi-select,Injury or physical discomfort,Barrier Fit,barrier_injury_discomfort
+CQ15,What are the biggest barriers that usually stop you from staying consistent?,Multi-select,Low activation energy,Barrier Fit,barrier_low_activation_energy
+CQ15,What are the biggest barriers that usually stop you from staying consistent?,Multi-select,Overwhelm from complex plans,Barrier Fit,barrier_overwhelm_from_complexity
+CQ15,What are the biggest barriers that usually stop you from staying consistent?,Multi-select,Difficulty starting,Barrier Fit,barrier_starting_difficulty
+CQ16,"Do you have any health, injury, pregnancy/postpartum, or doctor-advised restrictions we should consider?",Multi-select,No known restriction,Exclude If,exclude_none
+CQ16,"Do you have any health, injury, pregnancy/postpartum, or doctor-advised restrictions we should consider?",Multi-select,Medical condition,Exclude If,exclude_medical_condition
+CQ16,"Do you have any health, injury, pregnancy/postpartum, or doctor-advised restrictions we should consider?",Multi-select,Injury,Exclude If,exclude_injury
+CQ16,"Do you have any health, injury, pregnancy/postpartum, or doctor-advised restrictions we should consider?",Multi-select,Pregnancy or postpartum,Exclude If,exclude_pregnancy_postpartum
+CQ16,"Do you have any health, injury, pregnancy/postpartum, or doctor-advised restrictions we should consider?",Multi-select,Doctor-advised restriction,Exclude If,exclude_doctor_advised_restriction
+CQ16,"Do you have any health, injury, pregnancy/postpartum, or doctor-advised restrictions we should consider?",Multi-select,Prefer not to say,Exclude If,exclude_prefer_not_to_say_health
+CQ16,"Do you have any health, injury, pregnancy/postpartum, or doctor-advised restrictions we should consider?",Multi-select,Severe fatigue,Exclude If,exclude_severe_fatigue
+CQ16,"Do you have any health, injury, pregnancy/postpartum, or doctor-advised restrictions we should consider?",Multi-select,Persistent pain,Exclude If,exclude_persistent_pain
+DQ01,Derived from user profile combination,Derived rule,sleep_quality_poor OR sleep_quality_very_poor + high-intensity recommendation,Exclude If,exclude_poor_sleep_high_intensity
+DQ02,Derived from user profile combination,Derived rule,fitness_beginner OR fitness_restarting + advanced training recommendation,Exclude If,exclude_beginner_advanced_training
+DQ03,Derived from user profile combination,Derived rule,stress_high + extreme dieting recommendation,Exclude If,exclude_high_stress_extreme_diet
+DQ04,Derived from user profile combination,Derived rule,watchful_deer OR high anxiety pattern + overtracking recommendation,Exclude If,exclude_high_anxiety_overtracking
+DQ05,Derived from user profile combination,Derived rule,work_shift_based + strict sleep timing recommendation,Exclude If,exclude_shift_work_strict_sleep_schedule
+DQ06,Derived from user profile combination,Derived rule,work_travel_heavy + rigid routine recommendation,Exclude If,exclude_travel_heavy_rigid_routine
+DQ07,Derived from user profile combination,Derived rule,time_under_10_min OR time_10_20_min + long workout recommendation,Exclude If,exclude_low_time_long_workouts
+DQ08,Derived from user profile combination,Derived rule,barrier_emotional_eating_cravings + extreme restriction recommendation,Exclude If,exclude_emotional_eating_extreme_restriction

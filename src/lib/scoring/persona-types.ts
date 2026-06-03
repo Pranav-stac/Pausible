@@ -46,6 +46,12 @@ export type PersonaAnalysis = {
   itemResponses: QuestionItemResponse[];
   facetAverages: Record<string, number>;
   traitAverages: Record<TraitKey, number>;
+  /** Analytics tags per OCEAN trait (low / medium / high). */
+  traitTags?: Record<TraitKey, string>;
+  /** Analytics tags per facet category (keyed by facet ID, e.g. O-NC). */
+  categoryTags?: Record<string, string>;
+  /** Flat list of all trait + category tags for analytics export. */
+  oceanTags?: string[];
   personaDistances: Record<PersonaKey, number>;
   personaSi: Record<PersonaKey, number>;
   personaPercentages: Record<PersonaKey, number>;

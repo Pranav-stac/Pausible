@@ -7,6 +7,7 @@ import {
   OCEAN_LIKERT_MIN,
 } from "@/lib/scoring/question-bank-meta";
 import { DEFAULT_PERSONA_ALPHA, DEFAULT_PERSONA_CENTROIDS, traitKeyFromLabel } from "@/lib/scoring/persona-defaults";
+import { computeOceanTags } from "@/lib/scoring/ocean-tags";
 import type {
   PersonaAnalysis,
   PersonaCentroidTable,
@@ -134,6 +135,7 @@ export function computePersonaAnalysis(
   const itemResponses = buildItemResponses(answers);
   const facetAverages = computeFacetAverages(itemResponses);
   const traitAverages = computeTraitAverages(facetAverages);
+  const { traitTags, categoryTags, oceanTags } = computeOceanTags(traitAverages, facetAverages);
   const personaDistances = computePersonaDistances(traitAverages, centroids);
   const personaSi = computePersonaSi(personaDistances, alpha);
   const personaPercentages = computePersonaPercentages(personaSi);
@@ -143,6 +145,9 @@ export function computePersonaAnalysis(
     itemResponses,
     facetAverages,
     traitAverages,
+    traitTags,
+    categoryTags,
+    oceanTags,
     personaDistances,
     personaSi,
     personaPercentages,

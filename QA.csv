@@ -1,0 +1,13 @@
+﻿Metric,Value
+Source file,v1.3_A07A11_TaggingValidationQA_Pausibl_RecommendationsMaster.xlsx
+Output file,v1.4_A11A_RecommendationStrengthValidated_Pausibl_RecommendationsMaster.xlsx
+Total recommendations reviewed,120
+Strength changes made,26
+Optional recommendations count,13
+Conditional recommendations count,28
+New recommendations added,6
+Final recommendation count,126
+Coverage gaps identified,Optional recommendations were underrepresented; some recovery_rule and context-specific rows were misclassified as core/supporting.
+Coverage gaps fixed,Reclassified context-specific recommendations as conditional and added preference-dependent optional recommendations.
+Remaining risks,"Conditional share is slightly above target because safety, travel, injury, and poor-sleep adaptations are intentionally retained."
+Final observations,"Strength values now better distinguish foundational, supporting, preference-dependent, and context-specific recommendations."

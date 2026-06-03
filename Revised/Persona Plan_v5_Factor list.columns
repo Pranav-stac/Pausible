@@ -1,0 +1,7 @@
+"name","type","length","leftDigits","rightDigits"
+"S.No.","STRING","1","1","0"
+"Factors","STRING","34","0","0"
+"SF#","STRING","3","1","1"
+"Sub-factors","STRING","36","0","0"
+"Intent","STRING","0","0","0"
+"Questions","INTEGER","2","2","0"

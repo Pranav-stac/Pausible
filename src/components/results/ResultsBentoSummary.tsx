@@ -4,6 +4,7 @@ import type { CSSProperties, ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { User } from "firebase/auth";
+import { WellnessActionPlan } from "@/components/results/WellnessActionPlan";
 import { ResultsStoryPosterSection } from "@/components/results/ResultsStoryPosterSection";
 import { personaAnimal, personaLabel } from "@/lib/results/persona-display";
 import { PERSONA_REPORT_THEME } from "@/lib/results/persona-report-theme";
@@ -404,6 +405,11 @@ export function ResultsBentoSummary({
             ))}
           </ul>
         </BentoCard>
+
+        {/* Personalized wellness action plan */}
+        <div className="md:col-span-6 lg:col-span-12">
+          <WellnessActionPlan attempt={attempt} accent={accent} />
+        </div>
 
         {/* POSTER */}
         <div className="md:col-span-6 lg:col-span-12">
