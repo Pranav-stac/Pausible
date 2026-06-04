@@ -2,7 +2,7 @@
 
 Next.js (App Router) + Firebase (Auth / Firestore) + Stripe, Razorpay, and PayPal checkouts.
 Lol
-## Local development
+## Local developments
 
 1. Copy [`.env.example`](./.env.example) to `.env.local` and fill Firebase public keys for full auth + persistence. Without Firebase, the app uses a local browser ID and `localStorage` for attempts (fine for UI work).
 2. `npm install`
