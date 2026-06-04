@@ -1,5 +1,9 @@
-import type { AssessmentQuestion } from "@/types/models";
+import type { AssessmentDefinition, AssessmentQuestion } from "@/types/models";
 import { coerceAnswer } from "@/lib/scoring/engine";
+
+export function questionsFromDefinition(def: AssessmentDefinition): AssessmentQuestion[] {
+  return Object.values(def.questions).filter((q): q is AssessmentQuestion => Boolean(q));
+}
 
 /** Valid random answers for every question — for manual QA only. */
 export function randomAnswersForQuestions(questions: AssessmentQuestion[]): Record<string, number | string | string[]> {
@@ -28,6 +32,10 @@ export function randomAnswersForQuestions(questions: AssessmentQuestion[]): Reco
   }
 
   return next;
+}
+
+export function randomAnswersForDefinition(def: AssessmentDefinition): Record<string, number | string | string[]> {
+  return randomAnswersForQuestions(questionsFromDefinition(def));
 }
 
 export function assessmentTestToolsAllowed(): boolean {

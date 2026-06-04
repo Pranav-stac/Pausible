@@ -6,7 +6,7 @@ import Link from "next/link";
 import { BrandLogo } from "@/components/BrandLogo";
 import { trackAssessmentComplete, trackAssessmentStart } from "@/lib/analytics/track";
 import { assessmentShellClass, assessmentShellPadClass } from "@/lib/assessment/layout";
-import { WELLNESS_CONTEXT_PREFIX } from "@/data/wellness-context-questionnaire";
+import { getWellnessContextQuestionnaire, WELLNESS_CONTEXT_PREFIX } from "@/data/wellness-context-questionnaire";
 import { fetchAssessment } from "@/lib/data/assessment-service";
 import { fetchAttempt } from "@/lib/data/attempt-service";
 import { SESSION_ATTEMPT_CLAIM_KEY, claimStorageKey } from "@/lib/data/attempt-claim-client";
@@ -204,7 +204,7 @@ export function AssessmentRunner({
       claimSecretRef.current.length >= 16 ? { claimSecret: claimSecretRef.current } : {};
     const t = window.setTimeout(() => {
       void (async () => {
-        let payload: AttemptAnswers = { ...answers };
+        const payload: AttemptAnswers = { ...answers };
         try {
           const prev = await fetchAttempt(id);
           if (prev?.answers) {
@@ -311,7 +311,14 @@ export function AssessmentRunner({
 
   const fillAllRandomTesting = useCallback(() => {
     if (!questions.length || !assessment || !attemptUid) return;
-    const next = randomAnswersForQuestions(questions);
+    let next = randomAnswersForQuestions(questions);
+    if (assessment.id === defaultAssessmentId) {
+      const wellnessDef = getWellnessContextQuestionnaire();
+      next = {
+        ...next,
+        ...randomAnswersForQuestions(Object.values(wellnessDef.questions).filter(Boolean)),
+      };
+    }
     setAnswers(next);
     setRevealedCount(questions.length);
 
@@ -393,11 +400,11 @@ export function AssessmentRunner({
             {showTestFill ? (
               <button
                 type="button"
-                title="Development / QA only — does not fill wellness context (step 2)"
+                title="Development / QA only — fills personality inventory and wellness context (step 2)"
                 onClick={fillAllRandomTesting}
                 className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-800 shadow-sm hover:bg-slate-50 sm:text-xs lg:hidden"
               >
-                Fill inventory only (test)
+                Fill all (test)
               </button>
             ) : null}
           </div>
@@ -441,11 +448,11 @@ export function AssessmentRunner({
             {showTestFill ? (
               <button
                 type="button"
-                title="Development / QA only — does not fill wellness context (step 2)"
+                title="Development / QA only — fills personality inventory and wellness context (step 2)"
                 onClick={fillAllRandomTesting}
                 className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-left text-[11px] font-semibold text-slate-700 hover:bg-white"
               >
-                Fill inventory only (test)
+                Fill all (test)
               </button>
             ) : null}
           </aside>

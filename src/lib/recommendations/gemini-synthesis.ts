@@ -143,7 +143,7 @@ export async function synthesizeActionPlanWithGemini(
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) return fallbackSynthesis(selection);
 
-  const model = process.env.GEMINI_MODEL?.trim() || "gemini-2.0-flash";
+  const model = process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash";
   const prompt = buildPrompt(selection);
 
   try {

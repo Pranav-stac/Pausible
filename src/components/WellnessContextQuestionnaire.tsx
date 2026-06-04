@@ -22,6 +22,7 @@ import {
   wellnessContextAssessmentId,
 } from "@/data/wellness-context-questionnaire";
 import type { AssessmentDefinition, AssessmentQuestion, AssessmentSection, AttemptAnswers } from "@/types/models";
+import { assessmentTestToolsAllowed, randomAnswersForDefinition } from "@/lib/testing/random-assessment-fill";
 
 function sectionQuestions(
   def: AssessmentDefinition,
@@ -157,10 +158,17 @@ export function WellnessContextQuestionnaire({
 
         const existing: AttemptAnswers = {};
         let ocean = 0;
+        const oceanOnly = Object.fromEntries(
+          Object.entries(attempt.answers ?? {}).filter(([key]) => !key.startsWith(WELLNESS_CONTEXT_PREFIX)),
+        );
+        const wellnessOnly = Object.fromEntries(
+          Object.entries(attempt.answers ?? {}).filter(([key]) => key.startsWith(WELLNESS_CONTEXT_PREFIX)),
+        );
+        const wellnessPrefilled = allSectionsComplete(questionnaire, wellnessOnly);
         const source = freshWellness
-          ? Object.fromEntries(
-              Object.entries(attempt.answers ?? {}).filter(([key]) => !key.startsWith(WELLNESS_CONTEXT_PREFIX)),
-            )
+          ? wellnessPrefilled
+            ? { ...oceanOnly, ...wellnessOnly }
+            : oceanOnly
           : (attempt.answers ?? {});
 
         for (const [key, val] of Object.entries(source)) {
@@ -168,7 +176,7 @@ export function WellnessContextQuestionnaire({
           else if (val !== undefined && val !== null) ocean += 1;
         }
 
-        if (freshWellness && Object.keys(existing).length === 0) {
+        if (freshWellness && !wellnessPrefilled && Object.keys(existing).length === 0) {
           const cleaned: AttemptAnswers = { ...source };
           for (const k of Object.keys(cleaned)) {
             if (k.startsWith(WELLNESS_CONTEXT_PREFIX)) delete cleaned[k];
@@ -297,6 +305,46 @@ export function WellnessContextQuestionnaire({
     ((activeSectionIndex + (sectionComplete ? 1 : 0)) / Math.max(1, sections.length)) * 100,
   );
 
+  const showTestFill = assessmentTestToolsAllowed();
+
+  const fillAllRandomTesting = useCallback(() => {
+    if (!questionnaire || !attemptUid) return;
+    const next = randomAnswersForDefinition(questionnaire);
+    setAnswers((prev) => ({ ...prev, ...next }));
+    setActiveSectionIndex(Math.max(0, sections.length - 1));
+
+    void (async () => {
+      try {
+        const attempt = await fetchAttempt(attemptId);
+        if (!attempt || attempt.uid !== attemptUid) return;
+        const merged: AttemptAnswers = { ...attempt.answers, ...next };
+        let claimSecret = "";
+        try {
+          if (typeof window !== "undefined") {
+            claimSecret = localStorage.getItem(claimStorageKey(attemptId)) ?? "";
+          }
+        } catch {
+          /* private mode */
+        }
+        const claim = claimSecret.length >= 16 ? { claimSecret } : {};
+        await upsertAttempt({
+          id: attemptId,
+          uid: attemptUid,
+          assessmentId: attempt.assessmentId,
+          answers: merged,
+          scores: attempt.scores ?? null,
+          personaAnalysis: attempt.personaAnalysis ?? null,
+          paymentStatus: attempt.paymentStatus,
+          shareToken: attempt.shareToken ?? null,
+          isLatestShareEligible: Boolean(attempt.isLatestShareEligible),
+          ...claim,
+        });
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, [attemptId, attemptUid, questionnaire, sections.length]);
+
   const loading = sessionLoading || !questionnaire;
 
   if (!ready || attemptUid === null) {
@@ -341,11 +389,23 @@ export function WellnessContextQuestionnaire({
     <div className="min-h-screen bg-linear-to-b from-slate-100 via-slate-50 to-emerald-50/40 pb-32">
       <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/90 backdrop-blur-md">
         <div className={`${assessmentShellClass} ${assessmentShellPadClass} flex flex-col gap-2 py-3`}>
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <Link href="/" className="rounded-lg outline-offset-4" aria-label="Pausible home">
               <BrandLogo heightClass="h-7 sm:h-8" withWordmark wordmarkClassName="text-base sm:text-[1.05rem]" />
             </Link>
-            <span className="text-[11px] font-semibold text-slate-600">Step 2 of 2 · Context</span>
+            <div className="flex items-center gap-2">
+              {showTestFill ? (
+                <button
+                  type="button"
+                  title="Development / QA only — fills all wellness context sections"
+                  onClick={fillAllRandomTesting}
+                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-800 shadow-sm hover:bg-slate-50 sm:text-xs"
+                >
+                  Fill all (test)
+                </button>
+              ) : null}
+              <span className="text-[11px] font-semibold text-slate-600">Step 2 of 2 · Context</span>
+            </div>
           </div>
           <div>
             <h1 className="text-base font-bold text-slate-900 sm:text-lg">{questionnaire.title}</h1>
