@@ -10,6 +10,7 @@ import { personaAnimal, personaLabel } from "@/lib/results/persona-display";
 import { PERSONA_REPORT_THEME } from "@/lib/results/persona-report-theme";
 import type { DimensionRow } from "@/lib/results/dimension-rows";
 import type { PersonaKey } from "@/lib/scoring/persona-types";
+import type { StoredActionPlanCache } from "@/lib/recommendations/action-plan-cache";
 import type { SerializedAttempt } from "@/lib/local/attempts";
 
 type PersonaCopy = { label: string; summary: string; bullets: string[] };
@@ -152,6 +153,7 @@ export function ResultsBentoSummary({
   onCopyShare,
   onOpenReport,
   hasReport,
+  onActionPlanCached,
 }: {
   attempt: SerializedAttempt;
   attemptId: string;
@@ -170,6 +172,7 @@ export function ResultsBentoSummary({
   onCopyShare: () => void;
   onOpenReport: () => void;
   hasReport: boolean;
+  onActionPlanCached?: (cache: StoredActionPlanCache) => void;
 }) {
   const primaryLabel = personaLabel(primaryPersona);
   const animal = personaAnimal(primaryPersona);
@@ -408,7 +411,7 @@ export function ResultsBentoSummary({
 
         {/* Personalized wellness action plan */}
         <div className="md:col-span-6 lg:col-span-12">
-          <WellnessActionPlan attempt={attempt} accent={accent} />
+          <WellnessActionPlan attempt={attempt} accent={accent} onActionPlanCached={onActionPlanCached} />
         </div>
 
         {/* POSTER */}

@@ -1,5 +1,6 @@
 import type { AttemptAnswers, AttemptScores } from "@/types/models";
 import type { PersonaAnalysis } from "@/lib/scoring/persona-types";
+import type { StoredActionPlanCache } from "@/lib/recommendations/action-plan-cache";
 import { getOrCreateLocalUid } from "@/lib/local/uid";
 
 const ATTEMPTS_KEY = "pausible_attempts_v1";
@@ -20,6 +21,8 @@ export type SerializedAttempt = {
   isLatestShareEligible?: boolean;
   createdAtIso?: string;
   paidAtIso?: string;
+  /** Cached Gemini + recommendation engine output — one synthesis per attempt. */
+  actionPlanCache?: StoredActionPlanCache | null;
 };
 
 function readAll(): SerializedAttempt[] {

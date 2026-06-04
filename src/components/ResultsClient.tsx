@@ -10,6 +10,7 @@ import { fetchAttempt, listMyAttempts } from "@/lib/data/attempt-service";
 import { tryClaimAttemptForSession } from "@/lib/data/attempt-claim-client";
 import { fetchAssessment } from "@/lib/data/assessment-service";
 import type { AssessmentDefinition } from "@/types/models";
+import type { StoredActionPlanCache } from "@/lib/recommendations/action-plan-cache";
 import type { SerializedAttempt } from "@/lib/local/attempts";
 import { personaCopy, personaLabel } from "@/lib/results/persona-display";
 import { PERSONA_KEYS, type PersonaKey } from "@/lib/scoring/persona-types";
@@ -138,6 +139,10 @@ export function ResultsClient() {
     () => (assessment && attempt ? dimensionRowsForAttempt(assessment, attempt) : []),
     [assessment, attempt],
   );
+
+  const handleActionPlanCached = useCallback((cache: StoredActionPlanCache) => {
+    setAttempt((row) => (row ? { ...row, actionPlanCache: cache } : row));
+  }, []);
 
   const posterHostSlug = useMemo(() => {
     const raw = (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/^https?:\/\//i, "").split("/")[0];
@@ -354,6 +359,7 @@ export function ResultsClient() {
           onCopyShare={() => void copyShare()}
           onOpenReport={() => setResultsView("report")}
           hasReport={Boolean(reportModel)}
+          onActionPlanCached={handleActionPlanCached}
         />
       </div>
     </div>

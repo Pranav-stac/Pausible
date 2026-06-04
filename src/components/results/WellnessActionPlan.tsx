@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import type { ActionPlanApiResponse } from "@/lib/recommendations/client-types";
+import type { StoredActionPlanCache } from "@/lib/recommendations/action-plan-cache";
 import type { PillarName } from "@/lib/recommendations/types";
+import { patchAttempt } from "@/lib/data/attempt-service";
 import type { SerializedAttempt } from "@/lib/local/attempts";
 
 const PILLAR_ORDER: PillarName[] = ["Nutrition", "Physical Activity", "Sleep & Recovery", "Mental Wellness"];
@@ -23,14 +25,29 @@ const LAUNCHPAD_HEADINGS = {
 type Props = {
   attempt: SerializedAttempt;
   accent?: string;
+  onActionPlanCached?: (cache: StoredActionPlanCache) => void;
 };
 
-export function WellnessActionPlan({ attempt, accent = "#0284c7" }: Props) {
-  const [data, setData] = useState<ActionPlanApiResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+function responseFromCache(cache: StoredActionPlanCache): ActionPlanApiResponse {
+  return { plan: cache.plan };
+}
+
+export function WellnessActionPlan({ attempt, accent = "#0284c7", onActionPlanCached }: Props) {
+  const initialCache = attempt.actionPlanCache?.plan ? attempt.actionPlanCache : null;
+  const [data, setData] = useState<ActionPlanApiResponse | null>(() =>
+    initialCache ? responseFromCache(initialCache) : null,
+  );
+  const [loading, setLoading] = useState(!initialCache);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (attempt.actionPlanCache?.plan) {
+      setData(responseFromCache(attempt.actionPlanCache));
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     let cancelled = false;
 
     async function load() {
@@ -41,6 +58,7 @@ export function WellnessActionPlan({ attempt, accent = "#0284c7" }: Props) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            attemptId: attempt.id,
             answers: attempt.answers,
             scores: attempt.scores ?? null,
           }),
@@ -48,6 +66,8 @@ export function WellnessActionPlan({ attempt, accent = "#0284c7" }: Props) {
         const json = (await res.json()) as ActionPlanApiResponse & {
           error?: string;
           code?: string;
+          inputHash?: string;
+          cached?: boolean;
         };
         if (!res.ok) {
           if (json.code === "recommendation_config_missing") {
@@ -57,7 +77,19 @@ export function WellnessActionPlan({ attempt, accent = "#0284c7" }: Props) {
           }
           throw new Error(json.error ?? `Request failed (${res.status})`);
         }
-        if (!cancelled) setData(json);
+        if (cancelled) return;
+
+        setData({ plan: json.plan });
+
+        if (json.inputHash) {
+          const cache: StoredActionPlanCache = {
+            inputHash: json.inputHash,
+            plan: json.plan,
+            synthesizedAt: new Date().toISOString(),
+          };
+          onActionPlanCached?.(cache);
+          void patchAttempt(attempt.id, { actionPlanCache: cache });
+        }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Could not load your action plan");
       } finally {
@@ -69,7 +101,7 @@ export function WellnessActionPlan({ attempt, accent = "#0284c7" }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [attempt.answers, attempt.scores, attempt.id]);
+  }, [attempt.actionPlanCache, attempt.answers, attempt.id, attempt.scores, onActionPlanCached]);
 
   if (loading) {
     return (

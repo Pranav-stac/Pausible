@@ -16,6 +16,7 @@ import { getFirebaseAuth, getFirebaseDb } from "@/lib/firebase/client";
 import { isFirebaseConfigured } from "@/lib/firebase/config";
 import type { AttemptAnswers, AttemptScores } from "@/types/models";
 import type { PersonaAnalysis } from "@/lib/scoring/persona-types";
+import { readStoredActionPlanCache, type StoredActionPlanCache } from "@/lib/recommendations/action-plan-cache";
 import {
   localGetAttempt,
   localListAttemptsForUser,
@@ -52,6 +53,7 @@ export type WritableAttempt = {
   isLatestShareEligible?: boolean;
   /** Same-tab proof so a later Google sign-in can claim this attempt (see /api/attempts/claim). */
   claimSecret?: string | null;
+  actionPlanCache?: StoredActionPlanCache | null;
 };
 
 function toSerialized(a: WritableAttempt & { createdAtIso?: string; paidAtIso?: string }): SerializedAttempt {
@@ -71,7 +73,16 @@ function toSerialized(a: WritableAttempt & { createdAtIso?: string; paidAtIso?: 
     isLatestShareEligible: a.isLatestShareEligible,
     createdAtIso: a.createdAtIso,
     paidAtIso: a.paidAtIso,
+    actionPlanCache: a.actionPlanCache ?? null,
   };
+}
+
+function parseActionPlanCache(
+  raw: unknown,
+  answers: AttemptAnswers,
+  scores: AttemptScores | null,
+): StoredActionPlanCache | null {
+  return readStoredActionPlanCache(raw, answers, scores);
 }
 
 export async function upsertAttempt(data: WritableAttempt): Promise<void> {
@@ -106,6 +117,9 @@ export async function upsertAttempt(data: WritableAttempt): Promise<void> {
   };
   if (data.claimSecret != null && data.claimSecret !== "") {
     payload.claimSecret = data.claimSecret;
+  }
+  if (data.actionPlanCache !== undefined) {
+    payload.actionPlanCache = data.actionPlanCache;
   }
   await setDoc(ref, payload, { merge: true });
 }
@@ -154,6 +168,7 @@ export async function fetchAttempt(attemptId: string): Promise<SerializedAttempt
     isLatestShareEligible: Boolean(d.isLatestShareEligible),
     createdAtIso: d.createdAt?.toDate?.()?.toISOString?.() ?? undefined,
     paidAtIso: d.paidAt?.toDate?.()?.toISOString?.() ?? undefined,
+    actionPlanCache: parseActionPlanCache(d.actionPlanCache, d.answers as AttemptAnswers, (d.scores ?? null) as AttemptScores | null),
   };
 }
 
@@ -183,6 +198,7 @@ export async function listMyAttempts(uid: string): Promise<SerializedAttempt[]> 
       isLatestShareEligible: Boolean(d.isLatestShareEligible),
       createdAtIso: d.createdAt?.toDate?.()?.toISOString?.() ?? undefined,
       paidAtIso: d.paidAt?.toDate?.()?.toISOString?.() ?? undefined,
+      actionPlanCache: parseActionPlanCache(d.actionPlanCache, d.answers as AttemptAnswers, (d.scores ?? null) as AttemptScores | null),
     } satisfies SerializedAttempt;
   });
 }
