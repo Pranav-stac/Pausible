@@ -15,6 +15,7 @@ import { useFirebaseAuth } from "@/lib/firebase/auth-context";
 import { isFirebaseConfigured } from "@/lib/firebase/config";
 import { useAppSettings } from "@/lib/hooks/useAppSettings";
 import { getOrCreateLocalUid } from "@/lib/local/uid";
+import { assessmentShellClass, assessmentShellPadClass, WELLNESS_FRESH_ATTEMPT_KEY } from "@/lib/assessment/layout";
 import {
   getWellnessContextQuestionnaire,
   WELLNESS_CONTEXT_PREFIX,
@@ -144,12 +145,47 @@ export function WellnessContextQuestionnaire({
           return;
         }
 
+        let freshWellness = false;
+        try {
+          if (typeof window !== "undefined" && sessionStorage.getItem(WELLNESS_FRESH_ATTEMPT_KEY) === attemptId) {
+            sessionStorage.removeItem(WELLNESS_FRESH_ATTEMPT_KEY);
+            freshWellness = true;
+          }
+        } catch {
+          /* private mode */
+        }
+
         const existing: AttemptAnswers = {};
         let ocean = 0;
-        for (const [key, val] of Object.entries(attempt.answers ?? {})) {
+        const source = freshWellness
+          ? Object.fromEntries(
+              Object.entries(attempt.answers ?? {}).filter(([key]) => !key.startsWith(WELLNESS_CONTEXT_PREFIX)),
+            )
+          : (attempt.answers ?? {});
+
+        for (const [key, val] of Object.entries(source)) {
           if (key.startsWith(WELLNESS_CONTEXT_PREFIX)) existing[key] = val;
           else if (val !== undefined && val !== null) ocean += 1;
         }
+
+        if (freshWellness && Object.keys(existing).length === 0) {
+          const cleaned: AttemptAnswers = { ...source };
+          for (const k of Object.keys(cleaned)) {
+            if (k.startsWith(WELLNESS_CONTEXT_PREFIX)) delete cleaned[k];
+          }
+          void upsertAttempt({
+            id: attemptId,
+            uid: attempt.uid,
+            assessmentId: attempt.assessmentId,
+            answers: cleaned,
+            scores: attempt.scores ?? null,
+            personaAnalysis: attempt.personaAnalysis ?? null,
+            paymentStatus: attempt.paymentStatus,
+            shareToken: attempt.shareToken ?? null,
+            isLatestShareEligible: Boolean(attempt.isLatestShareEligible),
+          });
+        }
+
         setOceanAnswerCount(ocean);
         setAnswers(existing);
         if (ocean < 1) {
@@ -304,7 +340,7 @@ export function WellnessContextQuestionnaire({
   return (
     <div className="min-h-screen bg-linear-to-b from-slate-100 via-slate-50 to-emerald-50/40 pb-32">
       <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/90 backdrop-blur-md">
-        <div className="mx-auto flex max-w-2xl flex-col gap-2 px-4 py-3">
+        <div className={`${assessmentShellClass} ${assessmentShellPadClass} flex flex-col gap-2 py-3`}>
           <div className="flex items-center justify-between gap-3">
             <Link href="/" className="rounded-lg outline-offset-4" aria-label="Pausible home">
               <BrandLogo heightClass="h-7 sm:h-8" withWordmark wordmarkClassName="text-base sm:text-[1.05rem]" />
@@ -338,33 +374,38 @@ export function WellnessContextQuestionnaire({
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-2xl px-4 py-8">
-        <nav className="mb-8 flex flex-wrap gap-2" aria-label="Questionnaire sections">
-          {sections.map((sec, i) => {
-            const done = isSectionComplete(questionnaire, sec, answers);
-            const current = i === activeSectionIndex;
-            return (
-              <button
-                key={sec.id}
-                type="button"
-                onClick={() => setActiveSectionIndex(i)}
-                className={`rounded-full border px-3 py-1 text-[10px] font-semibold transition sm:text-xs ${
-                  current
-                    ? "border-emerald-500 bg-emerald-50 text-emerald-900"
-                    : done
-                      ? "border-emerald-200 bg-white text-emerald-800"
-                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-                }`}
-              >
-                {done && !current ? "✓ " : null}
-                {i + 1}. {sec.title.replace(/^Section \d+ — /, "")}
-              </button>
-            );
-          })}
-        </nav>
+      <main className={`${assessmentShellClass} ${assessmentShellPadClass} py-8 sm:py-10`}>
+        <div className="lg:grid lg:grid-cols-[minmax(11rem,14rem)_minmax(0,1fr)] lg:items-start lg:gap-8 xl:gap-10">
+          <nav
+            className="mb-6 flex flex-wrap gap-2 lg:sticky lg:top-[11.5rem] lg:mb-0 lg:flex-col lg:gap-1.5"
+            aria-label="Questionnaire sections"
+          >
+            {sections.map((sec, i) => {
+              const done = isSectionComplete(questionnaire, sec, answers);
+              const current = i === activeSectionIndex;
+              return (
+                <button
+                  key={sec.id}
+                  type="button"
+                  onClick={() => setActiveSectionIndex(i)}
+                  className={`rounded-xl border px-3 py-2 text-left text-[10px] font-semibold transition sm:text-xs lg:w-full ${
+                    current
+                      ? "border-emerald-500 bg-emerald-50 text-emerald-900 shadow-sm"
+                      : done
+                        ? "border-emerald-200 bg-white text-emerald-800"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                  }`}
+                >
+                  {done && !current ? "✓ " : null}
+                  {i + 1}. {sec.title.replace(/^Section \d+ — /, "")}
+                </button>
+              );
+            })}
+          </nav>
 
+          <div className="min-w-0">
         {activeSection ? (
-          <section className="rounded-3xl border border-slate-200/90 bg-white p-6 shadow-[0_22px_50px_-32px_rgba(15,23,42,0.18)] sm:p-8">
+          <section className="rounded-3xl border border-slate-200/90 bg-white p-6 shadow-[0_22px_50px_-32px_rgba(15,23,42,0.18)] sm:p-8 lg:p-10">
             <h2 className="text-lg font-bold tracking-tight text-slate-950 sm:text-xl">{activeSection.title}</h2>
             {activeSection.description ? (
               <p className="mt-2 text-sm text-slate-600">{activeSection.description}</p>
@@ -379,7 +420,7 @@ export function WellnessContextQuestionnaire({
                   <h3 className="mt-2 text-base font-semibold leading-snug text-slate-900 sm:text-lg">{q.prompt}</h3>
                   {q.caption ? <p className="mt-1 text-xs font-medium text-slate-500">{q.caption}</p> : null}
 
-                  <div className="mt-5">
+                  <div className="mt-5 max-w-3xl">
                     {q.type === "likert" ? (
                       <StressLikertScale
                         scaleMin={q.scaleMin ?? 1}
@@ -417,10 +458,12 @@ export function WellnessContextQuestionnaire({
             {submitError}
           </p>
         ) : null}
+          </div>
+        </div>
       </main>
 
       <footer className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200/75 bg-white/95 px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-10px_36px_-24px_rgba(15,23,42,0.12)] backdrop-blur-md">
-        <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-3">
+        <div className={`${assessmentShellClass} ${assessmentShellPadClass} flex flex-wrap items-center justify-between gap-3`}>
           <button
             type="button"
             disabled={activeSectionIndex === 0}
@@ -524,7 +567,7 @@ function SingleChoice({
   onChange: (v: string) => void;
 }) {
   return (
-    <div className="space-y-2">
+    <div className="grid gap-2 lg:grid-cols-2 lg:gap-2.5">
       {options.map((opt) => {
         const active = value === opt;
         return (

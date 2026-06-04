@@ -18,31 +18,36 @@ import { RECOMMENDATION_CONFIG_DOC_PATH } from "../src/lib/recommendations/fires
 const OCEAN_TAG_CONFIG_DOC = "ocean_tag_config/active";
 const CENTROIDS_DOC = "persona_centroids/default";
 
+/** PEM in env copy-paste sometimes keeps literal `\n` pairs instead of real newlines after JSON.parse. */
+function normalizePrivateKey(sa: Record<string, unknown>): void {
+  const pk = sa.private_key;
+  if (typeof pk !== "string") return;
+  if (pk.includes("\\n")) {
+    sa.private_key = pk.replace(/\\n/g, "\n");
+  }
+}
+
+function parseServiceAccount(raw: string): ServiceAccount {
+  const sa = JSON.parse(raw.replace(/^\uFEFF/, "")) as Record<string, unknown>;
+  normalizePrivateKey(sa);
+  return sa as ServiceAccount;
+}
+
 function loadServiceAccount(): ServiceAccount {
   const b64 = process.env.FIREBASE_ADMIN_CREDENTIALS_JSON_BASE64?.replace(/\s+/g, "") ?? "";
   if (b64) {
     const raw = Buffer.from(b64, "base64").toString("utf8").replace(/^\uFEFF/, "");
-    return JSON.parse(raw) as ServiceAccount;
+    return parseServiceAccount(raw);
   }
 
   const rawJson = process.env.FIREBASE_ADMIN_CREDENTIALS_JSON?.trim();
-  if (rawJson) {
-    const sa = JSON.parse(rawJson.replace(/^\uFEFF/, "")) as ServiceAccount;
-    if (typeof sa.private_key === "string" && sa.private_key.includes("\\n")) {
-      sa.private_key = sa.private_key.replace(/\\n/g, "\n");
-    }
-    return sa;
-  }
+  if (rawJson) return parseServiceAccount(rawJson);
 
   const filePath = process.env.FIREBASE_ADMIN_CREDENTIALS_PATH?.trim();
   if (filePath) {
     const resolved = path.isAbsolute(filePath) ? filePath : path.join(process.cwd(), filePath);
     if (existsSync(resolved)) {
-      const sa = JSON.parse(readFileSync(resolved, "utf8").replace(/^\uFEFF/, "")) as ServiceAccount;
-      if (typeof sa.private_key === "string" && sa.private_key.includes("\\n")) {
-        sa.private_key = sa.private_key.replace(/\\n/g, "\n");
-      }
-      return sa;
+      return parseServiceAccount(readFileSync(resolved, "utf8"));
     }
   }
 

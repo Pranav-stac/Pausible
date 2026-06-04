@@ -5,10 +5,14 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import Link from "next/link";
 import { BrandLogo } from "@/components/BrandLogo";
 import { trackAssessmentComplete, trackAssessmentStart } from "@/lib/analytics/track";
+import { assessmentShellClass, assessmentShellPadClass } from "@/lib/assessment/layout";
+import { WELLNESS_CONTEXT_PREFIX } from "@/data/wellness-context-questionnaire";
 import { fetchAssessment } from "@/lib/data/assessment-service";
+import { fetchAttempt } from "@/lib/data/attempt-service";
 import { SESSION_ATTEMPT_CLAIM_KEY, claimStorageKey } from "@/lib/data/attempt-claim-client";
 import { upsertAttempt } from "@/lib/data/attempt-service";
-import type { AssessmentDefinition, AssessmentQuestion } from "@/types/models";
+import type { AssessmentDefinition, AssessmentQuestion, AttemptAnswers } from "@/types/models";
+import { WELLNESS_FRESH_ATTEMPT_KEY } from "@/lib/assessment/layout";
 import { coerceAnswer } from "@/lib/scoring/engine";
 import { computeAttemptScores } from "@/lib/scoring/compute-attempt-scores";
 import { fetchPersonaScoringConfig } from "@/lib/data/persona-scoring-config-client";
@@ -199,17 +203,30 @@ export function AssessmentRunner({
     const claim =
       claimSecretRef.current.length >= 16 ? { claimSecret: claimSecretRef.current } : {};
     const t = window.setTimeout(() => {
-      void upsertAttempt({
-        id,
-        uid: attemptUid,
-        assessmentId: assessment.id,
-        answers: { ...answers },
-        scores: null,
-        paymentStatus: "pending",
-        shareToken: null,
-        isLatestShareEligible: false,
-        ...claim,
-      });
+      void (async () => {
+        let payload: AttemptAnswers = { ...answers };
+        try {
+          const prev = await fetchAttempt(id);
+          if (prev?.answers) {
+            for (const [key, val] of Object.entries(prev.answers)) {
+              if (key.startsWith(WELLNESS_CONTEXT_PREFIX)) payload[key] = val;
+            }
+          }
+        } catch {
+          /* ignore */
+        }
+        await upsertAttempt({
+          id,
+          uid: attemptUid,
+          assessmentId: assessment.id,
+          answers: payload,
+          scores: null,
+          paymentStatus: "pending",
+          shareToken: null,
+          isLatestShareEligible: false,
+          ...claim,
+        });
+      })();
     }, DEBOUNCE_SAVE_MS);
 
     return () => window.clearTimeout(t);
@@ -252,6 +269,13 @@ export function AssessmentRunner({
         isLatestShareEligible: false,
         ...claim,
       });
+      try {
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem(WELLNESS_FRESH_ATTEMPT_KEY, id);
+        }
+      } catch {
+        /* private mode */
+      }
       router.push(`/wellness-context/${encodeURIComponent(id)}`);
       return;
     }
@@ -286,11 +310,42 @@ export function AssessmentRunner({
   }, [answers, assessment, attemptUid, ensureAnonymousSession, questions, requirePayment, router]);
 
   const fillAllRandomTesting = useCallback(() => {
-    if (!questions.length || !assessment) return;
+    if (!questions.length || !assessment || !attemptUid) return;
     const next = randomAnswersForQuestions(questions);
     setAnswers(next);
     setRevealedCount(questions.length);
-  }, [assessment, questions]);
+
+    const id = attemptIdRef.current;
+    if (!id) return;
+    void (async () => {
+      let merged: AttemptAnswers = { ...next };
+      try {
+        const prev = await fetchAttempt(id);
+        if (prev?.answers) {
+          merged = {};
+          for (const [key, val] of Object.entries(prev.answers)) {
+            if (!key.startsWith(WELLNESS_CONTEXT_PREFIX)) merged[key] = val;
+          }
+          merged = { ...merged, ...next };
+        }
+      } catch {
+        /* ignore */
+      }
+      const claim =
+        claimSecretRef.current.length >= 16 ? { claimSecret: claimSecretRef.current } : {};
+      await upsertAttempt({
+        id,
+        uid: attemptUid,
+        assessmentId: assessment.id,
+        answers: merged,
+        scores: null,
+        paymentStatus: "pending",
+        shareToken: null,
+        isLatestShareEligible: false,
+        ...claim,
+      });
+    })();
+  }, [assessment, attemptUid, questions]);
 
   const showTestFill = assessmentTestToolsAllowed();
 
@@ -330,7 +385,7 @@ export function AssessmentRunner({
   return (
     <div className="min-h-screen bg-linear-to-b from-slate-100 via-slate-50 to-sky-50/90 pb-[10rem] sm:pb-44">
       <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/90 backdrop-blur-md">
-        <div className="mx-auto flex max-w-lg flex-col gap-2 px-3 py-3 sm:max-w-xl sm:px-4 lg:max-w-[40rem]">
+        <div className={`${assessmentShellClass} ${assessmentShellPadClass} flex flex-col gap-2 py-3`}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <Link href="/" className="flex items-center rounded-lg outline-offset-4" aria-label="Pausible home">
               <BrandLogo heightClass="h-7 sm:h-8" withWordmark wordmarkClassName="text-base sm:text-[1.05rem]" />
@@ -338,11 +393,11 @@ export function AssessmentRunner({
             {showTestFill ? (
               <button
                 type="button"
-                title="Development / QA only"
+                title="Development / QA only — does not fill wellness context (step 2)"
                 onClick={fillAllRandomTesting}
-                className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-800 shadow-sm hover:bg-slate-50 sm:text-xs"
+                className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-800 shadow-sm hover:bg-slate-50 sm:text-xs lg:hidden"
               >
-                Fill all randomly (test)
+                Fill inventory only (test)
               </button>
             ) : null}
           </div>
@@ -370,8 +425,31 @@ export function AssessmentRunner({
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto w-full max-w-lg px-3 py-8 sm:max-w-xl sm:px-5 sm:py-10 lg:max-w-[40rem]">
-        <div className="flex flex-col gap-3 sm:gap-4">
+      <main className={`relative z-10 ${assessmentShellClass} ${assessmentShellPadClass} py-8 sm:py-10`}>
+        <div className="flex flex-col gap-3 sm:gap-4 lg:grid lg:grid-cols-[minmax(10.5rem,12.5rem)_minmax(0,1fr)] lg:items-start lg:gap-8 xl:grid-cols-[13rem_1fr] xl:gap-10">
+          <aside className="hidden lg:flex lg:flex-col lg:gap-3 lg:sticky lg:top-[11.5rem] lg:self-start">
+            <div className="rounded-2xl border border-slate-200/90 bg-white/90 p-4 shadow-sm">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Your progress</p>
+              <p className="mt-1 text-3xl font-bold tabular-nums text-slate-900">{progress}%</p>
+              <p className="mt-1 text-sm text-slate-600">
+                {answeredCount} of {total} answered
+              </p>
+              <p className="mt-3 text-xs leading-relaxed text-slate-500">
+                One question at a time — scroll up anytime to review earlier answers.
+              </p>
+            </div>
+            {showTestFill ? (
+              <button
+                type="button"
+                title="Development / QA only — does not fill wellness context (step 2)"
+                onClick={fillAllRandomTesting}
+                className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-left text-[11px] font-semibold text-slate-700 hover:bg-white"
+              >
+                Fill inventory only (test)
+              </button>
+            ) : null}
+          </aside>
+          <div className="flex min-w-0 flex-col gap-3 sm:gap-4">
           {questions.slice(0, revealedCount).map((q, idx) => {
             const raw = answers[q.id];
             const likertVal = q.type === "likert" && typeof raw === "number" ? raw : undefined;
@@ -463,7 +541,7 @@ export function AssessmentRunner({
                     </p>
                   ) : null}
 
-                  <div className="mt-7">
+                  <div className="mt-7 max-w-3xl">
                     {q.type === "likert" && (
                       <LikertScaleNumeric
                         scaleMin={q.scaleMin ?? 1}
@@ -522,11 +600,12 @@ export function AssessmentRunner({
             </p>
           </div>
         ) : null}
+          </div>
         </div>
       </main>
 
       <footer className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200/75 bg-white/95 px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-10px_36px_-24px_rgba(15,23,42,0.12)] backdrop-blur-md">
-        <div className="mx-auto flex max-w-lg flex-col gap-2 sm:max-w-xl lg:max-w-[40rem]">
+        <div className={`${assessmentShellClass} ${assessmentShellPadClass} flex flex-col gap-2`}>
           {submitError ? <p className="text-center text-xs text-red-700">{submitError}</p> : null}
           <div className="flex flex-wrap items-center justify-end gap-3">
             <p className="text-[11px] font-medium text-slate-700">
@@ -689,7 +768,7 @@ function SingleChoice({
   disabled?: boolean;
 }) {
   return (
-    <div className="space-y-2">
+    <div className="grid gap-2 lg:grid-cols-2 lg:gap-2.5">
       {options.map((opt) => {
         const active = value === opt;
         return (
