@@ -10,7 +10,7 @@ import { StatsStrip } from "@/components/marketing/StatsStrip";
 import { Testimonials } from "@/components/marketing/Testimonials";
 import { Faq } from "@/components/marketing/Faq";
 
-const START = "/assessment/default";
+const START = "/intro";
 
 export function LandingPage() {
   return (

@@ -7,6 +7,16 @@ import {
   OCEAN_LIKERT_MIN,
 } from "@/lib/scoring/question-bank-meta";
 import { DEFAULT_PERSONA_ALPHA, DEFAULT_PERSONA_CENTROIDS, traitKeyFromLabel } from "@/lib/scoring/persona-defaults";
+import {
+  computeBlendRatio,
+  computeBlendStrength,
+  computeFitScore,
+  computeFitTier,
+  computeMaxInterCentroidDistance,
+  computePersonaTitle,
+  computeTraitDeviations,
+  topTwoPersonasByDistance,
+} from "@/lib/scoring/persona-fit";
 import { computeOceanTags } from "@/lib/scoring/ocean-tags";
 import type {
   PersonaAnalysis,
@@ -114,14 +124,6 @@ export function computePersonaPercentages(si: Record<PersonaKey, number>): Recor
   return out;
 }
 
-function topTwoPersonas(percentages: Record<PersonaKey, number>): { primary: PersonaKey; secondary: PersonaKey } {
-  const ranked = [...PERSONA_KEYS].sort((a, b) => (percentages[b] ?? 0) - (percentages[a] ?? 0));
-  return {
-    primary: ranked[0] ?? PERSONA_KEYS[0],
-    secondary: ranked[1] ?? PERSONA_KEYS[1],
-  };
-}
-
 export function computePersonaAnalysis(
   answers: AttemptAnswers,
   config?: Partial<PersonaScoringConfig>,
@@ -139,7 +141,17 @@ export function computePersonaAnalysis(
   const personaDistances = computePersonaDistances(traitAverages, centroids);
   const personaSi = computePersonaSi(personaDistances, alpha);
   const personaPercentages = computePersonaPercentages(personaSi);
-  const { primary, secondary } = topTwoPersonas(personaPercentages);
+  const { primary, secondary } = topTwoPersonasByDistance(personaDistances);
+
+  const maxInterCentroidDistance = computeMaxInterCentroidDistance(centroids);
+  const primaryDistance = personaDistances[primary] ?? 0;
+  const secondaryDistance = personaDistances[secondary] ?? 0;
+  const fitScore = computeFitScore(primaryDistance, maxInterCentroidDistance);
+  const fitTier = computeFitTier(fitScore);
+  const blendRatio = computeBlendRatio(primaryDistance, secondaryDistance);
+  const blendStrength = computeBlendStrength(blendRatio);
+  const personaTitle = computePersonaTitle(primary, secondary, fitTier, blendStrength);
+  const traitDeviations = computeTraitDeviations(traitAverages, centroids[primary]);
 
   return {
     itemResponses,
@@ -153,6 +165,13 @@ export function computePersonaAnalysis(
     personaPercentages,
     primaryPersona: primary,
     secondaryPersona: secondary,
+    fitScore,
+    fitTier,
+    blendRatio,
+    blendStrength,
+    personaTitle,
+    traitDeviations,
+    maxInterCentroidDistance,
     alpha,
     computedAt: new Date().toISOString(),
   };

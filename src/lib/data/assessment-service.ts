@@ -45,19 +45,23 @@ export async function listActiveAssessmentSummaries(): Promise<AssessmentListIte
   const db = getFirebaseDb();
   if (!db) return [];
 
-  const snap = await getDocs(collection(db, "assessments"));
-  const rows = snap.docs
-    .map((s) => {
-      const data = s.data() as AssessmentDefinition;
-      return { ...data, id: s.id };
-    })
-    .filter((a) => a.active !== false)
-    .map((a) => ({
-      id: a.id,
-      title: a.title || a.id,
-      description: a.description,
-    }));
+  try {
+    const snap = await getDocs(collection(db, "assessments"));
+    const rows = snap.docs
+      .map((s) => {
+        const data = s.data() as AssessmentDefinition;
+        return { ...data, id: s.id };
+      })
+      .filter((a) => a.active !== false)
+      .map((a) => ({
+        id: a.id,
+        title: a.title || a.id,
+        description: a.description,
+      }));
 
-  rows.sort((a, b) => a.title.localeCompare(b.title));
-  return rows;
+    rows.sort((a, b) => a.title.localeCompare(b.title));
+    return rows;
+  } catch {
+    return [];
+  }
 }

@@ -1,4 +1,4 @@
-import type { PersonaKey } from "@/lib/scoring/persona-types";
+import type { BlendStrength, FitTier, PersonaKey } from "@/lib/scoring/persona-types";
 
 export type RecommendationStrength = "core" | "supporting" | "optional" | "conditional";
 
@@ -10,7 +10,11 @@ export type RecommendationType =
   | "environment_change"
   | "recovery_rule"
   | "coach_note"
-  | "safety_guidance";
+  | "safety_guidance"
+  | "blind_spot"
+  | "pattern_prediction"
+  | "success_condition"
+  | "strength_insight";
 
 export type PillarName = "Nutrition" | "Physical Activity" | "Sleep & Recovery" | "Mental Wellness";
 
@@ -26,15 +30,22 @@ export type RecommendationRow = {
   barrierFit: string[];
   excludeIf: string[];
   strength: RecommendationStrength;
+  oceanFit: string[];
   notes: string;
+  /** Persona-specific user-facing text keyed by animal alias (e.g. steady_elephant). */
+  personaContext: Partial<Record<string, string>>;
 };
 
 export type UserProfile = {
   primaryPersona: PersonaKey;
   secondaryPersona: PersonaKey;
-  /** Animal nicknames used in recommendation CSV (e.g. shielded_turtle). */
+  /** Animal nicknames used in recommendation master (e.g. shielded_turtle). */
   primaryPersonaAlias: string;
   secondaryPersonaAlias: string;
+  fitTier: FitTier;
+  blendRatio: number;
+  blendStrength: BlendStrength;
+  oceanTags: string[];
   goals: string[];
   barriers: string[];
   context: string[];
@@ -46,6 +57,7 @@ export type ScoreBreakdown = {
   barriers: number;
   goals: number;
   context: number;
+  ocean: number;
   strength: number;
   total: number;
   primaryPersonaMatch: boolean;
@@ -54,6 +66,7 @@ export type ScoreBreakdown = {
   matchedBarriers: string[];
   matchedGoals: string[];
   matchedContext: string[];
+  matchedOcean: string[];
 };
 
 export type ScoredRecommendation = RecommendationRow & {
@@ -69,15 +82,37 @@ export type RecommendationCluster = {
   rows: ScoredRecommendation[];
 };
 
+export type PillarActionItem = {
+  id: string;
+  text: string;
+  category: string;
+  action?: string;
+  why?: string;
+};
+
 export type PillarActionPlan = {
   pillar: PillarName;
   focusArea: string;
   focusReason: string;
-  dos: { id: string; text: string }[];
-  donts: { id: string; text: string }[];
+  focusId: string | null;
+  dos: PillarActionItem[];
+  donts: PillarActionItem[];
   sourceIds: string[];
 };
 
+export type OpportunityCard = {
+  id: string;
+  pillar: PillarName;
+  category: string;
+  score: number;
+  impactLevel: "High" | "Very High";
+  personaContextText: string;
+  headline: string;
+  whyItMatters: string;
+  sourceIds: string[];
+};
+
+/** @deprecated Use OpportunityCard — kept for cluster fallback. */
 export type WellnessOpportunity = {
   title: string;
   summary: string;
@@ -85,34 +120,60 @@ export type WellnessOpportunity = {
   category: string;
 };
 
-export type LaunchpadGroup = "remove_friction" | "build_awareness" | "create_support";
+export type LaunchpadGroup = "start_here" | "environment_setup" | "recovery_rules";
 
 export type LaunchpadItem = {
   id: string;
   text: string;
+  pillar: PillarName;
   group: LaunchpadGroup;
+  action?: string;
+  context?: string;
+};
+
+export type PiSeriesSelection = {
+  blindSpot: ScoredRecommendation | null;
+  patternPrediction: ScoredRecommendation | null;
+  successCondition: ScoredRecommendation | null;
+  strengthInsight: ScoredRecommendation | null;
+  secondaryBlindSpot: ScoredRecommendation | null;
+  secondarySuccessCondition: ScoredRecommendation | null;
+  blindSpotText: string;
+  patternPredictionText: string;
+  successConditionText: string;
+  strengthInsightText: string;
+  secondaryBlindSpotText: string;
+  secondarySuccessConditionText: string;
+  sourceIds: string[];
+  complete: boolean;
 };
 
 export type CoachNotesBlock = {
   keyStrength: string;
   keyRisk: string;
-  guidance: string;
+  coachingNotes: string[];
   sourceIds: string[];
 };
 
 export type ActionPlanSelection = {
   profile: UserProfile;
   ranked: ScoredRecommendation[];
+  /** Legacy cluster output (optional). */
   opportunities: RecommendationCluster[];
+  opportunityCards: OpportunityCard[];
+  piSeries: PiSeriesSelection;
   pillarPlans: Record<PillarName, PillarActionPlan>;
   launchpad: LaunchpadItem[];
-  coachNotes: ScoredRecommendation[];
+  coachSourceRows: ScoredRecommendation[];
   safetyGuidance: ScoredRecommendation[];
   allSourceIds: string[];
+  validationWarnings: string[];
 };
 
 export type ActionPlanSynthesis = {
-  opportunities: WellnessOpportunity[];
+  /** Legacy cluster summaries. */
+  opportunities?: WellnessOpportunity[];
+  opportunityCards: OpportunityCard[];
   pillarPlans: Record<
     PillarName,
     {
@@ -123,11 +184,28 @@ export type ActionPlanSynthesis = {
       sourceIds: string[];
     }
   >;
-  launchpad: Record<LaunchpadGroup, string[]>;
+  launchpad: Record<LaunchpadGroup, { action: string; context: string; id: string }[]>;
   coachNotes: CoachNotesBlock;
+  reportSections?: WellnessReportSections;
   safetyGuidance: { id: string; text: string }[];
   synthesized: boolean;
   synthesisError?: string;
+};
+
+export type WellnessReportSections = {
+  personalityNarrative: string;
+  quickProfile: {
+    wellnessStyle: string;
+    energyPattern: string;
+    motivationDriver: string;
+    riskFactor: string;
+    bestEnvironment: string;
+    personaPercentage: number;
+  };
+  blindSpots: { heading: string; body: string };
+  successBlueprint: { heading: string; body: string };
+  traitDeviationNarratives: string[];
+  opportunities: OpportunityCard[];
 };
 
 export type ActionPlan = ActionPlanSelection & {

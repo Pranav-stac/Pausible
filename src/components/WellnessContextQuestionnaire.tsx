@@ -283,8 +283,11 @@ export function WellnessContextQuestionnaire({
         requirePayment,
       });
 
-      const next = requirePayment ? "checkout" : "results";
-      router.push(`/after-assessment/${encodeURIComponent(attemptId)}?next=${next}`);
+      const afterNext = requirePayment ? "checkout" : "results";
+      const afterPath = `/after-assessment/${encodeURIComponent(attemptId)}?next=${afterNext}`;
+      router.push(
+        `/report-building/${encodeURIComponent(attemptId)}?next=${encodeURIComponent(afterPath)}`,
+      );
     } catch (e) {
       setSubmitError(e instanceof Error ? e.message : "Could not submit. Please try again.");
     } finally {

@@ -186,8 +186,16 @@ export function PausibleResultsReport({
               )}
             </div>
             <h1 className="mt-10 max-w-md text-2xl font-bold leading-tight tracking-tight text-slate-950 sm:text-3xl">
-              Wellness Persona Results Report
+              Your Wellness Intelligence Report
             </h1>
+            {model.personaTitle ? (
+              <p className="mt-4 text-lg font-semibold" style={{ color: primaryTheme?.hex }}>
+                {model.personaTitle}
+              </p>
+            ) : null}
+            {model.fitScore != null ? (
+              <p className="mt-2 text-sm text-slate-600">{Math.round(model.fitScore)}% persona fit</p>
+            ) : null}
             <p className="mt-4 text-base text-slate-600">for {model.participantName}</p>
             <div className="mt-8 h-px w-24 bg-slate-300" />
             <p className="mt-6 text-sm text-slate-500">{model.generatedAt}</p>
@@ -200,7 +208,7 @@ export function PausibleResultsReport({
         <section data-report-page className={`${PAGE_CLASS} ${PAGE_DIM}`}>
           <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">Your pattern</p>
           <h2 className="mt-4 max-w-2xl text-2xl font-bold leading-snug tracking-tight text-slate-950 sm:text-[1.65rem]">
-            {model.primaryKey ? (
+            {model.personaTitle ?? (model.primaryKey ? (
               <>
                 You are most closely aligned with the{" "}
                 <span style={{ color: primaryTheme?.hex }}>{model.primaryLabel}</span> pattern
@@ -214,7 +222,7 @@ export function PausibleResultsReport({
               </>
             ) : (
               "Your wellness persona profile"
-            )}
+            ))}
           </h2>
 
           {model.secondaryLabel ? (

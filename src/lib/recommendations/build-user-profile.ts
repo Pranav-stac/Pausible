@@ -151,6 +151,10 @@ export function buildUserProfile(input: BuildProfileInput, config: Recommendatio
 
   const primaryPersonaAlias = personaKeyToCsvAlias(primaryPersona);
   const secondaryPersonaAlias = personaKeyToCsvAlias(secondaryPersona);
+  const fitTier = scores?.persona?.fitTier ?? "classic";
+  const blendRatio = scores?.persona?.blendRatio ?? 2.5;
+  const blendStrength = scores?.persona?.blendStrength ?? "pure";
+  const oceanTags = scores?.persona?.oceanTags ?? [];
 
   const context: string[] = [];
   const goals: string[] = [];
@@ -178,6 +182,10 @@ export function buildUserProfile(input: BuildProfileInput, config: Recommendatio
     secondaryPersona,
     primaryPersonaAlias,
     secondaryPersonaAlias,
+    fitTier,
+    blendRatio,
+    blendStrength,
+    oceanTags,
     goals,
     barriers,
     context,

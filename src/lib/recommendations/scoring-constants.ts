@@ -1,19 +1,28 @@
 /**
- * A12–A13 recommendation scoring framework (v1.0).
- * @see Pausibl Recommendation Engine — Developer Implementation Guide
+ * A12–A13 recommendation scoring framework (v2.1).
+ * @see Pausibl Report Content Logic Guide v1.1 + Implementation Guide v2.1
  */
 
-export const A12_SPEC_VERSION = "v1.0";
+export const A12_SPEC_VERSION = "v2.1";
 
 /** Max total score used for internal ranking only (not shown to users). */
-export const A12_MAX_SCORE = 125;
+export const A12_MAX_SCORE = 145;
+
+/** Primary persona bonus by fit tier (Content Logic Guide §2.3). */
+export const A12_PERSONA_PRIMARY_BY_FIT_TIER = {
+  classic: 25,
+  core: 20,
+  adaptive: 15,
+  emerging: 10,
+} as const;
 
 export const A12_PERSONA = {
-  primary: 25,
   secondary: 15,
   allPersonas: 10,
   cap: 40,
 } as const;
+
+export const A12_OCEAN = { perMatch: 4, cap: 20 } as const;
 
 export const A12_BARRIER = { perMatch: 12, cap: 36 } as const;
 export const A12_GOAL = { perMatch: 8, cap: 24 } as const;

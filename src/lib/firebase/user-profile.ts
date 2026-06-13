@@ -12,15 +12,21 @@ export async function syncUserProfile(user: User): Promise<void> {
   const db = getFirebaseDb();
   if (!db) return;
 
-  await setDoc(
-    doc(db, "users", user.uid),
-    {
-      email: user.email ?? null,
-      displayName: user.displayName ?? null,
-      photoURL: user.photoURL ?? null,
-      isAnonymous: user.isAnonymous,
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true },
-  );
+  try {
+    // Ensure the auth token is attached before the Firestore write (avoids race on cold start).
+    await user.getIdToken();
+    await setDoc(
+      doc(db, "users", user.uid),
+      {
+        email: user.email ?? null,
+        displayName: user.displayName ?? null,
+        photoURL: user.photoURL ?? null,
+        isAnonymous: user.isAnonymous,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+  } catch {
+    /* best-effort; rules may not be deployed yet in local dev */
+  }
 }

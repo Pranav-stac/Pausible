@@ -1,6 +1,0 @@
-"name","type","length","leftDigits","rightDigits"
-"S.No.","INTEGER","2","2","0"
-"Category","STRING","29","0","0"
-"Question ID","STRING","6","0","0"
-"Revised Question","STRING","152","0","0"
-"Direct / Reverse Keyed","STRING","7","0","0"

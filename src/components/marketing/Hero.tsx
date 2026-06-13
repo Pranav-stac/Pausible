@@ -30,7 +30,7 @@ export function Hero({ ctaHref }: { ctaHref: string }) {
                 placement="hero_primary_cta"
                 className="inline-flex w-full min-h-[48px] max-w-md items-center justify-center rounded-full bg-slate-950 px-8 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 sm:w-auto sm:max-w-none"
               >
-                Take assessment
+                Get started
                 <span className="pl-1" aria-hidden>
                   →
                 </span>

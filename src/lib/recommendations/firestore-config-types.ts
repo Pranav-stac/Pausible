@@ -69,7 +69,9 @@ export type RawRecommendationRow = {
   barrierFit: string[];
   excludeIf: string[];
   strength: string;
+  oceanFit?: string[];
   notes: string;
+  personaContext?: Partial<Record<string, string>>;
 };
 
 const PILLARS: PillarName[] = ["Nutrition", "Physical Activity", "Sleep & Recovery", "Mental Wellness"];
@@ -83,6 +85,10 @@ const TYPES: RecommendationType[] = [
   "recovery_rule",
   "coach_note",
   "safety_guidance",
+  "blind_spot",
+  "pattern_prediction",
+  "success_condition",
+  "strength_insight",
 ];
 
 export function normalizeRecommendationRow(raw: RawRecommendationRow): RecommendationRow {
@@ -106,7 +112,9 @@ export function normalizeRecommendationRow(raw: RawRecommendationRow): Recommend
     barrierFit: raw.barrierFit ?? [],
     excludeIf: raw.excludeIf ?? [],
     strength,
+    oceanFit: raw.oceanFit ?? [],
     notes: raw.notes?.trim() ?? "",
+    personaContext: raw.personaContext ?? {},
   };
 }
 
@@ -122,7 +130,7 @@ export function parseRecommendationConfigDoc(data: Record<string, unknown> | und
 
   return {
     version: String(data.version ?? "1"),
-    masterVersion: String(data.masterVersion ?? "v1.4"),
+    masterVersion: String(data.masterVersion ?? "v1.7"),
     recommendations,
     tagMappingRules,
     wellnessFields,

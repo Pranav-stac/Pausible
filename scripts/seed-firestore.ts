@@ -117,12 +117,12 @@ async function seedPersonaCentroids(db: Firestore) {
     {
       centroids: DEFAULT_PERSONA_CENTROIDS,
       alpha: DEFAULT_PERSONA_ALPHA,
-      version: "v5",
+      version: "v7",
       updatedAt: FieldValue.serverTimestamp(),
     },
     { merge: false },
   );
-  console.log(`✓ ${CENTROIDS_DOC} — v5 centroids`);
+  console.log(`✓ ${CENTROIDS_DOC} — v7 centroids`);
 }
 
 async function verify(db: Firestore) {

@@ -12,7 +12,7 @@ export async function runRecommendationEngine(input: BuildProfileInput): Promise
   const filtered = filterRecommendations(config.recommendations, profile);
   const ranked = scoreAll(filtered, profile);
   const selection = selectActionPlan(ranked, profile);
-  return buildActionPlan(selection);
+  return buildActionPlan({ selection, input, config });
 }
 
 export { buildUserProfile } from "@/lib/recommendations/build-user-profile";

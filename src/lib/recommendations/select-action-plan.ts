@@ -1,8 +1,6 @@
-import {
-  A12_COACH_NOTES_MAX,
-  A12_LAUNCHPAD_COUNT,
-} from "@/lib/recommendations/scoring-constants";
-import { selectOpportunityClusters } from "@/lib/recommendations/cluster";
+import { isActionPlanPoolRow, resolvedText } from "@/lib/recommendations/action-pool";
+import { selectHighImpactOpportunities } from "@/lib/recommendations/select-opportunities";
+import { selectPiSeries } from "@/lib/recommendations/select-pi-series";
 import { selectTriggeredSafetyGuidance } from "@/lib/recommendations/safety";
 import type {
   ActionPlanSelection,
@@ -16,9 +14,6 @@ import type {
 
 const PILLARS: PillarName[] = ["Nutrition", "Physical Activity", "Sleep & Recovery", "Mental Wellness"];
 
-const LAUNCHPAD_TYPES = new Set(["first_action", "environment_change", "mindset_shift"]);
-const COACH_POOL_TYPES = new Set(["coach_note", "mindset_shift"]);
-
 function pickUnique(rows: ScoredRecommendation[], count: number, used: Set<string>): ScoredRecommendation[] {
   const out: ScoredRecommendation[] = [];
   for (const row of rows) {
@@ -30,83 +25,167 @@ function pickUnique(rows: ScoredRecommendation[], count: number, used: Set<strin
   return out;
 }
 
-function launchpadGroup(row: ScoredRecommendation): LaunchpadGroup {
-  if (row.type === "mindset_shift") return "build_awareness";
-  if (row.category.includes("social") || row.category.includes("accountability") || row.category.includes("support")) {
-    return "create_support";
+function pickUniqueByCategory(
+  rows: ScoredRecommendation[],
+  count: number,
+  used: Set<string>,
+): ScoredRecommendation[] {
+  const out: ScoredRecommendation[] = [];
+  const seenCategories = new Set<string>();
+  for (const row of rows) {
+    if (used.has(row.id) || seenCategories.has(row.category)) continue;
+    used.add(row.id);
+    seenCategories.add(row.category);
+    out.push(row);
+    if (out.length >= count) break;
   }
-  return "remove_friction";
+  return out;
 }
 
 function buildPillarPlan(
   pillar: PillarName,
   ranked: ScoredRecommendation[],
+  profile: UserProfile,
   used: Set<string>,
 ): PillarActionPlan {
-  const inPillar = ranked.filter((r) => r.pillar === pillar);
-  const dosPool = inPillar.filter((r) => r.type === "do");
+  const inPillar = ranked.filter((r) => r.pillar === pillar && isActionPlanPoolRow(r));
+
+  const mindsetPool = inPillar.filter((r) => r.type === "mindset_shift");
+  const focus = mindsetPool[0] ?? null;
+
+  const dosPool = inPillar.filter((r) => r.type === "do" || r.type === "first_action");
   const dontsPool = inPillar.filter((r) => r.type === "dont");
 
-  const focus = dosPool[0] ?? inPillar[0];
-  const dos = pickUnique(dosPool, 4, used);
+  const dos = pickUniqueByCategory(dosPool, 4, used);
   const donts = pickUnique(dontsPool, 2, used);
+  if (focus) used.add(focus.id);
 
-  const sourceIds = [...new Set([...(focus ? [focus.id] : []), ...dos.map((d) => d.id), ...donts.map((d) => d.id)])];
+  const sourceIds = [
+    ...new Set([...(focus ? [focus.id] : []), ...dos.map((d) => d.id), ...donts.map((d) => d.id)]),
+  ];
 
   return {
     pillar,
-    focusArea: focus?.category.replace(/_/g, " ") ?? pillar,
-    focusReason: focus?.notes || focus?.text || `Personalized ${pillar} guidance for your profile.`,
-    dos: dos.map((d) => ({ id: d.id, text: d.text })),
-    donts: donts.map((d) => ({ id: d.id, text: d.text })),
+    focusArea: focus ? resolvedText(focus, profile) : pillar,
+    focusReason: focus ? resolvedText(focus, profile) : `Personalized ${pillar} guidance for your profile.`,
+    focusId: focus?.id ?? null,
+    dos: dos.map((d) => ({
+      id: d.id,
+      text: resolvedText(d, profile),
+      category: d.category,
+    })),
+    donts: donts.map((d) => ({
+      id: d.id,
+      text: resolvedText(d, profile),
+      category: d.category,
+    })),
     sourceIds,
   };
 }
 
-/** A12 §8 Page 6 section selection. */
+function selectLaunchpad(ranked: ScoredRecommendation[], profile: UserProfile, used: Set<string>): LaunchpadItem[] {
+  const pool = ranked.filter((r) => isActionPlanPoolRow(r));
+  const items: LaunchpadItem[] = [];
+
+  const firstActions = pickUnique(
+    pool.filter((r) => r.type === "first_action" && (r.strength === "core" || r.strength === "supporting")),
+    2,
+    used,
+  );
+  for (const r of firstActions) {
+    items.push({
+      id: r.id,
+      text: resolvedText(r, profile),
+      pillar: r.pillar,
+      group: "start_here",
+    });
+  }
+
+  const envChanges = pickUnique(pool.filter((r) => r.type === "environment_change"), 2, used);
+  for (const r of envChanges) {
+    items.push({
+      id: r.id,
+      text: resolvedText(r, profile),
+      pillar: r.pillar,
+      group: "environment_setup",
+    });
+  }
+
+  const recoveryRules = pickUnique(pool.filter((r) => r.type === "recovery_rule"), 2, used);
+  for (const r of recoveryRules) {
+    items.push({
+      id: r.id,
+      text: resolvedText(r, profile),
+      pillar: r.pillar,
+      group: "recovery_rules",
+    });
+  }
+
+  return items;
+}
+
+/** v2.1 report section selection (Content Logic Guide + A12-A13). */
 export function selectActionPlan(
   ranked: ScoredRecommendation[],
   profile: UserProfile,
 ): ActionPlanSelection {
   const used = new Set<string>();
-  const opportunities = selectOpportunityClusters(ranked, profile);
+  const piSeries = selectPiSeries(ranked, profile);
+  const opportunityCards = selectHighImpactOpportunities(ranked, profile);
+  for (const c of opportunityCards) used.add(c.id);
 
   const pillarPlans = {} as Record<PillarName, PillarActionPlan>;
   for (const pillar of PILLARS) {
-    pillarPlans[pillar] = buildPillarPlan(pillar, ranked, used);
+    pillarPlans[pillar] = buildPillarPlan(pillar, ranked, profile, used);
   }
 
-  const launchpadRows = ranked.filter((r) => LAUNCHPAD_TYPES.has(r.type));
-  const launchpad: LaunchpadItem[] = pickUnique(launchpadRows, A12_LAUNCHPAD_COUNT, used).map((r) => ({
-    id: r.id,
-    text: r.text,
-    group: launchpadGroup(r),
-  }));
+  const launchpad = selectLaunchpad(ranked, profile, used);
 
-  const coachPool = ranked.filter((r) => COACH_POOL_TYPES.has(r.type));
-  const coachNotes = pickUnique(coachPool, A12_COACH_NOTES_MAX, used);
+  const coachSourceRows = ranked
+    .filter((r) => isActionPlanPoolRow(r) && r.type !== "mindset_shift")
+    .slice(0, 5);
 
   const safetyGuidance = selectTriggeredSafetyGuidance(ranked, profile);
   for (const s of safetyGuidance) used.add(s.id);
+  for (const id of piSeries.sourceIds) used.add(id);
+
+  const validationWarnings: string[] = [];
+  if (!piSeries.complete) {
+    validationWarnings.push("PI series incomplete for primary persona — some report sections may use fallbacks.");
+  }
+  const scoredPositive = ranked.filter((r) => r.score.total > 0).length;
+  if (scoredPositive < 50) {
+    validationWarnings.push(`Only ${scoredPositive} recommendations scored above 0 (expected ≥50).`);
+  }
 
   const allSourceIds = [
     ...new Set([
-      ...opportunities.flatMap((c) => c.rows.map((r) => r.id)),
+      ...opportunityCards.flatMap((c) => c.sourceIds),
       ...PILLARS.flatMap((p) => pillarPlans[p].sourceIds),
       ...launchpad.map((l) => l.id),
-      ...coachNotes.map((c) => c.id),
+      ...coachSourceRows.map((c) => c.id),
       ...safetyGuidance.map((s) => s.id),
+      ...piSeries.sourceIds,
     ]),
   ];
 
   return {
     profile,
     ranked,
-    opportunities,
+    opportunities: [],
+    opportunityCards,
+    piSeries,
     pillarPlans,
     launchpad,
-    coachNotes,
+    coachSourceRows,
     safetyGuidance,
     allSourceIds,
+    validationWarnings,
   };
 }
+
+export const LAUNCHPAD_GROUP_LABELS: Record<LaunchpadGroup, string> = {
+  start_here: "Start Here",
+  environment_setup: "Environment Setup",
+  recovery_rules: "Recovery Rules",
+};

@@ -42,6 +42,17 @@ export type QuestionItemResponse = {
   responseScore: number;
 };
 
+export type FitTier = "classic" | "core" | "adaptive" | "emerging";
+export type BlendStrength = "pure" | "tendencies" | "strong_influence";
+
+export type TraitDeviation = {
+  trait: TraitKey;
+  userScore: number;
+  centroidScore: number;
+  deviation: number;
+  direction: "above" | "below";
+};
+
 export type PersonaAnalysis = {
   itemResponses: QuestionItemResponse[];
   facetAverages: Record<string, number>;
@@ -57,6 +68,14 @@ export type PersonaAnalysis = {
   personaPercentages: Record<PersonaKey, number>;
   primaryPersona: PersonaKey;
   secondaryPersona: PersonaKey;
+  /** 0–100 match to primary persona centroid. */
+  fitScore: number;
+  fitTier: FitTier;
+  blendRatio: number;
+  blendStrength: BlendStrength;
+  personaTitle: string;
+  traitDeviations: TraitDeviation[];
+  maxInterCentroidDistance: number;
   alpha: number;
   computedAt: string;
 };

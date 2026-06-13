@@ -2,7 +2,9 @@ import {
   A12_BARRIER,
   A12_CONTEXT,
   A12_GOAL,
+  A12_OCEAN,
   A12_PERSONA,
+  A12_PERSONA_PRIMARY_BY_FIT_TIER,
   A12_STRENGTH_POINTS,
   A12_STRENGTH_RANK,
 } from "@/lib/recommendations/scoring-constants";
@@ -28,8 +30,10 @@ function personaPoints(row: RecommendationRow, profile: UserProfile) {
   const secondaryMatch = fit.includes(secondary);
   const allMatch = fit.includes("all_personas");
 
+  const primaryBonus = A12_PERSONA_PRIMARY_BY_FIT_TIER[profile.fitTier] ?? 25;
+
   let persona = 0;
-  if (primaryMatch) persona += A12_PERSONA.primary;
+  if (primaryMatch) persona += primaryBonus;
   if (secondaryMatch) persona += A12_PERSONA.secondary;
   if (allMatch) persona += A12_PERSONA.allPersonas;
   persona = Math.min(A12_PERSONA.cap, persona);
@@ -60,20 +64,23 @@ export function scoreRecommendation(
   const matchedBarriers = intersect(row.barrierFit, profile.barriers);
   const matchedGoals = intersect(row.goalFit, profile.goals);
   const matchedContext = intersect(row.contextFit, profile.context);
+  const matchedOcean = intersect(row.oceanFit ?? [], profile.oceanTags);
 
   const barriers = cappedSum(A12_BARRIER.perMatch, matchedBarriers.length, A12_BARRIER.cap);
   const goals = cappedSum(A12_GOAL.perMatch, matchedGoals.length, A12_GOAL.cap);
   const context = cappedSum(A12_CONTEXT.perMatch, matchedContext.length, A12_CONTEXT.cap);
+  const ocean = cappedSum(A12_OCEAN.perMatch, matchedOcean.length, A12_OCEAN.cap);
 
   const strength = strengthComponent(row.strength, matchedContext.length);
 
-  const total = persona + barriers + goals + context + strength;
+  const total = persona + barriers + goals + context + ocean + strength;
 
   return {
     persona,
     barriers,
     goals,
     context,
+    ocean,
     strength,
     total,
     primaryPersonaMatch: primaryMatch,
@@ -82,6 +89,7 @@ export function scoreRecommendation(
     matchedBarriers,
     matchedGoals,
     matchedContext,
+    matchedOcean,
   };
 }
 

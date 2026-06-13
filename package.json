@@ -9,7 +9,8 @@
     "lint": "eslint",
     "generate:recommendation-seed": "node scripts/generate-recommendation-seed.mjs",
     "import:revised-ocean": "node scripts/import-revised-ocean.mjs",
-    "seed:all": "npm run import:revised-ocean && npm run generate:recommendation-seed && npm run seed:firestore",
+    "import:client-v7": "node scripts/import-client-v7.mjs",
+    "seed:all": "npm run seed:firestore",
     "seed:firestore": "tsx --env-file=.env scripts/seed-firestore.ts"
   },
   "dependencies": {

@@ -10,7 +10,17 @@ export function ActiveAssessmentCards() {
   const [items, setItems] = useState<Item[]>([]);
 
   useEffect(() => {
-    void listActiveAssessmentSummaries().then(setItems);
+    let cancelled = false;
+    void listActiveAssessmentSummaries()
+      .then((rows) => {
+        if (!cancelled) setItems(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setItems([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (items.length <= 1) return null;

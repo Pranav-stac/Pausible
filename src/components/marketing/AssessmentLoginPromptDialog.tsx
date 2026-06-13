@@ -8,24 +8,22 @@ export function AssessmentLoginPromptDialog({
   error,
   onClose,
   onSignIn,
-  onContinueWithoutAccount,
 }: {
   open: boolean;
   busy: boolean;
   error: string | null;
   onClose: () => void;
   onSignIn: () => void;
-  onContinueWithoutAccount: () => void;
 }) {
   const titleId = useId();
   const descId = useId();
-  const continueRef = useRef<HTMLButtonElement>(null);
+  const signInRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    continueRef.current?.focus();
+    signInRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !busy) onClose();
     };
@@ -60,8 +58,7 @@ export function AssessmentLoginPromptDialog({
           Sign in before you start?
         </h2>
         <p id={descId} className="mt-3 text-center text-sm leading-relaxed text-slate-600">
-          Optional — sign in with Google to save results to your account, or continue without an account and sign in
-          later after you finish.
+          Sign in with Google to save your results to your account.
         </p>
 
         {error ? (
@@ -72,21 +69,13 @@ export function AssessmentLoginPromptDialog({
 
         <div className="mt-6 flex flex-col gap-3">
           <button
+            ref={signInRef}
             type="button"
             disabled={busy}
             onClick={() => onSignIn()}
             className="w-full rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-900 disabled:opacity-50"
           >
             {busy ? "Working…" : "Sign in with Google"}
-          </button>
-          <button
-            ref={continueRef}
-            type="button"
-            disabled={busy}
-            onClick={() => onContinueWithoutAccount()}
-            className="w-full rounded-full border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50"
-          >
-            Continue without account
           </button>
         </div>
 

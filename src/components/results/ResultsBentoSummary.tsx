@@ -6,10 +6,13 @@ import Link from "next/link";
 import type { User } from "firebase/auth";
 import { WellnessActionPlan } from "@/components/results/WellnessActionPlan";
 import { ResultsStoryPosterSection } from "@/components/results/ResultsStoryPosterSection";
+import { OceanRadarChart } from "@/components/results/OceanRadarChart";
 import { personaAnimal, personaLabel } from "@/lib/results/persona-display";
+import { DEFAULT_PERSONA_CENTROIDS } from "@/lib/scoring/persona-defaults";
+import type { PersonaAnalysis, PersonaKey } from "@/lib/scoring/persona-types";
+import { fitTierLabel } from "@/lib/scoring/persona-fit";
 import { PERSONA_REPORT_THEME } from "@/lib/results/persona-report-theme";
 import type { DimensionRow } from "@/lib/results/dimension-rows";
-import type { PersonaKey } from "@/lib/scoring/persona-types";
 import type { StoredActionPlanCache } from "@/lib/recommendations/action-plan-cache";
 import type { SerializedAttempt } from "@/lib/local/attempts";
 
@@ -139,6 +142,10 @@ export function ResultsBentoSummary({
   attempt,
   attemptId,
   primaryPersona,
+  personaTitle,
+  fitScore,
+  fitTier,
+  personaAnalysis,
   secondaryPersona,
   secondaryPct,
   primaryCopy,
@@ -158,6 +165,10 @@ export function ResultsBentoSummary({
   attempt: SerializedAttempt;
   attemptId: string;
   primaryPersona?: string | null;
+  personaTitle?: string | null;
+  fitScore?: number | null;
+  fitTier?: string | null;
+  personaAnalysis?: PersonaAnalysis | null;
   secondaryPersona?: string | null;
   secondaryPct?: number | null;
   primaryCopy: PersonaCopy | null;
@@ -242,8 +253,17 @@ export function ResultsBentoSummary({
                   className="mt-4 text-[1.75rem] font-black leading-[1.05] tracking-tight text-slate-950 sm:text-4xl lg:text-[2.75rem]"
                   style={{ color: accent }}
                 >
-                  {primaryLabel}
+                  {personaTitle ?? primaryLabel}
                 </h1>
+                {personaTitle && personaTitle !== primaryLabel ? (
+                  <p className="mt-2 text-sm font-semibold text-slate-600">{primaryLabel}</p>
+                ) : null}
+                {fitScore != null ? (
+                  <p className="mt-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+                    {fitTier ? `${fitTierLabel(fitTier as "classic")} · ` : ""}
+                    {Math.round(fitScore)}% persona fit
+                  </p>
+                ) : null}
                 {animal ? (
                   <p className="mt-3 inline-flex max-w-full items-center gap-2 rounded-2xl bg-white/90 px-3 py-2 text-sm font-bold text-slate-800 shadow-sm ring-1 ring-slate-200/80">
                     <span className="text-xl">{animal.emoji}</span>
@@ -368,6 +388,20 @@ export function ResultsBentoSummary({
             </>
           )}
         </div>
+
+        {personaAnalysis && primaryKey ? (
+          <BentoCard delay={3} className="flex flex-col items-center justify-center p-6 md:col-span-6 lg:col-span-5">
+            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">Where you stand</p>
+            <h2 className="mt-1 text-lg font-black text-slate-950">OCEAN radar</h2>
+            <div className="mt-4">
+              <OceanRadarChart
+                userScores={personaAnalysis.traitAverages}
+                centroidScores={DEFAULT_PERSONA_CENTROIDS[primaryKey]}
+                accent={accent}
+              />
+            </div>
+          </BentoCard>
+        ) : null}
 
         {/* PERSONA MIX — scroll mobile */}
         {topMix.length > 0 ? (

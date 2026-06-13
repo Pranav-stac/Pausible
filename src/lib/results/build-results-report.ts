@@ -18,6 +18,10 @@ export type ResultsReportModel = {
   generatedAt: string;
   primaryKey: PersonaKey | null;
   primaryLabel: string;
+  personaTitle: string | null;
+  fitScore: number | null;
+  fitTier: string | null;
+  blendStrength: string | null;
   primarySummary: string;
   primaryBullets: string[];
   animalName: string | null;
@@ -86,11 +90,17 @@ export function buildResultsReportModel(args: {
   const iso = attempt.paidAtIso ?? attempt.createdAtIso;
   const generatedAt = iso ? new Date(iso).toLocaleDateString(undefined, { dateStyle: "long" }) : new Date().toLocaleDateString();
 
+  const persona = attempt.scores?.persona;
+
   return {
     participantName: participantName?.trim() || "Your profile",
     generatedAt,
     primaryKey,
     primaryLabel: primaryKey ? personaLabel(primaryKey) : "Your profile",
+    personaTitle: persona?.personaTitle ?? null,
+    fitScore: persona?.fitScore ?? null,
+    fitTier: persona?.fitTier ?? null,
+    blendStrength: persona?.blendStrength ?? null,
     primarySummary: primaryCopy?.summary ?? "",
     primaryBullets: primaryCopy?.bullets ?? [],
     animalName: animal?.name ?? null,

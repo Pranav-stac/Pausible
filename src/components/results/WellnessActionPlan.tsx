@@ -17,9 +17,9 @@ const PILLAR_ACCENTS: Record<PillarName, { bg: string; ring: string; dot: string
 };
 
 const LAUNCHPAD_HEADINGS = {
-  remove_friction: "Remove friction",
-  build_awareness: "Build awareness",
-  create_support: "Create support & structure",
+  start_here: "Start here",
+  environment_setup: "Environment setup",
+  recovery_rules: "Recovery rules",
 } as const;
 
 type Props = {
@@ -159,21 +159,37 @@ export function WellnessActionPlan({ attempt, accent = "#0284c7", onActionPlanCa
         <p className="rounded-xl bg-slate-100 px-4 py-2 text-xs text-slate-600">{synthesis.synthesisError}</p>
       ) : null}
 
-      {synthesis.opportunities.length > 0 ? (
-        <div className="grid gap-3 sm:grid-cols-3">
-          {synthesis.opportunities.map((opp, i) => (
-            <div
-              key={opp.category + i}
-              className="results-bento-in overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm"
-              style={{ animationDelay: `${i * 80}ms` }}
-            >
-              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Opportunity</p>
-              <h3 className="mt-1 text-base font-bold text-slate-950">{opp.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-slate-600">{opp.summary}</p>
-            </div>
-          ))}
-        </div>
-      ) : null}
+      {(() => {
+        const cards =
+          synthesis.opportunityCards ??
+          (synthesis.opportunities ?? []).map((o) => ({
+            id: o.category,
+            pillar: "Nutrition" as const,
+            category: o.category,
+            headline: o.title,
+            whyItMatters: o.summary,
+            impactLevel: "High" as const,
+            score: 0,
+            personaContextText: o.summary,
+            sourceIds: o.sourceIds,
+          }));
+        if (cards.length === 0) return null;
+        return (
+          <div className="grid gap-3 sm:grid-cols-3">
+            {cards.map((opp, i) => (
+              <div
+                key={opp.id + i}
+                className="results-bento-in overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm"
+                style={{ animationDelay: `${i * 80}ms` }}
+              >
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{opp.pillar}</p>
+                <h3 className="mt-1 text-base font-bold text-slate-950">{opp.headline}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600">{opp.whyItMatters}</p>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
 
       <div className="grid gap-4 lg:grid-cols-2">
         {PILLAR_ORDER.map((pillar) => {
@@ -235,8 +251,9 @@ export function WellnessActionPlan({ attempt, accent = "#0284c7", onActionPlanCa
               <p className="text-xs font-bold text-slate-800">{LAUNCHPAD_HEADINGS[key]}</p>
               <ul className="mt-3 space-y-2">
                 {(synthesis.launchpad[key] ?? []).map((item) => (
-                  <li key={item} className="text-sm leading-relaxed text-slate-600">
-                    {item}
+                  <li key={item.id} className="text-sm leading-relaxed text-slate-600">
+                    <span className="font-medium text-slate-800">{item.action}</span>
+                    {item.context ? <span className="block text-xs text-slate-500">{item.context}</span> : null}
                   </li>
                 ))}
                 {(synthesis.launchpad[key] ?? []).length === 0 ? (
@@ -264,8 +281,16 @@ export function WellnessActionPlan({ attempt, accent = "#0284c7", onActionPlanCa
               <dd className="mt-1 leading-relaxed text-white/95">{synthesis.coachNotes.keyRisk}</dd>
             </div>
             <div>
-              <dt className="font-bold text-white/90">Guidance</dt>
-              <dd className="mt-1 leading-relaxed text-white/95">{synthesis.coachNotes.guidance}</dd>
+              <dt className="font-bold text-white/90">Coaching notes</dt>
+              <dd className="mt-1">
+                <ul className="space-y-2">
+                  {(synthesis.coachNotes.coachingNotes ?? []).map((note) => (
+                    <li key={note} className="leading-relaxed text-white/95">
+                      {note}
+                    </li>
+                  ))}
+                </ul>
+              </dd>
             </div>
           </dl>
         </div>

@@ -54,7 +54,7 @@ export function TrackedAssessmentLink({
         return;
       }
       if (outcome === "completed") goToAssessment();
-      if (outcome === "cancelled") setErr("Sign-in was cancelled. You can continue without an account.");
+      if (outcome === "cancelled") setErr("Sign-in was cancelled.");
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : "Google sign-in failed.");
     } finally {
@@ -88,7 +88,6 @@ export function TrackedAssessmentLink({
           if (!busy) setDialogOpen(false);
         }}
         onSignIn={() => void onSignIn()}
-        onContinueWithoutAccount={goToAssessment}
       />
     </>
   );

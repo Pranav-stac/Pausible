@@ -22,6 +22,11 @@ import { useAppSettings } from "@/lib/hooks/useAppSettings";
 import { defaultAssessmentId } from "@/data/default-assessment";
 import { assessmentTestToolsAllowed, randomAnswersForQuestions } from "@/lib/testing/random-assessment-fill";
 import { getOrCreateLocalUid } from "@/lib/local/uid";
+import {
+  clearOceanProgress,
+  loadOceanProgress,
+  saveOceanProgress,
+} from "@/lib/assessment/session-recovery";
 
 const DEBOUNCE_SAVE_MS = 400;
 
@@ -98,7 +103,16 @@ export function AssessmentRunner({
     if (!assessment?.id) return;
     if (assessmentSessionIdRef.current === assessment.id) return;
     assessmentSessionIdRef.current = assessment.id;
-    attemptIdRef.current = crypto.randomUUID();
+    const saved = loadOceanProgress(assessment.id);
+    if (saved?.attemptId) {
+      attemptIdRef.current = saved.attemptId;
+      setAnswers(saved.answers);
+      setRevealedCount(Math.max(1, saved.revealedCount));
+    } else {
+      attemptIdRef.current = crypto.randomUUID();
+      setAnswers({});
+      setRevealedCount(1);
+    }
     claimSecretRef.current = `${crypto.randomUUID()}${crypto.randomUUID()}`.replace(/-/g, "");
     try {
       if (typeof window !== "undefined") {
@@ -111,8 +125,6 @@ export function AssessmentRunner({
     } catch {
       /* quota / private mode */
     }
-    setAnswers({});
-    setRevealedCount(1);
     setExpandedPastIndex(null);
   }, [assessment]);
 
@@ -158,6 +170,17 @@ export function AssessmentRunner({
   const setAnswer = useCallback((qid: string, value: number | string | string[]) => {
     setAnswers((prev) => ({ ...prev, [qid]: value }));
   }, []);
+
+  useEffect(() => {
+    if (!assessment?.id || !attemptIdRef.current) return;
+    saveOceanProgress({
+      attemptId: attemptIdRef.current,
+      assessmentId: assessment.id,
+      answers,
+      revealedCount,
+      updatedAt: new Date().toISOString(),
+    });
+  }, [answers, assessment?.id, revealedCount]);
 
   const tryRevealNextAfterIndex = useCallback((answeredIndex: number) => {
     setRevealedCount((r) => (answeredIndex === r - 1 && r < total ? r + 1 : r));
@@ -276,7 +299,8 @@ export function AssessmentRunner({
       } catch {
         /* private mode */
       }
-      router.push(`/wellness-context/${encodeURIComponent(id)}`);
+      clearOceanProgress();
+      router.push(`/transition/${encodeURIComponent(id)}`);
       return;
     }
 

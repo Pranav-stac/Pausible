@@ -79,5 +79,18 @@ service cloud.firestore {
       allow read: if callerIsFirestoreAdmin();
       allow write: if callerIsFirestoreAdmin();
     }
+
+    /** Client analytics rows (see src/lib/analytics/track.ts). */
+    match /site_events/{id} {
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.kind is string
+        && request.resource.data.kind.size() < 64
+        && request.resource.data.sessionId is string
+        && request.resource.data.sessionId.size() < 128
+        && request.resource.data.path is string
+        && request.resource.data.path.size() < 512;
+      allow read, update, delete: if callerIsFirestoreAdmin();
+    }
   }
 }

@@ -3,6 +3,9 @@ import type { ActionPlan } from "@/lib/recommendations/types";
 import type { ActionPlanApiResponse } from "@/lib/recommendations/client-types";
 import type { AttemptAnswers, AttemptScores } from "@/types/models";
 
+/** Bump when Gemini prompt/context changes so stale cached plans regenerate. */
+export const ACTION_PLAN_SYNTHESIS_VERSION = "v2-rich-context";
+
 export type StoredActionPlanCache = {
   inputHash: string;
   plan: ActionPlanApiResponse["plan"];
@@ -13,7 +16,11 @@ export function hashActionPlanInputs(
   answers: AttemptAnswers,
   scores: AttemptScores | null | undefined,
 ): string {
-  const payload = JSON.stringify({ answers, scores: scores ?? null });
+  const payload = JSON.stringify({
+    version: ACTION_PLAN_SYNTHESIS_VERSION,
+    answers,
+    scores: scores ?? null,
+  });
   return createHash("sha256").update(payload).digest("hex");
 }
 

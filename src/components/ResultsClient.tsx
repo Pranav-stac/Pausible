@@ -345,6 +345,10 @@ export function ResultsClient() {
           attempt={attempt}
           attemptId={attemptId}
           primaryPersona={primaryPersona}
+          personaTitle={attempt?.scores?.persona?.personaTitle}
+          fitScore={attempt?.scores?.persona?.fitScore}
+          fitTier={attempt?.scores?.persona?.fitTier}
+          personaAnalysis={attempt?.scores?.persona ?? null}
           secondaryPersona={secondaryPersona}
           secondaryPct={secondaryPct}
           primaryCopy={primaryCopy}
