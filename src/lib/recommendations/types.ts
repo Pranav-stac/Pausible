@@ -202,8 +202,24 @@ export type WellnessReportSections = {
     bestEnvironment: string;
     personaPercentage: number;
   };
-  blindSpots: { heading: string; body: string };
-  successBlueprint: { heading: string; body: string };
+  blindSpots: {
+    /** The pattern you don't notice */
+    patternBody: string;
+    /** What this means for your goals */
+    goalsBody: string;
+    /** @deprecated legacy combined field */
+    heading?: string;
+    body?: string;
+  };
+  successBlueprint: {
+    /** What works for you */
+    worksBody: string;
+    /** Your natural advantage */
+    advantageBody: string;
+    /** @deprecated legacy combined field */
+    heading?: string;
+    body?: string;
+  };
   traitDeviationNarratives: string[];
   opportunities: OpportunityCard[];
 };

@@ -51,14 +51,14 @@ export function MarketingNav({ ctaHref }: { ctaHref: string }) {
             placement="marketing_header_cta_compact"
             className="hidden min-h-[40px] items-center justify-center rounded-full bg-slate-950 px-3.5 py-2 text-xs font-semibold text-white shadow-sm sm:inline-flex md:hidden"
           >
-            Start&nbsp;→
+            Get&nbsp;started
           </TrackedAssessmentLink>
           <TrackedAssessmentLink
             href={ctaHref}
             placement="marketing_header_cta"
             className="hidden md:inline-flex items-center justify-center rounded-full bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 lg:px-5"
           >
-            Take assessment
+            Get started
             <span className="pl-1" aria-hidden>
               →
             </span>
@@ -96,7 +96,7 @@ export function MarketingNav({ ctaHref }: { ctaHref: string }) {
             className="flex w-full items-center justify-center rounded-2xl bg-slate-950 py-3.5 text-sm font-semibold text-white shadow-sm"
             onAfterTrack={() => setMobileOpen(false)}
           >
-            Take assessment →
+            Get started →
           </TrackedAssessmentLink>
           <nav className="flex flex-col gap-1" aria-label="Mobile primary">
             {links.map((l) => (

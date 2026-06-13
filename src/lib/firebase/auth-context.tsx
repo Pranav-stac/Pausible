@@ -9,7 +9,11 @@ import {
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { isFirebaseConfigured } from "@/lib/firebase/config";
-import { connectGoogleAccount, type GoogleConnectOutcome } from "@/lib/firebase/google-auth-flow";
+import {
+  connectGoogleAccount,
+  handleGoogleRedirectCredential,
+  type GoogleConnectOutcome,
+} from "@/lib/firebase/google-auth-flow";
 import { userHasGoogleIdentity } from "@/lib/firebase/google-identity";
 import { consumeGoogleRedirectResult } from "@/lib/firebase/redirect-result";
 import { syncUserProfile } from "@/lib/firebase/user-profile";
@@ -62,8 +66,11 @@ export function FirebaseAuthProvider({ children }: { children: React.ReactNode }
     };
 
     void consumeGoogleRedirectResult(auth)
-      .then((result) => {
-        if (result?.user) void syncUserProfile(result.user);
+      .then(async (result) => {
+        if (result?.user) {
+          await syncUserProfile(result.user);
+          await handleGoogleRedirectCredential(result);
+        }
       })
       .finally(() => {
         redirectSettled = true;

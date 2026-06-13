@@ -1,4 +1,9 @@
 import { PERSONA_DISPLAY } from "@/lib/scoring/persona-defaults";
+import {
+  resolvePrimaryCentroidVector,
+  resolvePrimaryPersonaKey,
+  resolveTraitAverages,
+} from "@/lib/scoring/normalize-persona";
 import type { PersonaAnalysis, PersonaKey, TraitKey } from "@/lib/scoring/persona-types";
 import { TRAIT_LABELS } from "@/lib/scoring/persona-types";
 
@@ -50,32 +55,26 @@ export function buildQuickProfile(
   persona: PersonaAnalysis,
   topBarrierLabel?: string,
 ): QuickProfilePanel {
-  const key = persona.primaryPersona;
-  const centroid = persona.traitAverages;
-  const traits = persona.traitAverages;
-  const primaryCentroid = persona.traitDeviations.length
-    ? traits
-    : traits;
+  const key = resolvePrimaryPersonaKey(persona);
+  const traits = resolveTraitAverages(persona);
+  const centroid = resolvePrimaryCentroidVector(persona);
 
   const display = PERSONA_DISPLAY[key];
-  const pct = persona.personaPercentages[key] ?? 0;
+  const pct = persona.personaPercentages?.[key] ?? 0;
 
   return {
     wellnessStyle: WELLNESS_STYLE[key],
-    energyPattern: energyPattern(
-      traits.extraversion,
-      primaryCentroid.extraversion ?? traits.extraversion,
-    ),
+    energyPattern: energyPattern(traits.extraversion, centroid.extraversion),
     motivationDriver: MOTIVATION_DRIVER[key],
     riskFactor: topBarrierLabel ?? "Inconsistency under pressure",
     bestEnvironment: bestEnvironment(
       traits.extraversion,
       traits.neuroticism,
-      traits.extraversion,
-      traits.neuroticism,
+      centroid.extraversion,
+      centroid.neuroticism,
     ),
     personaPercentage: Math.round(pct),
-    archetype: display.archetype,
+    archetype: display?.archetype ?? key.replace(/_/g, " "),
   };
 }
 

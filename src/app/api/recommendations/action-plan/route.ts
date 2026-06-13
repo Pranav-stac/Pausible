@@ -12,6 +12,9 @@ import {
 } from "@/lib/recommendations/load-recommendation-config";
 import { runRecommendationEngine } from "@/lib/recommendations/run-engine";
 import { getAdminFirestore } from "@/lib/firebase/server";
+import { loadPersonaScoringConfigAdmin } from "@/lib/server/persona-config";
+import { computeAttemptScores } from "@/lib/scoring/compute-attempt-scores";
+import { personaNeedsRecompute } from "@/lib/scoring/normalize-persona";
 import type { AttemptAnswers, AttemptScores } from "@/types/models";
 
 export const runtime = "nodejs";
@@ -23,12 +26,8 @@ const bodySchema = z.object({
     .object({
       archetypeKey: z.string().optional(),
       secondaryArchetypeKey: z.string().optional(),
-      persona: z
-        .object({
-          primaryPersona: z.string().optional(),
-          secondaryPersona: z.string().optional(),
-        })
-        .optional(),
+      persona: z.record(z.string(), z.unknown()).optional(),
+      dimensions: z.record(z.string(), z.number()).optional(),
     })
     .optional()
     .nullable(),
@@ -42,6 +41,19 @@ function jsonFromCache(cache: StoredActionPlanCache) {
   });
 }
 
+async function resolveScores(
+  answers: AttemptAnswers,
+  clientScores: AttemptScores | null | undefined,
+  storedScores: AttemptScores | null | undefined,
+): Promise<{ scores: AttemptScores; recomputed: boolean }> {
+  const candidate = storedScores && !personaNeedsRecompute(storedScores.persona) ? storedScores : clientScores;
+  if (candidate?.persona && !personaNeedsRecompute(candidate.persona) && candidate.dimensions) {
+    return { scores: candidate, recomputed: false };
+  }
+  const personaConfig = await loadPersonaScoringConfigAdmin();
+  return { scores: computeAttemptScores(answers, personaConfig), recomputed: true };
+}
+
 export async function POST(req: Request) {
   try {
     const json = await req.json();
@@ -51,19 +63,27 @@ export async function POST(req: Request) {
     }
 
     const answers = parsed.data.answers as AttemptAnswers;
-    const scores = parsed.data.scores as AttemptScores | null | undefined;
-    const inputHash = hashActionPlanInputs(answers, scores);
     const attemptId = parsed.data.attemptId?.trim();
+    const clientScores = parsed.data.scores as AttemptScores | null | undefined;
 
-    if (attemptId) {
-      const db = getAdminFirestore();
-      if (db) {
-        const snap = await db.collection("attempts").doc(attemptId).get();
-        if (snap.exists) {
-          const cached = readStoredActionPlanCache(snap.data()?.actionPlanCache, answers, scores);
-          if (cached) return jsonFromCache(cached);
-        }
+    const db = attemptId ? getAdminFirestore() : null;
+    let storedScores: AttemptScores | null | undefined;
+    let attemptSnapExists = false;
+    if (attemptId && db) {
+      const snap = await db.collection("attempts").doc(attemptId).get();
+      attemptSnapExists = snap.exists;
+      if (snap.exists) {
+        storedScores = snap.data()?.scores as AttemptScores | undefined;
       }
+    }
+
+    const { scores, recomputed } = await resolveScores(answers, clientScores, storedScores);
+    const inputHash = hashActionPlanInputs(answers, scores);
+
+    if (attemptId && db && attemptSnapExists) {
+      const snap = await db.collection("attempts").doc(attemptId).get();
+      const cached = readStoredActionPlanCache(snap.data()?.actionPlanCache, answers, scores);
+      if (cached) return jsonFromCache(cached);
     }
 
     const plan = await runRecommendationEngine({ answers, scores });
@@ -74,17 +94,15 @@ export async function POST(req: Request) {
       synthesizedAt: new Date().toISOString(),
     };
 
-    if (attemptId) {
-      const db = getAdminFirestore();
-      if (db) {
-        await db.collection("attempts").doc(attemptId).set(
-          {
-            actionPlanCache: cache,
-            updatedAt: FieldValue.serverTimestamp(),
-          },
-          { merge: true },
-        );
-      }
+    if (attemptId && db) {
+      await db.collection("attempts").doc(attemptId).set(
+        {
+          actionPlanCache: cache,
+          ...(recomputed ? { scores, personaAnalysis: scores.persona ?? null } : {}),
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
     }
 
     return NextResponse.json({

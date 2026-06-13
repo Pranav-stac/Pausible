@@ -6,22 +6,21 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { NavAuthActions } from "@/components/NavAuthActions";
 import { useFirebaseAuth } from "@/lib/firebase/auth-context";
 import { isFirebaseConfigured } from "@/lib/firebase/config";
-import { fetchAttempt, listMyAttempts } from "@/lib/data/attempt-service";
+import { fetchAttempt, listMyAttempts, patchAttempt } from "@/lib/data/attempt-service";
 import { tryClaimAttemptForSession } from "@/lib/data/attempt-claim-client";
 import { fetchAssessment } from "@/lib/data/assessment-service";
 import type { AssessmentDefinition } from "@/types/models";
 import type { StoredActionPlanCache } from "@/lib/recommendations/action-plan-cache";
 import type { SerializedAttempt } from "@/lib/local/attempts";
-import { personaCopy, personaLabel } from "@/lib/results/persona-display";
-import { PERSONA_KEYS, type PersonaKey } from "@/lib/scoring/persona-types";
-import { PERSONA_DISPLAY } from "@/lib/scoring/persona-defaults";
+import { personaAnimal, personaLabel } from "@/lib/results/persona-display";
 import { dimensionRowsForAttempt } from "@/lib/results/dimension-rows";
 import { PausibleResultsReport } from "@/components/results/PausibleResultsReport";
-import { ResultsBentoSummary } from "@/components/results/ResultsBentoSummary";
+import { ResultsSummaryOverview } from "@/components/results/ResultsSummaryOverview";
 import { buildResultsReportModel } from "@/lib/results/build-results-report";
 import { useAppSettings } from "@/lib/hooks/useAppSettings";
-
-type ResultsView = "summary" | "report";
+import { computeAttemptScores } from "@/lib/scoring/compute-attempt-scores";
+import { fetchPersonaScoringConfig } from "@/lib/data/persona-scoring-config-client";
+import { personaNeedsRecompute } from "@/lib/scoring/normalize-persona";
 
 function ResultsTopBar() {
   return (
@@ -56,7 +55,7 @@ export function ResultsClient() {
   const [history, setHistory] = useState<SerializedAttempt[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [fetching, setFetching] = useState(true);
-  const [resultsView, setResultsView] = useState<ResultsView>("summary");
+  const [showFullReport, setShowFullReport] = useState(false);
 
   useEffect(() => {
     if (!ready || settingsLoading || !attemptId || !effectiveUid) return;
@@ -94,6 +93,22 @@ export function ResultsClient() {
         router.replace(`/checkout?attemptId=${encodeURIComponent(attemptId)}`);
         return;
       }
+
+      if (personaNeedsRecompute(row.scores?.persona) || !row.scores?.dimensions) {
+        try {
+          const personaConfig = await fetchPersonaScoringConfig();
+          const scores = computeAttemptScores(row.answers, personaConfig);
+          row = {
+            ...row,
+            scores,
+            personaAnalysis: scores.persona ?? row.personaAnalysis ?? null,
+          };
+          void patchAttempt(row.id, { scores, personaAnalysis: scores.persona ?? null });
+        } catch {
+          /* show whatever we have */
+        }
+      }
+
       setAttempt(row);
 
       try {
@@ -123,18 +138,6 @@ export function ResultsClient() {
     };
   }, [attemptId, effectiveUid, hasGoogleIdentity, mustUseGoogle, ready, requirePayment, router, settingsLoading]);
 
-  const primaryPersona = attempt?.scores?.archetypeKey;
-  const secondaryPersona = attempt?.scores?.secondaryArchetypeKey;
-  const primaryCopy = useMemo(() => personaCopy(primaryPersona), [primaryPersona]);
-  const secondaryCopy = useMemo(() => personaCopy(secondaryPersona), [secondaryPersona]);
-  const personaMix = useMemo(() => {
-    const pcts = attempt?.scores?.persona?.personaPercentages;
-    if (!pcts) return [];
-    return [...PERSONA_KEYS]
-      .map((k) => ({ key: k, label: PERSONA_DISPLAY[k].label, pct: pcts[k] ?? 0 }))
-      .sort((a, b) => b.pct - a.pct);
-  }, [attempt?.scores?.persona]);
-
   const dimensionRows = useMemo(
     () => (assessment && attempt ? dimensionRowsForAttempt(assessment, attempt) : []),
     [assessment, attempt],
@@ -151,9 +154,7 @@ export function ResultsClient() {
 
   function archetypeHashtagSlug(label?: string | null) {
     if (!label?.trim()) return "ProfileGlow";
-    const fused = label
-      .replace(/[^\p{L}\p{N}]+/gu, "")
-      .slice(0, 22);
+    const fused = label.replace(/[^\p{L}\p{N}]+/gu, "").slice(0, 22);
     return fused || "ProfileGlow";
   }
 
@@ -167,17 +168,30 @@ export function ResultsClient() {
   }, [attempt, assessment, user?.displayName, user?.email]);
 
   const storyPoster = useMemo(() => {
-    const sum = primaryCopy?.summary?.trim() ?? "";
-    const line = sum.length > 160 ? `${sum.slice(0, 157)}…` : sum || "Fitness behavioral spotlight — dimensional mix from your latest assessment.";
-    const label = personaLabel(primaryPersona);
+    const personaTitle = attempt?.scores?.persona?.personaTitle;
+    const fitScore = attempt?.scores?.persona?.fitScore;
+    const primaryKey = attempt?.scores?.archetypeKey;
+    const animal = personaAnimal(primaryKey);
+    const label = personaLabel(primaryKey);
+
+    const tagline =
+      fitScore != null
+        ? `${Math.round(fitScore)}% persona fit · wellness intelligence`
+        : "Wellness intelligence snapshot";
+
     return {
-      archetypeLabel: label,
-      line,
-      dimensions: dimensionRows.slice(0, 6).map((d) => ({ label: d.label, pct: d.pct })),
-      hashtags: ["Pausible", `Paus${archetypeHashtagSlug(label)}`, "FitnessMind"],
-      siteSlug: `${posterHostSlug} · spotlight`,
+      archetypeLabel: personaTitle ?? label,
+      personaTitle: personaTitle ?? null,
+      fitScore: fitScore ?? null,
+      animalEmoji: animal?.emoji ?? null,
+      animalImagePath: animal?.imagePath ?? null,
+      line: tagline,
+      dimensions: dimensionRows.slice(0, 5).map((d) => ({ label: d.label, pct: d.pct })),
+      hashtags: ["Pausible", `Paus${archetypeHashtagSlug(label)}`, "WellnessReport"],
+      siteSlug: posterHostSlug,
     };
-  }, [primaryCopy, primaryPersona, dimensionRows, posterHostSlug]);
+  }, [attempt, dimensionRows, posterHostSlug]);
+
   const shareUrl = useMemo(() => {
     if (!attempt?.shareToken || !attempt.isLatestShareEligible || attempt.paymentStatus !== "paid") return null;
     if (typeof window === "undefined") return null;
@@ -269,7 +283,7 @@ export function ResultsClient() {
     );
   }
 
-  if (attempt.paymentStatus !== "paid") {
+  if (requirePayment && attempt.paymentStatus !== "paid") {
     return (
       <div className="min-h-screen bg-white scheme-light text-slate-900">
         <ResultsTopBar />
@@ -301,71 +315,43 @@ export function ResultsClient() {
     );
   }
 
-  if (resultsView === "report" && reportModel) {
+  if (!reportModel) {
     return (
-      <div className="min-h-screen bg-slate-100 scheme-light text-slate-900">
+      <div className="min-h-screen bg-white scheme-light text-slate-900">
         <ResultsTopBar />
-        <PausibleResultsReport
-          model={reportModel}
-          attemptId={attempt.id}
-          onBack={() => setResultsView("summary")}
-        />
+        <div className="p-10 text-center text-sm text-slate-600">Preparing your report…</div>
       </div>
     );
   }
 
-  const secondaryPct =
-    secondaryPersona && attempt?.scores?.persona?.personaPercentages[secondaryPersona as PersonaKey] != null
-      ? attempt.scores.persona.personaPercentages[secondaryPersona as PersonaKey]
-      : null;
-
   return (
-    <div className="min-h-screen bg-linear-to-b from-slate-50 via-white to-sky-50/30 scheme-light text-slate-900">
+    <div className="min-h-screen scheme-light text-slate-900">
       <ResultsTopBar />
-      <div className="mx-auto max-w-6xl px-3 py-5 sm:px-6 sm:py-8">
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="inline-flex rounded-full border border-slate-200 bg-white p-1 shadow-sm">
-            <button type="button" className="rounded-full bg-slate-950 px-4 py-2 text-xs font-semibold text-white">
-              Summary
-            </button>
-            <button
-              type="button"
-              onClick={() => setResultsView("report")}
-              disabled={!reportModel}
-              className="rounded-full px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"
-            >
-              Full report
-            </button>
-          </div>
-          {reportModel ? (
-            <p className="text-xs text-slate-500">Your snapshot · full report exports as PDF</p>
-          ) : null}
-        </div>
-        <ResultsBentoSummary
+      {showFullReport ? (
+        <PausibleResultsReport
+          model={reportModel}
           attempt={attempt}
           attemptId={attemptId}
-          primaryPersona={primaryPersona}
-          personaTitle={attempt?.scores?.persona?.personaTitle}
-          fitScore={attempt?.scores?.persona?.fitScore}
-          fitTier={attempt?.scores?.persona?.fitTier}
-          personaAnalysis={attempt?.scores?.persona ?? null}
-          secondaryPersona={secondaryPersona}
-          secondaryPct={secondaryPct}
-          primaryCopy={primaryCopy}
-          secondaryCopy={secondaryCopy}
-          personaMix={personaMix}
+          personaAnalysis={attempt.scores?.persona ?? null}
+          onBack={() => setShowFullReport(false)}
+          onCopyShare={() => void copyShare()}
+          shareUrl={shareUrl}
+          onActionPlanCached={handleActionPlanCached}
+        />
+      ) : (
+        <ResultsSummaryOverview
+          model={reportModel}
+          attemptId={attemptId}
           dimensionRows={dimensionRows}
           storyPoster={storyPoster}
           shareUrl={shareUrl}
-          history={history}
+          onOpenReport={() => setShowFullReport(true)}
+          onCopyShare={() => void copyShare()}
           hasGoogleIdentity={hasGoogleIdentity}
           user={user}
-          onCopyShare={() => void copyShare()}
-          onOpenReport={() => setResultsView("report")}
-          hasReport={Boolean(reportModel)}
-          onActionPlanCached={handleActionPlanCached}
+          history={history}
         />
-      </div>
+      )}
     </div>
   );
 }

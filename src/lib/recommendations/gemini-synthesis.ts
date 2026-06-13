@@ -29,6 +29,30 @@ const BLEND_RULES: Record<string, string> = {
   strong_influence: "Dedicate substantive content to the blend — show how two sides interact.",
 };
 
+function formatAnswerList(raw: unknown): string | null {
+  if (Array.isArray(raw) && raw.length) return raw.join(", ");
+  if (typeof raw === "string" && raw.trim()) return raw.trim();
+  return null;
+}
+
+function buildGoalsFallbackBody(selection: ActionPlanSelection, input?: BuildProfileInput): string {
+  const goalsRaw = formatAnswerList(input?.answers?.wc_wellness_goals);
+  const barrierRaw = formatAnswerList(input?.answers?.wc_biggest_barrier);
+  const goals = goalsRaw ?? (selection.profile.goals.length ? selection.profile.goals.map((g) => g.replace(/_/g, " ")).join(", ") : null);
+  const barrier = barrierRaw ?? (selection.profile.barriers.length ? selection.profile.barriers.map((b) => b.replace(/_/g, " ")).join(", ") : null);
+
+  if (goals && barrier) {
+    return `This pattern directly touches what you said you want — ${goals} — while your biggest barrier (${barrier.toLowerCase()}) may be partly fueled by the unconscious loop above. Naming it gives you a clearer lever: adjust the pattern, and the goal becomes more reachable.`;
+  }
+  if (goals) {
+    return `This hidden pattern likely intersects with your stated goal: ${goals}. When progress stalls, it may be this background habit — not lack of effort — that needs attention first.`;
+  }
+  if (barrier) {
+    return `Your reported barrier — ${barrier} — often worsens when this unconscious pattern runs unchecked. Addressing the pattern first can loosen the grip that barrier has on your routine.`;
+  }
+  return "This pattern quietly competes with the goals you care about most. When motivation dips, it is often this background loop — not willpower — that deserves your attention first.";
+}
+
 function fallbackSynthesis(selection: ActionPlanSelection, input?: BuildProfileInput): ActionPlanSynthesis {
   const pi = selection.piSeries;
   const persona = input?.scores?.persona;
@@ -108,12 +132,12 @@ function fallbackSynthesis(selection: ActionPlanSelection, input?: BuildProfileI
         : "Your wellness profile reflects a unique combination of habits, motivations, and constraints.",
       quickProfile,
       blindSpots: {
-        heading: "The Pattern You Don't Notice",
-        body: `${pi.blindSpotText}\n\n${pi.patternPredictionText}`.trim(),
+        patternBody: [pi.blindSpotText, pi.patternPredictionText].filter(Boolean).join("\n\n").trim(),
+        goalsBody: buildGoalsFallbackBody(selection, input),
       },
       successBlueprint: {
-        heading: "What Works for You",
-        body: `${pi.successConditionText}\n\n${pi.strengthInsightText}`.trim(),
+        worksBody: pi.successConditionText?.trim() || "Your best results come when structure and recovery are protected together.",
+        advantageBody: pi.strengthInsightText?.trim() || coachNotes.keyStrength,
       },
       traitDeviationNarratives: (persona?.traitDeviations ?? []).slice(0, 2).map(
         (d) =>
@@ -189,8 +213,14 @@ Return valid JSON:
   "reportSections": {
     "personalityNarrative": string (150-200 words),
     "quickProfile": { "wellnessStyle": string, "energyPattern": string, "motivationDriver": string, "riskFactor": string, "bestEnvironment": string, "personaPercentage": number, "archetype": string },
-    "blindSpots": { "heading": string, "body": string },
-    "successBlueprint": { "heading": string, "body": string },
+    "blindSpots": {
+      "patternBody": string (80-100 words — the pattern you don't notice),
+      "goalsBody": string (60-80 words — what this means for user's goals and barriers)
+    },
+    "successBlueprint": {
+      "worksBody": string (80-100 words — what works for you),
+      "advantageBody": string (60-80 words — your natural advantage)
+    },
     "traitDeviationNarratives": string[],
     "opportunities": same as opportunityCards
   }

@@ -1,14 +1,50 @@
 "use client";
 
+import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { BrandLogo } from "@/components/BrandLogo";
+import { fetchAttempt } from "@/lib/data/attempt-service";
 
 const STAGES = [
-  "Analyzing your personality patterns…",
-  "Identifying your blind spots…",
-  "Matching recommendations to your profile…",
-  "Building your personalized action plan…",
+  {
+    label: "Analyzing your personality patterns…",
+    detail: "Mapping your OCEAN traits to your wellness persona fit.",
+    image: "/report-building/report-stage-personality.png",
+    accent: "from-sky-500 to-indigo-500",
+    ring: "ring-sky-200/80",
+    bg: "from-sky-50/90 to-indigo-50/50",
+  },
+  {
+    label: "Identifying your blind spots…",
+    detail: "Surfacing patterns that may slow progress when life gets busy.",
+    image: "/report-building/report-stage-blindspots.png",
+    accent: "from-amber-500 to-orange-500",
+    ring: "ring-amber-200/80",
+    bg: "from-amber-50/90 to-orange-50/40",
+  },
+  {
+    label: "Matching recommendations to your profile…",
+    detail: "Scoring nutrition, movement, sleep, and mental wellness actions for you.",
+    image: "/report-building/report-stage-matching.png",
+    accent: "from-violet-500 to-fuchsia-500",
+    ring: "ring-violet-200/80",
+    bg: "from-violet-50/90 to-fuchsia-50/40",
+  },
+  {
+    label: "Building your personalized action plan…",
+    detail: "Assembling your launchpad, coaching notes, and pillar priorities.",
+    image: "/report-building/report-stage-actionplan.png",
+    accent: "from-emerald-500 to-teal-500",
+    ring: "ring-emerald-200/80",
+    bg: "from-emerald-50/90 to-teal-50/50",
+  },
 ] as const;
+
+const STAGE_MS = 1600;
+const MIN_DISPLAY_MS = STAGES.length * STAGE_MS + 700;
+const MAX_WAIT_MS = 45000;
 
 export function ReportBuildingScreen({
   attemptId,
@@ -19,42 +55,196 @@ export function ReportBuildingScreen({
 }) {
   const router = useRouter();
   const [stageIndex, setStageIndex] = useState(0);
+  const [prefetchError, setPrefetchError] = useState<string | null>(null);
 
   useEffect(() => {
-    const timers = STAGES.map((_, i) =>
-      window.setTimeout(() => setStageIndex(i), i * 1400),
+    let cancelled = false;
+    let navigated = false;
+
+    const stageTimers = STAGES.slice(1).map((_, i) =>
+      window.setTimeout(() => {
+        if (!cancelled) setStageIndex(i + 1);
+      }, (i + 1) * STAGE_MS),
     );
-    const done = window.setTimeout(() => {
+
+    const go = () => {
+      if (cancelled || navigated) return;
+      navigated = true;
       router.replace(nextPath ?? `/results/${encodeURIComponent(attemptId)}`);
-    }, STAGES.length * 1400 + 800);
+    };
+
+    async function prefetchActionPlan() {
+      try {
+        const attempt = await fetchAttempt(attemptId);
+        if (cancelled || !attempt) return;
+
+        const res = await fetch("/api/recommendations/action-plan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            attemptId: attempt.id,
+            answers: attempt.answers,
+            scores: attempt.scores ?? null,
+          }),
+        });
+
+        if (!res.ok) {
+          const json = (await res.json().catch(() => ({}))) as { error?: string };
+          if (!cancelled) setPrefetchError(json.error ?? "Could not pre-build your action plan.");
+        }
+      } catch {
+        if (!cancelled) setPrefetchError("We’ll finish building your plan on the results page.");
+      }
+    }
+
+    const hardTimeout = window.setTimeout(go, MAX_WAIT_MS);
+
+    void (async () => {
+      await Promise.all([prefetchActionPlan(), new Promise((r) => setTimeout(r, MIN_DISPLAY_MS))]);
+      go();
+    })();
+
     return () => {
-      timers.forEach(clearTimeout);
-      clearTimeout(done);
+      cancelled = true;
+      stageTimers.forEach(clearTimeout);
+      clearTimeout(hardTimeout);
     };
   }, [attemptId, nextPath, router]);
 
+  const stage = STAGES[stageIndex];
+  const progressPct = Math.round(((stageIndex + 1) / STAGES.length) * 100);
+
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-950 px-5 text-white scheme-dark">
-      <div className="max-w-md text-center">
-        <div className="mx-auto h-12 w-12 animate-spin rounded-full border-2 border-white/20 border-t-white" />
-        <h1 className="mt-8 text-xl font-bold">Building your wellness report</h1>
-        <ul className="mt-8 space-y-3 text-left text-sm text-white/80">
-          {STAGES.map((label, i) => (
-            <li
-              key={label}
-              className={`flex items-center gap-3 transition-opacity ${i <= stageIndex ? "opacity-100" : "opacity-30"}`}
-            >
-              <span
-                className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-bold ${
-                  i < stageIndex ? "bg-emerald-500" : i === stageIndex ? "bg-white text-slate-950" : "bg-white/10"
-                }`}
-              >
-                {i < stageIndex ? "✓" : i + 1}
-              </span>
-              {label}
-            </li>
-          ))}
-        </ul>
+    <main className="min-h-screen bg-[#f7f8fa] scheme-light">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -left-24 top-0 h-72 w-72 rounded-full bg-sky-200/30 blur-3xl" />
+        <div className="absolute -right-16 top-32 h-80 w-80 rounded-full bg-emerald-200/25 blur-3xl" />
+        <div className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-violet-200/20 blur-3xl" />
+      </div>
+
+      <header className="relative z-10 border-b border-slate-200/70 bg-white/80 backdrop-blur-md">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-5 py-4 sm:px-8">
+          <Link href="/" className="rounded-lg outline-offset-4" aria-label="Pausible home">
+            <BrandLogo heightClass="h-7 sm:h-8" withWordmark wordmarkClassName="text-base sm:text-lg" />
+          </Link>
+          <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+            Step 3 · Report
+          </span>
+        </div>
+      </header>
+
+      <div className="relative z-10 mx-auto flex min-h-[calc(100vh-4.5rem)] max-w-5xl flex-col items-center justify-center px-5 py-10 sm:px-8 sm:py-14">
+        <div className="grid w-full gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:gap-12">
+          <div
+            className={`relative overflow-hidden rounded-[2rem] border border-white/80 bg-linear-to-br ${stage.bg} p-5 shadow-[0_28px_70px_-40px_rgba(15,23,42,0.22)] ring-1 ${stage.ring} sm:p-7`}
+          >
+            <div className="absolute inset-x-0 top-0 h-1 bg-linear-to-r opacity-90 transition-all duration-700 ease-out" style={{ width: `${progressPct}%` }} />
+            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[1.35rem] bg-white/70 shadow-inner">
+              <Image
+                key={stage.image}
+                src={stage.image}
+                alt=""
+                fill
+                priority
+                className="object-cover transition-opacity duration-500"
+                sizes="(max-width: 1024px) 100vw, 520px"
+              />
+            </div>
+            <p className="mt-5 text-center text-xs font-medium text-slate-600 sm:text-sm">{stage.detail}</p>
+          </div>
+
+          <div className="flex flex-col">
+            <div className="mb-6 flex items-center gap-4">
+              <div className="relative h-14 w-14 shrink-0">
+                <svg className="h-14 w-14 -rotate-90" viewBox="0 0 56 56" aria-hidden>
+                  <circle cx="28" cy="28" r="24" fill="none" stroke="#e2e8f0" strokeWidth="4" />
+                  <circle
+                    cx="28"
+                    cy="28"
+                    r="24"
+                    fill="none"
+                    stroke="url(#reportProgress)"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    strokeDasharray={`${(progressPct / 100) * 150.8} 150.8`}
+                    className="transition-all duration-700 ease-out"
+                  />
+                  <defs>
+                    <linearGradient id="reportProgress" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="#10b981" />
+                      <stop offset="100%" stopColor="#0ea5e9" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+                <span className="absolute inset-0 grid place-items-center text-xs font-bold tabular-nums text-slate-800">
+                  {progressPct}%
+                </span>
+              </div>
+              <div>
+                <h1 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
+                  Building your wellness report
+                </h1>
+                <p className="mt-1 text-sm text-slate-600">This usually takes under a minute.</p>
+              </div>
+            </div>
+
+            <ul className="space-y-3">
+              {STAGES.map((item, i) => {
+                const done = i < stageIndex;
+                const active = i === stageIndex;
+                return (
+                  <li
+                    key={item.label}
+                    className={`flex items-start gap-3 rounded-2xl border px-4 py-3.5 transition-all duration-500 ${
+                      active
+                        ? "border-slate-200 bg-white shadow-[0_12px_32px_-24px_rgba(15,23,42,0.18)] ring-1 ring-slate-100"
+                        : done
+                          ? "border-emerald-200/80 bg-emerald-50/50"
+                          : "border-transparent bg-white/40 opacity-50"
+                    }`}
+                  >
+                    <span
+                      className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold transition-colors ${
+                        done
+                          ? "bg-emerald-500 text-white"
+                          : active
+                            ? `bg-linear-to-br ${item.accent} text-white shadow-md`
+                            : "bg-slate-200 text-slate-500"
+                      }`}
+                    >
+                      {done ? "✓" : i + 1}
+                    </span>
+                    <span className="min-w-0">
+                      <span
+                        className={`block text-sm font-semibold leading-snug ${
+                          active ? "text-slate-950" : done ? "text-emerald-900" : "text-slate-600"
+                        }`}
+                      >
+                        {item.label}
+                      </span>
+                      {active ? (
+                        <span className="mt-1 flex items-center gap-2 text-xs text-slate-500">
+                          <span className="inline-flex gap-1">
+                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-emerald-500 [animation-delay:0ms]" />
+                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-emerald-500 [animation-delay:150ms]" />
+                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-emerald-500 [animation-delay:300ms]" />
+                          </span>
+                          In progress
+                        </span>
+                      ) : null}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+
+            {prefetchError ? (
+              <p className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                {prefetchError}
+              </p>
+            ) : null}
+          </div>
+        </div>
       </div>
     </main>
   );

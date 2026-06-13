@@ -7,7 +7,9 @@ import {
   signInWithPopup,
   signInWithRedirect,
   type User,
+  type UserCredential,
 } from "firebase/auth";
+import { enrichUserDemographicsFromGoogle } from "@/lib/firebase/user-demographics";
 
 function firebaseAuthErrorCode(err: unknown): string {
   if (err && typeof err === "object" && "code" in err && typeof (err as { code: unknown }).code === "string") {
@@ -19,12 +21,25 @@ function firebaseAuthErrorCode(err: unknown): string {
 /** `redirect` = browser is leaving for Google/Firebase; do not navigate or claim until return. */
 export type GoogleConnectOutcome = "completed" | "redirect" | "cancelled";
 
+/** Birthday/gender are optional — many Google accounts omit them. Requires People API enabled in GCP. */
+export function createGoogleAuthProvider(): GoogleAuthProvider {
+  const provider = new GoogleAuthProvider();
+  provider.addScope("https://www.googleapis.com/auth/user.birthday.read");
+  provider.addScope("https://www.googleapis.com/auth/user.gender.read");
+  return provider;
+}
+
+async function afterGoogleCredential(user: User, credential: UserCredential | null): Promise<void> {
+  const accessToken = credential ? GoogleAuthProvider.credentialFromResult(credential)?.accessToken : undefined;
+  if (accessToken) await enrichUserDemographicsFromGoogle(user, accessToken);
+}
+
 /**
  * Links Google to the current user (anonymous → same uid, Google attached), or signs in with Google
  * when `currentUser` is null. Handles popup block, credential already used, and user-cancelled popups.
  */
 export async function connectGoogleAccount(auth: Auth, currentUser: User | null): Promise<GoogleConnectOutcome> {
-  const provider = new GoogleAuthProvider();
+  const provider = createGoogleAuthProvider();
 
   const popupLink = () => {
     if (!currentUser) return signInWithPopup(auth, provider);
@@ -37,7 +52,8 @@ export async function connectGoogleAccount(auth: Auth, currentUser: User | null)
   };
 
   try {
-    await popupLink();
+    const result = await popupLink();
+    if (result.user) await afterGoogleCredential(result.user, result);
     return "completed";
   } catch (e: unknown) {
     const code = firebaseAuthErrorCode(e);
@@ -47,12 +63,14 @@ export async function connectGoogleAccount(auth: Auth, currentUser: User | null)
         e as Parameters<typeof GoogleAuthProvider.credentialFromError>[0],
       );
       if (credential) {
-        await signInWithCredential(auth, credential);
+        const result = await signInWithCredential(auth, credential);
+        if (result.user) await afterGoogleCredential(result.user, result);
         return "completed";
       }
       if (!currentUser) throw e;
       try {
-        await signInWithPopup(auth, provider);
+        const result = await signInWithPopup(auth, provider);
+        if (result.user) await afterGoogleCredential(result.user, result);
         return "completed";
       } catch (e2: unknown) {
         const c2 = firebaseAuthErrorCode(e2);
@@ -75,4 +93,10 @@ export async function connectGoogleAccount(auth: Auth, currentUser: User | null)
 
     throw e;
   }
+}
+
+/** Call after `getRedirectResult` when the user returns from Google sign-in. */
+export async function handleGoogleRedirectCredential(credential: UserCredential | null): Promise<void> {
+  if (!credential?.user) return;
+  await afterGoogleCredential(credential.user, credential);
 }

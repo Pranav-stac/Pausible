@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { BrandLogo } from "@/components/BrandLogo";
 import { trackAssessmentComplete } from "@/lib/analytics/track";
 import { fetchAssessment } from "@/lib/data/assessment-service";
@@ -24,32 +24,57 @@ import {
 import type { AssessmentDefinition, AssessmentQuestion, AssessmentSection, AttemptAnswers } from "@/types/models";
 import { assessmentTestToolsAllowed, randomAnswersForDefinition } from "@/lib/testing/random-assessment-fill";
 
-function sectionQuestions(
-  def: AssessmentDefinition,
-  sec: AssessmentSection,
-): AssessmentQuestion[] {
-  return sec.questionIds
-    .map((id) => def.questions[id])
-    .filter((q): q is AssessmentQuestion => Boolean(q));
-}
-
-function isSectionComplete(
-  def: AssessmentDefinition,
-  sec: AssessmentSection,
-  answers: AttemptAnswers,
-): boolean {
-  return sectionQuestions(def, sec).every((q) => {
-    const raw = answers[q.id];
-    if (q.type === "multi") {
-      const arr = Array.isArray(raw) ? raw : [];
-      return arr.length > 0 && arr.length <= (q.maxSelections ?? Infinity);
+function flattenQuestions(def: AssessmentDefinition): AssessmentQuestion[] {
+  const order: AssessmentQuestion[] = [];
+  for (const sec of def.sections) {
+    for (const qid of sec.questionIds) {
+      const q = def.questions[qid];
+      if (q) order.push(q);
     }
-    return coerceAnswer(q, raw) !== null;
-  });
+  }
+  return order;
 }
 
 function allSectionsComplete(def: AssessmentDefinition, answers: AttemptAnswers): boolean {
-  return def.sections.every((sec) => isSectionComplete(def, sec, answers));
+  return def.sections.every((sec) =>
+    sec.questionIds.every((qid) => {
+      const q = def.questions[qid];
+      return q ? coerceAnswer(q, answers[q.id]) !== null : true;
+    }),
+  );
+}
+
+function computeInitialRevealedCount(questions: AssessmentQuestion[], answers: AttemptAnswers): number {
+  for (let i = 0; i < questions.length; i++) {
+    if (coerceAnswer(questions[i], answers[questions[i].id]) === null) {
+      return Math.max(1, i + 1);
+    }
+  }
+  return Math.max(1, questions.length);
+}
+
+function summarizeAnswerSnippet(q: AssessmentQuestion, raw: unknown): string {
+  const coerced = coerceAnswer(q, raw as number | string | string[] | undefined);
+  if (coerced === null) return "";
+  if (q.type === "likert") return `Chosen: ${coerced}`;
+  if (q.type === "single") {
+    const s = String(coerced);
+    return s.length > 48 ? `${s.slice(0, 46)}…` : s;
+  }
+  if (q.type === "multi" && Array.isArray(coerced)) return `${coerced.length} selected`;
+  return "";
+}
+
+function sectionHeaderForQuestion(
+  def: AssessmentDefinition,
+  questionId: string,
+): Pick<AssessmentSection, "title" | "description"> | null {
+  for (const sec of def.sections) {
+    if (sec.questionIds[0] === questionId) {
+      return { title: sec.title, description: sec.description };
+    }
+  }
+  return null;
 }
 
 export function WellnessContextQuestionnaire({
@@ -72,8 +97,10 @@ export function WellnessContextQuestionnaire({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [answers, setAnswers] = useState<AttemptAnswers>({});
-  const [activeSectionIndex, setActiveSectionIndex] = useState(0);
+  const [revealedCount, setRevealedCount] = useState(1);
+  const [expandedPastIndex, setExpandedPastIndex] = useState<number | null>(null);
   const [oceanAnswerCount, setOceanAnswerCount] = useState(0);
+  const questionRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   useEffect(() => {
     queueMicrotask(() => setLocalUid(getOrCreateLocalUid()));
@@ -116,12 +143,41 @@ export function WellnessContextQuestionnaire({
   }, [bootstrapQuestionnaire]);
 
   const attemptUid = effectiveUid ?? localUid;
-  const sections = questionnaire?.sections ?? [];
-  const activeSection = sections[activeSectionIndex];
-  const activeQuestions = useMemo(
-    () => (questionnaire && activeSection ? sectionQuestions(questionnaire, activeSection) : []),
-    [questionnaire, activeSection],
+  const questions = useMemo(() => (questionnaire ? flattenQuestions(questionnaire) : []), [questionnaire]);
+  const total = questions.length;
+
+  const answeredCount = useMemo(
+    () => questions.reduce((n, q) => n + (coerceAnswer(q, answers[q.id]) !== null ? 1 : 0), 0),
+    [questions, answers],
   );
+
+  const progressPct = total ? Math.round((answeredCount / total) * 100) : 0;
+
+  useEffect(() => {
+    queueMicrotask(() => setExpandedPastIndex(null));
+  }, [revealedCount]);
+
+  useLayoutEffect(() => {
+    if (revealedCount < 1 || typeof window === "undefined") return;
+    const idx = revealedCount - 1;
+    let frame2 = 0;
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    const frame1 = window.requestAnimationFrame(() => {
+      frame2 = window.requestAnimationFrame(() => {
+        const el = questionRefs.current[idx];
+        if (el)
+          el.scrollIntoView({
+            behavior: reduceMotion ? "auto" : "smooth",
+            block: "start",
+            inline: "nearest",
+          });
+      });
+    });
+    return () => {
+      window.cancelAnimationFrame(frame1);
+      window.cancelAnimationFrame(frame2);
+    };
+  }, [revealedCount]);
 
   useEffect(() => {
     if (!attemptId || !ready || attemptUid === null || !questionnaire) return;
@@ -194,8 +250,11 @@ export function WellnessContextQuestionnaire({
           });
         }
 
+        const flat = flattenQuestions(questionnaire);
         setOceanAnswerCount(ocean);
         setAnswers(existing);
+        setRevealedCount(computeInitialRevealedCount(flat, existing));
+        setExpandedPastIndex(null);
         if (ocean < 1) {
           setLoadError("Personality inventory answers are missing. Please complete the main assessment first.");
         }
@@ -215,13 +274,29 @@ export function WellnessContextQuestionnaire({
     setAnswers((prev) => ({ ...prev, [qid]: value }));
   }, []);
 
-  const sectionComplete =
-    questionnaire && activeSection ? isSectionComplete(questionnaire, activeSection, answers) : false;
+  const tryRevealNextAfterIndex = useCallback(
+    (answeredIndex: number) => {
+      setRevealedCount((r) => (answeredIndex === r - 1 && r < total ? r + 1 : r));
+    },
+    [total],
+  );
+
+  const scrollToQuestion = useCallback((index: number) => {
+    questionRefs.current[index]?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
+  const scrollToPreviousBlock = useCallback(() => {
+    if (revealedCount < 2) return;
+    scrollToQuestion(Math.max(0, revealedCount - 2));
+  }, [revealedCount, scrollToQuestion]);
+
   const allComplete = useMemo(
     () => (questionnaire ? allSectionsComplete(questionnaire, answers) : false),
     [questionnaire, answers],
   );
-  const isLastSection = activeSectionIndex >= sections.length - 1;
+
+  const canScrollPrev = revealedCount >= 2;
+  const showCompletion = revealedCount >= total;
 
   const handleSubmit = useCallback(async () => {
     if (!allComplete || !attemptUid || !questionnaire) return;
@@ -235,7 +310,7 @@ export function WellnessContextQuestionnaire({
 
       for (const q of Object.values(questionnaire.questions)) {
         if (coerceAnswer(q, merged[q.id]) === null) {
-          throw new Error("Some answers are still incomplete. Please review each section.");
+          throw new Error("Some answers are still incomplete. Please review each question.");
         }
       }
 
@@ -304,17 +379,14 @@ export function WellnessContextQuestionnaire({
     router,
   ]);
 
-  const progressPct = Math.round(
-    ((activeSectionIndex + (sectionComplete ? 1 : 0)) / Math.max(1, sections.length)) * 100,
-  );
-
   const showTestFill = assessmentTestToolsAllowed();
 
   const fillAllRandomTesting = useCallback(() => {
     if (!questionnaire || !attemptUid) return;
     const next = randomAnswersForDefinition(questionnaire);
     setAnswers((prev) => ({ ...prev, ...next }));
-    setActiveSectionIndex(Math.max(0, sections.length - 1));
+    setRevealedCount(total);
+    setExpandedPastIndex(null);
 
     void (async () => {
       try {
@@ -346,9 +418,10 @@ export function WellnessContextQuestionnaire({
         /* ignore */
       }
     })();
-  }, [attemptId, attemptUid, questionnaire, sections.length]);
+  }, [attemptId, attemptUid, questionnaire, total]);
 
   const loading = sessionLoading || !questionnaire;
+  const marginUnderHeader = "scroll-mt-[10.75rem] sm:scroll-mt-[12.5rem]";
 
   if (!ready || attemptUid === null) {
     return (
@@ -389,7 +462,7 @@ export function WellnessContextQuestionnaire({
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-slate-100 via-slate-50 to-emerald-50/40 pb-32">
+    <div className="min-h-screen bg-linear-to-b from-slate-100 via-slate-50 to-emerald-50/40 pb-[10rem] sm:pb-44">
       <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/90 backdrop-blur-md">
         <div className={`${assessmentShellClass} ${assessmentShellPadClass} flex flex-col gap-2 py-3`}>
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -400,7 +473,7 @@ export function WellnessContextQuestionnaire({
               {showTestFill ? (
                 <button
                   type="button"
-                  title="Development / QA only — fills all wellness context sections"
+                  title="Development / QA only — fills all wellness context questions"
                   onClick={fillAllRandomTesting}
                   className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-800 shadow-sm hover:bg-slate-50 sm:text-xs"
                 >
@@ -414,7 +487,7 @@ export function WellnessContextQuestionnaire({
             <h1 className="text-base font-bold text-slate-900 sm:text-lg">{questionnaire.title}</h1>
             <p className="mt-0.5 text-xs text-slate-600 sm:text-sm">
               {oceanAnswerCount > 0
-                ? "Almost done — tell us about your lifestyle so we can personalize your results."
+                ? "Almost done — answer one question at a time. Scroll up anytime to review."
                 : questionnaire.description}
             </p>
           </div>
@@ -423,120 +496,204 @@ export function WellnessContextQuestionnaire({
               {questionnaireError}
             </p>
           ) : null}
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2">
             <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-slate-200/80">
               <div
                 className="h-full rounded-full bg-linear-to-r from-emerald-500 to-teal-600 transition-all"
                 style={{ width: `${progressPct}%` }}
               />
             </div>
-            <span className="shrink-0 text-[11px] font-semibold tabular-nums text-slate-700">
-              Section {activeSectionIndex + 1}/{sections.length}
-            </span>
+            <span className="shrink-0 text-[11px] font-semibold tabular-nums text-slate-700">{progressPct}%</span>
+          </div>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              disabled={!canScrollPrev}
+              onClick={() => scrollToPreviousBlock()}
+              className="min-h-[40px] rounded-full border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-800 shadow-sm hover:border-slate-400 hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-40 sm:text-sm"
+            >
+              ↑ Earlier question
+            </button>
           </div>
         </div>
       </header>
 
-      <main className={`${assessmentShellClass} ${assessmentShellPadClass} py-8 sm:py-10`}>
-        <div className="lg:grid lg:grid-cols-[minmax(11rem,14rem)_minmax(0,1fr)] lg:items-start lg:gap-8 xl:gap-10">
-          <nav
-            className="mb-6 flex flex-wrap gap-2 lg:sticky lg:top-[11.5rem] lg:mb-0 lg:flex-col lg:gap-1.5"
-            aria-label="Questionnaire sections"
-          >
-            {sections.map((sec, i) => {
-              const done = isSectionComplete(questionnaire, sec, answers);
-              const current = i === activeSectionIndex;
+      <main className={`relative z-10 ${assessmentShellClass} ${assessmentShellPadClass} py-8 sm:py-10`}>
+        <div className="flex min-w-0 flex-col gap-3 sm:gap-4">
+          {questions.slice(0, revealedCount).map((q, idx) => {
+            const raw = answers[q.id];
+            const likertVal = q.type === "likert" && typeof raw === "number" ? raw : undefined;
+            const singleVal = q.type === "single" && typeof raw === "string" ? raw : undefined;
+            const multiVal = q.type === "multi" && Array.isArray(raw) ? (raw as string[]) : [];
+            const activeIdx = revealedCount - 1;
+            const isActive = idx === activeIdx;
+            const isPast = idx < activeIdx;
+            const pastAnswered = isPast && coerceAnswer(q, raw) !== null;
+            const snippet = summarizeAnswerSnippet(q, raw);
+            const sectionHeader = questionnaire ? sectionHeaderForQuestion(questionnaire, q.id) : null;
+
+            if (pastAnswered && expandedPastIndex !== idx) {
               return (
-                <button
-                  key={sec.id}
-                  type="button"
-                  onClick={() => setActiveSectionIndex(i)}
-                  className={`rounded-xl border px-3 py-2 text-left text-[10px] font-semibold transition sm:text-xs lg:w-full ${
-                    current
-                      ? "border-emerald-500 bg-emerald-50 text-emerald-900 shadow-sm"
-                      : done
-                        ? "border-emerald-200 bg-white text-emerald-800"
-                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-                  }`}
-                >
-                  {done && !current ? "✓ " : null}
-                  {i + 1}. {sec.title.replace(/^Section \d+ — /, "")}
-                </button>
-              );
-            })}
-          </nav>
-
-          <div className="min-w-0">
-        {activeSection ? (
-          <section className="rounded-3xl border border-slate-200/90 bg-white p-6 shadow-[0_22px_50px_-32px_rgba(15,23,42,0.18)] sm:p-8 lg:p-10">
-            <h2 className="text-lg font-bold tracking-tight text-slate-950 sm:text-xl">{activeSection.title}</h2>
-            {activeSection.description ? (
-              <p className="mt-2 text-sm text-slate-600">{activeSection.description}</p>
-            ) : null}
-
-            <div className="mt-8 flex flex-col gap-10">
-              {activeQuestions.map((q, qi) => (
-                <div key={q.id} className="border-t border-slate-100 pt-8 first:border-t-0 first:pt-0">
-                  <p className="text-[11px] font-semibold text-slate-500">
-                    Question {qi + 1} of {activeQuestions.length} in this section
-                  </p>
-                  <h3 className="mt-2 text-base font-semibold leading-snug text-slate-900 sm:text-lg">{q.prompt}</h3>
-                  {q.caption ? <p className="mt-1 text-xs font-medium text-slate-500">{q.caption}</p> : null}
-
-                  <div className="mt-5 max-w-3xl">
-                    {q.type === "likert" ? (
-                      <StressLikertScale
-                        scaleMin={q.scaleMin ?? 1}
-                        scaleMax={q.scaleMax ?? 7}
-                        minLabel={q.scaleMinLabel ?? "Low"}
-                        maxLabel={q.scaleMaxLabel ?? "High"}
-                        value={typeof answers[q.id] === "number" ? (answers[q.id] as number) : undefined}
-                        onChange={(n) => setAnswer(q.id, n)}
-                      />
-                    ) : null}
-                    {q.type === "single" ? (
-                      <SingleChoice
-                        options={q.options ?? []}
-                        value={typeof answers[q.id] === "string" ? (answers[q.id] as string) : undefined}
-                        onChange={(v) => setAnswer(q.id, v)}
-                      />
-                    ) : null}
-                    {q.type === "multi" ? (
-                      <MultiChoiceLimited
-                        options={q.options ?? []}
-                        maxSelections={q.maxSelections}
-                        value={Array.isArray(answers[q.id]) ? (answers[q.id] as string[]) : []}
-                        onChange={(v) => setAnswer(q.id, v)}
-                      />
-                    ) : null}
+                <div key={q.id}>
+                  {sectionHeader ? (
+                    <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-700/80">
+                      {sectionHeader.title.replace(/^Section \d+ — /, "")}
+                    </p>
+                  ) : null}
+                  <div
+                    ref={(el) => {
+                      questionRefs.current[idx] = el;
+                    }}
+                    className={marginUnderHeader}
+                  >
+                    <button
+                      type="button"
+                      className="flex w-full items-start gap-3 rounded-2xl border border-slate-200/95 bg-white/95 px-4 py-3 text-left shadow-sm ring-1 ring-slate-100/85 transition-colors hover:border-emerald-300/70 hover:bg-white active:bg-emerald-50/40 sm:rounded-3xl sm:py-3.5"
+                      onClick={() => {
+                        setExpandedPastIndex(idx);
+                        window.requestAnimationFrame(() => {
+                          questionRefs.current[idx]?.scrollIntoView({
+                            behavior: "smooth",
+                            block: "start",
+                            inline: "nearest",
+                          });
+                        });
+                      }}
+                    >
+                      <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-800">
+                        ✓
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="text-[11px] font-semibold text-slate-500">
+                          Question {idx + 1} of {total} · Answered
+                        </span>
+                        <p className="mt-1 line-clamp-2 text-sm font-medium leading-snug text-slate-800">{q.prompt}</p>
+                        {snippet ? <p className="mt-1.5 truncate text-xs text-slate-500">{snippet}</p> : null}
+                        <p className="mt-2 text-[11px] font-semibold text-emerald-700">Tap to change answer</p>
+                      </span>
+                    </button>
                   </div>
                 </div>
-              ))}
-            </div>
-          </section>
-        ) : null}
+              );
+            }
 
-        {submitError ? (
-          <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-center text-xs text-red-800">
-            {submitError}
-          </p>
-        ) : null}
-          </div>
+            return (
+              <div key={q.id}>
+                {sectionHeader ? (
+                  <div className={`mb-3 ${idx === 0 ? "" : "mt-2"}`}>
+                    <h2 className="text-sm font-bold tracking-tight text-slate-900 sm:text-base">{sectionHeader.title}</h2>
+                    {sectionHeader.description ? (
+                      <p className="mt-1 text-xs text-slate-600 sm:text-sm">{sectionHeader.description}</p>
+                    ) : null}
+                  </div>
+                ) : null}
+                <div
+                  ref={(el) => {
+                    questionRefs.current[idx] = el;
+                  }}
+                  className={marginUnderHeader}
+                >
+                  <article
+                    className={`rounded-3xl border bg-white p-5 shadow-[0_22px_50px_-32px_rgba(15,23,42,0.18)] sm:p-8 ${
+                      isActive
+                        ? "border-emerald-300/80 ring-2 ring-emerald-400/45 ring-offset-2 ring-offset-slate-50"
+                        : "border-slate-200/80"
+                    }`}
+                  >
+                    {isPast && expandedPastIndex === idx ? (
+                      <div className="-mt-1 mb-4 flex justify-end">
+                        <button
+                          type="button"
+                          className="text-[11px] font-semibold text-emerald-700 underline decoration-emerald-300 underline-offset-2 hover:text-teal-800"
+                          onClick={() => setExpandedPastIndex(null)}
+                        >
+                          Collapse summary
+                        </button>
+                      </div>
+                    ) : null}
+                    <p className="mb-3 text-[11px] font-semibold tabular-nums tracking-wide text-slate-500 sm:text-xs">
+                      Question {idx + 1} of {total}
+                      {isActive ? <span className="ml-2 font-bold text-emerald-700">· Current</span> : null}
+                    </p>
+                    <h3 className="text-lg font-bold leading-snug tracking-tight text-slate-950 sm:text-xl">{q.prompt}</h3>
+                    {q.caption ? <p className="mt-2 text-xs font-medium text-slate-500">{q.caption}</p> : null}
+
+                    <div className="mt-7 max-w-3xl">
+                      {q.type === "likert" ? (
+                        <StressLikertScale
+                          scaleMin={q.scaleMin ?? 1}
+                          scaleMax={q.scaleMax ?? 7}
+                          minLabel={q.scaleMinLabel ?? "Low"}
+                          maxLabel={q.scaleMaxLabel ?? "High"}
+                          value={likertVal}
+                          onChange={(n) => {
+                            setAnswer(q.id, n);
+                            if (idx === activeIdx) tryRevealNextAfterIndex(idx);
+                          }}
+                        />
+                      ) : null}
+                      {q.type === "single" ? (
+                        <SingleChoice
+                          options={q.options ?? []}
+                          value={singleVal}
+                          onChange={(v) => {
+                            setAnswer(q.id, v);
+                            if (idx === activeIdx) tryRevealNextAfterIndex(idx);
+                          }}
+                        />
+                      ) : null}
+                      {q.type === "multi" ? (
+                        <MultiChoiceAdvance
+                          options={q.options ?? []}
+                          maxSelections={q.maxSelections}
+                          value={multiVal}
+                          onAnswersChange={(v) => setAnswer(q.id, v)}
+                          onContinue={(selected) => {
+                            if (!selected.length) return;
+                            if (coerceAnswer(q, selected) === null) return;
+                            if (idx === activeIdx) tryRevealNextAfterIndex(idx);
+                          }}
+                        />
+                      ) : null}
+                    </div>
+                  </article>
+                </div>
+              </div>
+            );
+          })}
+
+          {!showCompletion && revealedCount < total
+            ? questions.slice(revealedCount, Math.min(revealedCount + 2, total)).map((q, k) => {
+                const qi = revealedCount + k;
+                return <UpcomingQuestionPreview key={q.id} q={q} qNum={qi + 1} total={total} />;
+              })
+            : null}
+
+          {showCompletion ? (
+            <div className="rounded-3xl border border-slate-200/80 bg-white p-8 text-center shadow-[0_18px_48px_-32px_rgba(15,23,42,0.14)]">
+              <p className="text-lg font-semibold text-slate-900">You&apos;ve reached the end</p>
+              <p className="mt-2 text-sm text-slate-600">
+                {allComplete
+                  ? "Tap answered rows above if you want to change anything, then submit when you're ready."
+                  : "Some answers still look incomplete."}
+              </p>
+            </div>
+          ) : null}
+
+          {submitError ? (
+            <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-center text-xs text-red-800">
+              {submitError}
+            </p>
+          ) : null}
         </div>
       </main>
 
       <footer className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200/75 bg-white/95 px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-10px_36px_-24px_rgba(15,23,42,0.12)] backdrop-blur-md">
-        <div className={`${assessmentShellClass} ${assessmentShellPadClass} flex flex-wrap items-center justify-between gap-3`}>
-          <button
-            type="button"
-            disabled={activeSectionIndex === 0}
-            onClick={() => setActiveSectionIndex((i) => Math.max(0, i - 1))}
-            className="rounded-full border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 disabled:opacity-40"
-          >
-            Previous section
-          </button>
-
-          {isLastSection ? (
+        <div className={`${assessmentShellClass} ${assessmentShellPadClass} flex flex-col gap-2`}>
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <p className="text-[11px] font-medium text-slate-700">
+              {answeredCount}/{total} answered
+            </p>
             <button
               type="button"
               disabled={!allComplete || submitting}
@@ -549,18 +706,33 @@ export function WellnessContextQuestionnaire({
                   ? "Submit & continue to checkout"
                   : "Submit & unlock results"}
             </button>
-          ) : (
-            <button
-              type="button"
-              disabled={!sectionComplete}
-              onClick={() => setActiveSectionIndex((i) => Math.min(sections.length - 1, i + 1))}
-              className="rounded-full bg-emerald-700 px-6 py-3 text-sm font-semibold text-white shadow-md disabled:opacity-40"
-            >
-              Next section
-            </button>
-          )}
+          </div>
         </div>
       </footer>
+    </div>
+  );
+}
+
+function UpcomingQuestionPreview({ q, qNum, total }: { q: AssessmentQuestion; qNum: number; total: number }) {
+  return (
+    <div
+      className="pointer-events-none select-none rounded-3xl border border-dashed border-slate-300/90 bg-white/72 p-5 shadow-inner shadow-slate-200/30 saturate-[0.9] sm:p-7"
+      aria-hidden
+    >
+      <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">Preview · up next</p>
+      <p className="mt-2 text-[11px] font-semibold tabular-nums tracking-wide text-slate-400 sm:text-xs">
+        Question {qNum} of {total}
+      </p>
+      <h3 className="mt-3 text-sm font-semibold leading-snug text-slate-500 sm:text-[0.95rem]">{q.prompt}</h3>
+      {q.type === "likert" ? (
+        <p className="mt-6 text-xs leading-relaxed text-slate-400">Choose a number once you reach this step.</p>
+      ) : null}
+      {q.type === "single" ? (
+        <p className="mt-6 text-xs leading-relaxed text-slate-400">Tap an option once you reach this step.</p>
+      ) : null}
+      {q.type === "multi" ? (
+        <p className="mt-6 text-xs leading-relaxed text-slate-400">Select options once you unlock this prompt.</p>
+      ) : null}
     </div>
   );
 }
@@ -652,28 +824,32 @@ function SingleChoice({
   );
 }
 
-function MultiChoiceLimited({
+function MultiChoiceAdvance({
   options,
   value,
   maxSelections,
-  onChange,
+  onAnswersChange,
+  onContinue,
 }: {
   options: string[];
   value: string[];
   maxSelections?: number;
-  onChange: (v: string[]) => void;
+  onAnswersChange: (v: string[]) => void;
+  onContinue: (selected: string[]) => void;
 }) {
   const cap = maxSelections ?? options.length;
   const atCap = value.length >= cap;
 
   const toggle = (opt: string) => {
     if (value.includes(opt)) {
-      onChange(value.filter((x) => x !== opt));
+      onAnswersChange(value.filter((x) => x !== opt));
       return;
     }
     if (atCap) return;
-    onChange([...value, opt]);
+    onAnswersChange([...value, opt]);
   };
+
+  const canContinue = value.length > 0;
 
   return (
     <div className="space-y-2">
@@ -704,6 +880,15 @@ function MultiChoiceLimited({
           </button>
         );
       })}
+      <p className="text-xs text-slate-500">Select any that apply, then continue.</p>
+      <button
+        type="button"
+        disabled={!canContinue}
+        onClick={() => onContinue(value)}
+        className="mt-2 w-full rounded-full bg-emerald-700 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
+      >
+        Continue
+      </button>
     </div>
   );
 }

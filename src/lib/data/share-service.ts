@@ -5,7 +5,7 @@ import { getFirebaseAuth, getFirebaseDb } from "@/lib/firebase/client";
 import { isFirebaseConfigured } from "@/lib/firebase/config";
 import type { AssessmentDefinition } from "@/types/models";
 import type { SerializedAttempt } from "@/lib/local/attempts";
-import { personaCopy, personaLabel } from "@/lib/results/persona-display";
+import { personaAnimal, personaCopy, personaLabel } from "@/lib/results/persona-display";
 import { dimensionRowsForAttempt } from "@/lib/results/dimension-rows";
 import { localRegisterShareToken } from "@/lib/local/attempts";
 
@@ -19,6 +19,9 @@ export type ShareSnapshot = {
   assessmentTitle: string;
   archetypeKey?: string;
   archetypeLabel: string;
+  personaTitle?: string;
+  fitScore?: number;
+  animalEmoji?: string;
   secondaryArchetypeKey?: string;
   secondaryArchetypeLabel?: string;
   summary: string;
@@ -35,7 +38,10 @@ export async function publishShareSnapshot(
   const primaryLabel = personaLabel(attempt.scores?.archetypeKey);
   const secondaryLabel = personaLabel(attempt.scores?.secondaryArchetypeKey);
 
-  const dimensionBars = dimensionRowsForAttempt(assessment, attempt).slice(0, 6);
+  const dimensionBars = dimensionRowsForAttempt(assessment, attempt).slice(0, 5);
+  const persona = attempt.scores?.persona;
+  const animal = personaAnimal(attempt.scores?.archetypeKey);
+  const fitScore = persona?.fitScore;
 
   const payload: ShareSnapshot = {
     token,
@@ -45,13 +51,18 @@ export async function publishShareSnapshot(
     assessmentTitle: assessment.title,
     archetypeKey: attempt.scores?.archetypeKey,
     archetypeLabel: primaryLabel,
+    personaTitle: persona?.personaTitle ?? undefined,
+    fitScore: fitScore != null ? Math.round(fitScore) : undefined,
+    animalEmoji: animal?.emoji ?? undefined,
     secondaryArchetypeKey: attempt.scores?.secondaryArchetypeKey,
     secondaryArchetypeLabel: secondaryLabel,
     summary:
-      arch?.summary ??
-      (attempt.scores?.secondaryArchetypeKey
-        ? `Primary: ${primaryLabel} · Secondary: ${secondaryLabel}`
-        : "Your latest Pausible behavioral snapshot."),
+      fitScore != null
+        ? `${Math.round(fitScore)}% persona fit · wellness intelligence snapshot`
+        : arch?.summary ??
+          (attempt.scores?.secondaryArchetypeKey
+            ? `Primary: ${primaryLabel} · Secondary: ${secondaryLabel}`
+            : "Your latest Pausible wellness snapshot."),
     bullets: arch?.bullets ?? [],
     ...(dimensionBars.length ? { dimensionBars } : {}),
   };

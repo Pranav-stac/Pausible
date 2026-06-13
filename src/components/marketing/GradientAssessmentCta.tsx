@@ -22,9 +22,9 @@ export function GradientAssessmentCta({
         </span>
       </span>
       <div className="min-w-0 flex-1">
-        <div className="text-base font-semibold sm:text-lg">Start the guided assessment</div>
+        <div className="text-base font-semibold sm:text-lg">Get started</div>
         <p className="mt-1 text-[11px] leading-snug text-white/85 sm:text-sm">
-          Structured checkpoints · Instant scoring draft · Pay to unlock full deck
+          Quick setup · Personality profile · Personalized wellness report
         </p>
       </div>
     </TrackedAssessmentLink>

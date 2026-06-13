@@ -271,9 +271,9 @@ export function ResultsStoryPosterSection({
       {/* Header */}
       <div className="border-b border-slate-100 bg-linear-to-r from-sky-50/80 via-white to-violet-50/50 px-4 py-5 sm:px-7 sm:py-6">
         <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-sky-700">Stories &amp; status</p>
-        <h2 className="mt-2 text-xl font-black tracking-tight text-slate-950 sm:text-2xl">Share your snapshot</h2>
+        <h2 className="mt-2 text-xl font-black tracking-tight text-slate-950 sm:text-2xl">Share your wellness snapshot</h2>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">
-          Your name and photo appear top-left on the card. Export matches the preview — light, story-ready, 1080×1920.
+          Visual card with your persona, fit score, and trait footprint — export as 1080×1920 for Stories or WhatsApp Status.
         </p>
       </div>
 
