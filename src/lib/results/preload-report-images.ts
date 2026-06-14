@@ -1,11 +1,11 @@
-import { PERSONA_DISPLAY } from "@/lib/scoring/persona-defaults";
 import type { ResultsReportModel } from "@/lib/results/build-results-report";
+import { personaAnimal } from "@/lib/results/persona-display";
 
 export function collectReportImageUrls(model: ResultsReportModel): string[] {
   const urls = new Set<string>();
   if (model.animalImagePath) urls.add(model.animalImagePath);
   if (model.secondaryKey) {
-    const path = PERSONA_DISPLAY[model.secondaryKey]?.imagePath;
+    const path = personaAnimal(model.secondaryKey)?.imagePath;
     if (path) urls.add(path);
   }
   return [...urls];
