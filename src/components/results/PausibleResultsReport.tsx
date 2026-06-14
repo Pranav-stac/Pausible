@@ -8,7 +8,7 @@ import { downloadReportAsPdf } from "@/lib/results/download-report-pdf";
 import { resolveBlindSpotColumns, resolveSuccessBlueprintColumns } from "@/lib/results/resolve-report-sections";
 import { PERSONA_DISPLAY } from "@/lib/scoring/persona-defaults";
 import type { ActionPlanApiResponse } from "@/lib/recommendations/client-types";
-import { buildStoredActionPlanCache, type StoredActionPlanCache } from "@/lib/recommendations/action-plan-cache";
+import { buildStoredActionPlanCache, hashActionPlanInputs, type StoredActionPlanCache } from "@/lib/recommendations/action-plan-cache";
 import type { PillarName } from "@/lib/recommendations/types";
 import type { PersonaAnalysis } from "@/lib/scoring/persona-types";
 import type { SerializedAttempt } from "@/lib/local/attempts";
@@ -80,6 +80,7 @@ export function PausibleResultsReport({
   forceRegenerate = false,
 }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const loadedSigRef = useRef<string | null>(null);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfErr, setPdfErr] = useState<string | null>(null);
 
@@ -90,20 +91,27 @@ export function PausibleResultsReport({
   );
   const [planLoading, setPlanLoading] = useState(!initialCache);
   const [planError, setPlanError] = useState<string | null>(null);
-  const [assetsReady, setAssetsReady] = useState(false);
+  const [assetsReady, setAssetsReady] = useState(
+    () => Boolean(initialCache) && collectReportImageUrls(model).length === 0,
+  );
 
   const refId = reportAttemptRef(attemptId);
   const reportReady = !planLoading && !!planData && assetsReady;
   const sections = planData?.plan.synthesis.reportSections;
   const synthesis = planData?.plan.synthesis;
 
+  const loadSig = `${attempt.id}|${forceRegenerate}|${hashActionPlanInputs(attempt.answers, attempt.scores ?? null)}`;
+
   useEffect(() => {
     if (!forceRegenerate && attempt.actionPlanCache?.plan) {
       setPlanData(responseFromCache(attempt.actionPlanCache));
       setPlanLoading(false);
       setPlanError(null);
+      loadedSigRef.current = loadSig;
       return;
     }
+
+    if (loadedSigRef.current === loadSig) return;
 
     let cancelled = false;
 
@@ -133,6 +141,7 @@ export function PausibleResultsReport({
           throw new Error(json.error ?? `Request failed (${res.status})`);
         }
         if (cancelled) return;
+        loadedSigRef.current = loadSig;
         setPlanData({ plan: json.plan });
         if (json.inputHash) {
           const cache = buildStoredActionPlanCache(json.inputHash, json.plan);
@@ -150,7 +159,7 @@ export function PausibleResultsReport({
     return () => {
       cancelled = true;
     };
-  }, [attempt.actionPlanCache, attempt.answers, attempt.id, attempt.scores, forceRegenerate, onActionPlanCached]);
+  }, [attempt.actionPlanCache, attempt.answers, attempt.id, attempt.scores, forceRegenerate, loadSig, onActionPlanCached]);
 
   useEffect(() => {
     if (planLoading || !planData) {

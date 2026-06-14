@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ActionPlanApiResponse } from "@/lib/recommendations/client-types";
 import { formatPillarDoLine, formatPillarDontLine } from "@/lib/recommendations/pillar-display";
-import { buildStoredActionPlanCache, type StoredActionPlanCache } from "@/lib/recommendations/action-plan-cache";
+import { buildStoredActionPlanCache, hashActionPlanInputs, type StoredActionPlanCache } from "@/lib/recommendations/action-plan-cache";
 import type { PillarName } from "@/lib/recommendations/types";
 import { patchAttempt } from "@/lib/data/attempt-service";
 import type { SerializedAttempt } from "@/lib/local/attempts";
@@ -47,14 +47,20 @@ export function WellnessActionPlan({
   );
   const [loading, setLoading] = useState(!initialCache);
   const [error, setError] = useState<string | null>(null);
+  const loadedSigRef = useRef<string | null>(null);
+
+  const loadSig = `${attempt.id}|${forceRegenerate}|${hashActionPlanInputs(attempt.answers, attempt.scores ?? null)}`;
 
   useEffect(() => {
     if (!forceRegenerate && attempt.actionPlanCache?.plan) {
       setData(responseFromCache(attempt.actionPlanCache));
       setLoading(false);
       setError(null);
+      loadedSigRef.current = loadSig;
       return;
     }
+
+    if (loadedSigRef.current === loadSig) return;
 
     let cancelled = false;
 
@@ -88,6 +94,7 @@ export function WellnessActionPlan({
         }
         if (cancelled) return;
 
+        loadedSigRef.current = loadSig;
         setData({ plan: json.plan });
 
         if (json.inputHash) {
@@ -106,7 +113,7 @@ export function WellnessActionPlan({
     return () => {
       cancelled = true;
     };
-  }, [attempt.actionPlanCache, attempt.answers, attempt.id, attempt.scores, forceRegenerate, onActionPlanCached]);
+  }, [attempt.actionPlanCache, attempt.answers, attempt.id, attempt.scores, forceRegenerate, loadSig, onActionPlanCached]);
 
   if (loading) {
     return (
