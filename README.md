@@ -12,7 +12,7 @@ Next.js (App Router) + Firebase (Auth / Firestore) + Stripe, Razorpay, and PayPa
 
 ## Firebase
 
-- Rules: [`firebase/firestore.rules`](./firebase/firestore.rules)
+- Rules: [`firebase/firestore.rules`](./firebase/firestore.rules)BD
 - Indexes: [`firebase/firestore.indexes.json`](./firebase/firestore.indexes.json)
 - Deploy rules: `firebase deploy --only firestore` (from project root with Firebase CLI configured)
 
