@@ -1,3 +1,5 @@
+import type { ScoringConfigDoc } from "@/lib/admin/platform-config-types";
+import { DEFAULT_SCORING_CONFIG } from "@/lib/admin/platform-config-defaults";
 import { PERSONA_ANIMAL } from "@/lib/scoring/persona-defaults";
 import type {
   BlendStrength,
@@ -10,6 +12,17 @@ import type {
 import { PERSONA_KEYS, TRAIT_KEYS } from "@/lib/scoring/persona-types";
 
 export type { BlendStrength, FitTier, TraitDeviation };
+
+export type ScoringFormulaBands = Pick<
+  ScoringConfigDoc,
+  "fitTierBands" | "blendRatioBands" | "traitDeviationThreshold"
+>;
+
+const DEFAULT_BANDS: ScoringFormulaBands = {
+  fitTierBands: DEFAULT_SCORING_CONFIG.fitTierBands,
+  blendRatioBands: DEFAULT_SCORING_CONFIG.blendRatioBands,
+  traitDeviationThreshold: DEFAULT_SCORING_CONFIG.traitDeviationThreshold,
+};
 
 function euclideanDistance(
   a: Record<TraitKey, number>,
@@ -42,10 +55,10 @@ export function computeFitScore(primaryDistance: number, maxInterCentroidDistanc
   return Math.min(100, Math.max(0, raw));
 }
 
-export function computeFitTier(fitScore: number): FitTier {
-  if (fitScore >= 75) return "classic";
-  if (fitScore >= 50) return "core";
-  if (fitScore >= 25) return "adaptive";
+export function computeFitTier(fitScore: number, bands = DEFAULT_BANDS.fitTierBands): FitTier {
+  if (fitScore >= bands.classic) return "classic";
+  if (fitScore >= bands.core) return "core";
+  if (fitScore >= bands.adaptive) return "adaptive";
   return "emerging";
 }
 
@@ -65,9 +78,9 @@ export function computeBlendRatio(primaryDistance: number, secondaryDistance: nu
   return secondaryDistance / primaryDistance;
 }
 
-export function computeBlendStrength(blendRatio: number): BlendStrength {
-  if (blendRatio > 2.0) return "pure";
-  if (blendRatio >= 1.3) return "tendencies";
+export function computeBlendStrength(blendRatio: number, bands = DEFAULT_BANDS.blendRatioBands): BlendStrength {
+  if (blendRatio > bands.pure) return "pure";
+  if (blendRatio >= bands.tendencies) return "tendencies";
   return "strong_influence";
 }
 
@@ -115,7 +128,7 @@ export function topTwoPersonasByDistance(
 export function computeTraitDeviations(
   traitAverages: Record<TraitKey, number>,
   centroid: Record<TraitKey, number>,
-  threshold = 0.8,
+  threshold = DEFAULT_BANDS.traitDeviationThreshold,
 ): TraitDeviation[] {
   const out: TraitDeviation[] = [];
   for (const trait of TRAIT_KEYS) {

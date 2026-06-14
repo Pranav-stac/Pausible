@@ -1,14 +1,47 @@
 "use client";
 
-const nav: { id: string; label: string; sub?: string }[] = [
-  { id: "overview", label: "Overview", sub: "KPIs & trends" },
-  { id: "attempts", label: "Attempts", sub: "Funnel detail" },
-  { id: "assessments", label: "Assessments", sub: "Visual + JSON" },
-  { id: "users", label: "Users", sub: "Roles & activity" },
-  { id: "analytics", label: "Analytics", sub: "Visitors & events" },
-  { id: "personas", label: "Personas", sub: "Centroids & alpha" },
-  { id: "settings", label: "Settings", sub: "Billing & export" },
+type NavItem = { id: string; label: string; sub?: string };
+
+const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
+  {
+    title: "Operations",
+    items: [
+      { id: "overview", label: "Overview", sub: "KPIs & trends" },
+      { id: "attempts", label: "Attempts", sub: "Funnel detail" },
+      { id: "users", label: "Users", sub: "Roles & activity" },
+      { id: "analytics", label: "Analytics", sub: "Visitors & events" },
+    ],
+  },
+  {
+    title: "Questions",
+    items: [{ id: "assessments", label: "Assessments", sub: "OCEAN + wellness" }],
+  },
+  {
+    title: "Scoring & formulas",
+    items: [
+      { id: "scoring", label: "Fit & blend bands", sub: "Likert, tiers, OCEAN tags" },
+      { id: "persona-centroids", label: "Persona centroids", sub: "Benchmark table & alpha" },
+    ],
+  },
+  {
+    title: "Personas",
+    items: [{ id: "persona-catalog", label: "Persona catalog", sub: "Names, copy, animals" }],
+  },
+  {
+    title: "Recommendations",
+    items: [{ id: "recommendations", label: "PI engine", sub: "Rows, tags, rules" }],
+  },
+  {
+    title: "Reports",
+    items: [{ id: "reports", label: "Report templates", sub: "Slides & Gemini tone" }],
+  },
+  {
+    title: "Settings",
+    items: [{ id: "settings", label: "Billing & export", sub: "Price, payments, CSV" }],
+  },
 ];
+
+export type AdminTabId = NavItem["id"];
 
 export function AdminSidebar({
   tab,
@@ -18,13 +51,12 @@ export function AdminSidebar({
   onLogout,
 }: {
   tab: string;
-  onTab: (t: (typeof nav)[number]["id"]) => void;
+  onTab: (t: AdminTabId) => void;
   onExportMenu: () => void;
-  /** Close mobile drawer after picking a section */
   onAfterNavigate?: () => void;
   onLogout: () => void;
 }) {
-  const navigate = (id: (typeof nav)[number]["id"]) => {
+  const navigate = (id: AdminTabId) => {
     onTab(id);
     onAfterNavigate?.();
   };
@@ -36,23 +68,32 @@ export function AdminSidebar({
         <div className="mt-1 text-lg font-semibold tracking-tight text-slate-950">Pausible</div>
         <p className="mt-1 text-[11px] leading-snug text-slate-500">Operations & content</p>
       </div>
-      <nav className="flex-1 space-y-0.5 overflow-y-auto p-2">
-        {nav.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => navigate(item.id as (typeof nav)[number]["id"])}
-            className={`flex w-full flex-col rounded-xl px-3 py-2.5 text-left text-sm transition ${
-              tab === item.id
-                ? "border border-sky-200 bg-sky-50 font-medium text-sky-950"
-                : "border border-transparent text-slate-700 hover:border-slate-200 hover:bg-slate-50"
-            }`}
-          >
-            <span className="font-semibold">{item.label}</span>
-            {item.sub ? <span className="text-[10px] text-slate-500">{item.sub}</span> : null}
-          </button>
+      <nav className="flex-1 space-y-4 overflow-y-auto p-2">
+        {NAV_SECTIONS.map((section) => (
+          <div key={section.title}>
+            <div className="px-3 pb-1 text-[9px] font-bold uppercase tracking-[0.15em] text-slate-400">
+              {section.title}
+            </div>
+            <div className="space-y-0.5">
+              {section.items.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => navigate(item.id)}
+                  className={`flex w-full flex-col rounded-xl px-3 py-2.5 text-left text-sm transition ${
+                    tab === item.id
+                      ? "border border-sky-200 bg-sky-50 font-medium text-sky-950"
+                      : "border border-transparent text-slate-700 hover:border-slate-200 hover:bg-slate-50"
+                  }`}
+                >
+                  <span className="font-semibold">{item.label}</span>
+                  {item.sub ? <span className="text-[10px] text-slate-500">{item.sub}</span> : null}
+                </button>
+              ))}
+            </div>
+          </div>
         ))}
-        <div className="my-3 border-t border-slate-100" />
+        <div className="my-1 border-t border-slate-100" />
         <button
           type="button"
           onClick={() => {

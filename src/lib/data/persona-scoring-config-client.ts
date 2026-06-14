@@ -13,6 +13,7 @@ export async function fetchPersonaScoringConfig(): Promise<PersonaScoringConfig>
     const config: PersonaScoringConfig = {
       centroids: j.centroids ?? DEFAULT_PERSONA_CENTROIDS,
       alpha: typeof j.alpha === "number" && j.alpha > 0 ? j.alpha : DEFAULT_PERSONA_ALPHA,
+      formulaBands: j.formulaBands,
     };
     cache = { config, at: Date.now() };
     return config;

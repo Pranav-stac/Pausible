@@ -80,7 +80,10 @@ export type PersonaAnalysis = {
   computedAt: string;
 };
 
+import type { ScoringFormulaBands } from "@/lib/scoring/persona-fit";
+
 export type PersonaScoringConfig = {
   centroids: PersonaCentroidTable;
   alpha: number;
+  formulaBands?: ScoringFormulaBands;
 };

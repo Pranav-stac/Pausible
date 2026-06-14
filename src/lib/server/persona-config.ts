@@ -4,6 +4,7 @@ import type { PersonaCentroidTable, PersonaScoringConfig } from "@/lib/scoring/p
 import { PERSONA_KEYS, TRAIT_KEYS } from "@/lib/scoring/persona-types";
 import type { AppSettingsDoc } from "@/types/models";
 import { getAdminFirestore } from "@/lib/firebase/server";
+import { loadScoringConfigAdmin } from "@/lib/server/platform-config";
 
 const CENTROIDS_DOC = "persona_centroids/default";
 
@@ -33,12 +34,22 @@ export function effectivePersonaAlpha(settings: AppSettingsDoc | null | undefine
 export async function loadPersonaScoringConfigAdmin(): Promise<PersonaScoringConfig> {
   const db = getAdminFirestore();
   if (!db) {
-    return { centroids: DEFAULT_PERSONA_CENTROIDS, alpha: DEFAULT_PERSONA_ALPHA };
+    const scoring = await loadScoringConfigAdmin();
+    return {
+      centroids: DEFAULT_PERSONA_CENTROIDS,
+      alpha: DEFAULT_PERSONA_ALPHA,
+      formulaBands: {
+        fitTierBands: scoring.fitTierBands,
+        blendRatioBands: scoring.blendRatioBands,
+        traitDeviationThreshold: scoring.traitDeviationThreshold,
+      },
+    };
   }
 
-  const [centroidsSnap, settingsSnap] = await Promise.all([
+  const [centroidsSnap, settingsSnap, scoring] = await Promise.all([
     db.doc(CENTROIDS_DOC).get(),
     db.doc("app_settings/global").get(),
+    loadScoringConfigAdmin(),
   ]);
 
   const partial = centroidsSnap.exists
@@ -49,6 +60,11 @@ export async function loadPersonaScoringConfigAdmin(): Promise<PersonaScoringCon
   return {
     centroids: mergeCentroidsFromFirestore(partial),
     alpha: effectivePersonaAlpha(settings),
+    formulaBands: {
+      fitTierBands: scoring.fitTierBands,
+      blendRatioBands: scoring.blendRatioBands,
+      traitDeviationThreshold: scoring.traitDeviationThreshold,
+    },
   };
 }
 

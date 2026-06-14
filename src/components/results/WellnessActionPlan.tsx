@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { ActionPlanApiResponse } from "@/lib/recommendations/client-types";
-import type { StoredActionPlanCache } from "@/lib/recommendations/action-plan-cache";
+import { buildStoredActionPlanCache, type StoredActionPlanCache } from "@/lib/recommendations/action-plan-cache";
 import type { PillarName } from "@/lib/recommendations/types";
 import { patchAttempt } from "@/lib/data/attempt-service";
 import type { SerializedAttempt } from "@/lib/local/attempts";
@@ -82,11 +82,7 @@ export function WellnessActionPlan({ attempt, accent = "#0284c7", onActionPlanCa
         setData({ plan: json.plan });
 
         if (json.inputHash) {
-          const cache: StoredActionPlanCache = {
-            inputHash: json.inputHash,
-            plan: json.plan,
-            synthesizedAt: new Date().toISOString(),
-          };
+          const cache = buildStoredActionPlanCache(json.inputHash, json.plan);
           onActionPlanCached?.(cache);
           void patchAttempt(attempt.id, { actionPlanCache: cache });
         }

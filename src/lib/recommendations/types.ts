@@ -170,6 +170,13 @@ export type ActionPlanSelection = {
   validationWarnings: string[];
 };
 
+export type GeminiTokenUsage = {
+  model: string;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+};
+
 export type ActionPlanSynthesis = {
   /** Legacy cluster summaries. */
   opportunities?: WellnessOpportunity[];
@@ -190,6 +197,7 @@ export type ActionPlanSynthesis = {
   safetyGuidance: { id: string; text: string }[];
   synthesized: boolean;
   synthesisError?: string;
+  tokenUsage?: GeminiTokenUsage | null;
 };
 
 export type WellnessReportSections = {

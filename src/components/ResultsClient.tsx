@@ -20,6 +20,7 @@ import { buildResultsReportModel } from "@/lib/results/build-results-report";
 import { useAppSettings } from "@/lib/hooks/useAppSettings";
 import { computeAttemptScores } from "@/lib/scoring/compute-attempt-scores";
 import { fetchPersonaScoringConfig } from "@/lib/data/persona-scoring-config-client";
+import { fetchPersonaCatalogClient } from "@/lib/data/persona-catalog-client";
 import { personaNeedsRecompute } from "@/lib/scoring/normalize-persona";
 
 function ResultsTopBar() {
@@ -69,6 +70,7 @@ export function ResultsClient() {
       setAttempt(null);
       setAssessment(null);
       setHistory([]);
+      void fetchPersonaCatalogClient();
 
       let row = await fetchAttempt(attemptId);
       if (cancelled) return;

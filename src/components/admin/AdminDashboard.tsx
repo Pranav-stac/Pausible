@@ -9,6 +9,10 @@ import { AssessmentUiEditor } from "@/components/admin/AssessmentUiEditor";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { AttemptPersonaDetail } from "@/components/admin/AttemptPersonaDetail";
 import { PersonaCentroidsEditor } from "@/components/admin/PersonaCentroidsEditor";
+import { PersonaCatalogEditor } from "@/components/admin/PersonaCatalogEditor";
+import { ScoringConfigEditor } from "@/components/admin/ScoringConfigEditor";
+import { RecommendationsConfigEditor } from "@/components/admin/RecommendationsConfigEditor";
+import { ReportTemplatesEditor } from "@/components/admin/ReportTemplatesEditor";
 import { personaLabel } from "@/lib/results/persona-display";
 import type { PersonaAnalysis } from "@/lib/scoring/persona-types";
 import { getFirebaseAuth, getFirebaseDb } from "@/lib/firebase/client";
@@ -17,7 +21,18 @@ import { useFirebaseAuth } from "@/lib/firebase/auth-context";
 import type { AdminAnalyticsResponse } from "@/lib/analytics/admin-types";
 import { wellnessContextAssessmentId } from "@/data/wellness-context-questionnaire";
 
-type Tab = "overview" | "attempts" | "assessments" | "users" | "analytics" | "personas" | "settings";
+type Tab =
+  | "overview"
+  | "attempts"
+  | "assessments"
+  | "users"
+  | "analytics"
+  | "scoring"
+  | "persona-centroids"
+  | "persona-catalog"
+  | "recommendations"
+  | "reports"
+  | "settings";
 
 type Stats = {
   attemptCount: number;
@@ -1290,12 +1305,24 @@ export function AdminDashboard() {
             </div>
           ) : null}
 
-          {tab === "personas" ? (
-            <PersonaCentroidsEditor
-              api={api}
-              onMessage={setMsg}
-              onError={setErr}
-            />
+          {tab === "scoring" ? (
+            <ScoringConfigEditor api={api} onMessage={setMsg} onError={setErr} />
+          ) : null}
+
+          {tab === "persona-centroids" ? (
+            <PersonaCentroidsEditor api={api} onMessage={setMsg} onError={setErr} />
+          ) : null}
+
+          {tab === "persona-catalog" ? (
+            <PersonaCatalogEditor api={api} onMessage={setMsg} onError={setErr} />
+          ) : null}
+
+          {tab === "recommendations" ? (
+            <RecommendationsConfigEditor api={api} onMessage={setMsg} onError={setErr} />
+          ) : null}
+
+          {tab === "reports" ? (
+            <ReportTemplatesEditor api={api} onMessage={setMsg} onError={setErr} />
           ) : null}
 
           {tab === "settings" ? (

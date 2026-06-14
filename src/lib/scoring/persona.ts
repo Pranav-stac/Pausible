@@ -133,6 +133,7 @@ export function computePersonaAnalysis(
     typeof config?.alpha === "number" && Number.isFinite(config.alpha) && config.alpha > 0
       ? config.alpha
       : DEFAULT_PERSONA_ALPHA;
+  const bands = config?.formulaBands;
 
   const itemResponses = buildItemResponses(answers);
   const facetAverages = computeFacetAverages(itemResponses);
@@ -147,11 +148,15 @@ export function computePersonaAnalysis(
   const primaryDistance = personaDistances[primary] ?? 0;
   const secondaryDistance = personaDistances[secondary] ?? 0;
   const fitScore = computeFitScore(primaryDistance, maxInterCentroidDistance);
-  const fitTier = computeFitTier(fitScore);
+  const fitTier = computeFitTier(fitScore, bands?.fitTierBands);
   const blendRatio = computeBlendRatio(primaryDistance, secondaryDistance);
-  const blendStrength = computeBlendStrength(blendRatio);
+  const blendStrength = computeBlendStrength(blendRatio, bands?.blendRatioBands);
   const personaTitle = computePersonaTitle(primary, secondary, fitTier, blendStrength);
-  const traitDeviations = computeTraitDeviations(traitAverages, centroids[primary]);
+  const traitDeviations = computeTraitDeviations(
+    traitAverages,
+    centroids[primary],
+    bands?.traitDeviationThreshold,
+  );
 
   return {
     itemResponses,

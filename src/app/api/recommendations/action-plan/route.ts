@@ -2,6 +2,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import {
+  buildStoredActionPlanCache,
   hashActionPlanInputs,
   readStoredActionPlanCache,
   toActionPlanApiPayload,
@@ -88,11 +89,7 @@ export async function POST(req: Request) {
 
     const plan = await runRecommendationEngine({ answers, scores });
     const apiPlan = toActionPlanApiPayload(plan);
-    const cache: StoredActionPlanCache = {
-      inputHash,
-      plan: apiPlan,
-      synthesizedAt: new Date().toISOString(),
-    };
+    const cache = buildStoredActionPlanCache(inputHash, apiPlan);
 
     if (attemptId && db) {
       await db.collection("attempts").doc(attemptId).set(

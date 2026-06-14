@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { ActionPlan } from "@/lib/recommendations/types";
+import type { ActionPlan, GeminiTokenUsage } from "@/lib/recommendations/types";
 import type { ActionPlanApiResponse } from "@/lib/recommendations/client-types";
 import type { AttemptAnswers, AttemptScores } from "@/types/models";
 
@@ -10,7 +10,31 @@ export type StoredActionPlanCache = {
   inputHash: string;
   plan: ActionPlanApiResponse["plan"];
   synthesizedAt?: string;
+  tokenUsage?: GeminiTokenUsage | null;
 };
+
+function parseTokenUsage(raw: unknown): GeminiTokenUsage | null {
+  if (!raw || typeof raw !== "object") return null;
+  const row = raw as Record<string, unknown>;
+  const model = typeof row.model === "string" ? row.model : "";
+  const promptTokens = typeof row.promptTokens === "number" ? row.promptTokens : 0;
+  const completionTokens = typeof row.completionTokens === "number" ? row.completionTokens : 0;
+  const totalTokens = typeof row.totalTokens === "number" ? row.totalTokens : promptTokens + completionTokens;
+  if (!model && totalTokens === 0) return null;
+  return { model, promptTokens, completionTokens, totalTokens };
+}
+
+export function buildStoredActionPlanCache(
+  inputHash: string,
+  plan: ActionPlanApiResponse["plan"],
+): StoredActionPlanCache {
+  return {
+    inputHash,
+    plan,
+    synthesizedAt: new Date().toISOString(),
+    tokenUsage: plan.audit.tokenUsage ?? plan.synthesis.tokenUsage ?? null,
+  };
+}
 
 export function hashActionPlanInputs(
   answers: AttemptAnswers,
@@ -36,6 +60,7 @@ export function toActionPlanApiPayload(plan: ActionPlan): ActionPlanApiResponse[
         pillar: r.pillar,
         type: r.type,
       })),
+      tokenUsage: plan.synthesis.tokenUsage ?? null,
     },
   };
 }
@@ -55,5 +80,6 @@ export function readStoredActionPlanCache(
     inputHash,
     plan: plan as ActionPlanApiResponse["plan"],
     synthesizedAt: typeof row.synthesizedAt === "string" ? row.synthesizedAt : undefined,
+    tokenUsage: parseTokenUsage(row.tokenUsage),
   };
 }

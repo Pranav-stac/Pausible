@@ -303,7 +303,7 @@ export function buildGeminiSynthesisContext(
       context: mapTags(profile.context),
       exclusions: mapTags(profile.exclusions),
     },
-    rankedRecommendations: selection.ranked.slice(0, 35).map((r) => serializeScoredRow(r, profile, labels)),
+    rankedRecommendations: selection.ranked.map((r) => serializeScoredRow(r, profile, labels)),
     selectedPlan: serializeSelectedPlan(selection, labels),
   };
 }

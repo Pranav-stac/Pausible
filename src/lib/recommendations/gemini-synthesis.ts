@@ -2,9 +2,11 @@ import type {
   ActionPlan,
   ActionPlanSelection,
   ActionPlanSynthesis,
-  LaunchpadGroup,
+  GeminiTokenUsage,
   PillarName,
 } from "@/lib/recommendations/types";
+import type { ReportTemplatesDoc } from "@/lib/admin/platform-config-types";
+import { DEFAULT_REPORT_TEMPLATES } from "@/lib/admin/platform-config-defaults";
 import type { BuildProfileInput } from "@/lib/recommendations/build-user-profile";
 import type { RecommendationConfig } from "@/lib/recommendations/firestore-config-types";
 import { LAUNCHPAD_GROUP_LABELS } from "@/lib/recommendations/select-action-plan";
@@ -150,10 +152,14 @@ function fallbackSynthesis(selection: ActionPlanSelection, input?: BuildProfileI
   };
 }
 
-function buildPrompt(selection: ActionPlanSelection, ctx: GeminiSynthesisContext): string {
+function buildPrompt(
+  selection: ActionPlanSelection,
+  ctx: GeminiSynthesisContext,
+  templates: ReportTemplatesDoc = DEFAULT_REPORT_TEMPLATES,
+): string {
   const { personality, matchedProfile } = ctx;
-  const fitTone = FIT_TIER_TONE[personality.fitTier] ?? FIT_TIER_TONE.classic;
-  const blendRule = BLEND_RULES[personality.blendStrength] ?? BLEND_RULES.pure;
+  const fitTone = templates.geminiFitTierTone[personality.fitTier] ?? FIT_TIER_TONE[personality.fitTier] ?? FIT_TIER_TONE.classic;
+  const blendRule = templates.geminiBlendRules[personality.blendStrength] ?? BLEND_RULES[personality.blendStrength] ?? BLEND_RULES.pure;
   const pi = selection.piSeries;
 
   const payload = {
@@ -180,6 +186,8 @@ function buildPrompt(selection: ActionPlanSelection, ctx: GeminiSynthesisContext
       personaContext: r.personaContext,
     })),
     safetyGuidance: selection.safetyGuidance,
+    rankedRecommendations: ctx.rankedRecommendations,
+    selectedPlan: ctx.selectedPlan,
     allowedSourceIds: selection.allSourceIds,
   };
 
@@ -192,7 +200,7 @@ SYSTEM PRINCIPLES:
 - Fit tier tone: ${fitTone}
 - Blend strength: ${blendRule}
 
-You are a synthesizer only. Use ONLY rows in the payload. Preserve source IDs.
+You are a synthesizer only. Use ONLY rows in the payload — especially rankedRecommendations, selectedPlan, opportunityCards, pillarPlans, launchpad, coachSourceRows, and safetyGuidance. Do not invent new recommendations or advice. Preserve source IDs from allowedSourceIds.
 
 Return valid JSON:
 {
@@ -239,16 +247,35 @@ function parseGeminiJson(text: string): unknown {
   return JSON.parse(raw);
 }
 
+function parseGeminiTokenUsage(
+  usage:
+    | {
+        promptTokenCount?: number;
+        candidatesTokenCount?: number;
+        totalTokenCount?: number;
+      }
+    | undefined,
+  model: string,
+): GeminiTokenUsage | null {
+  if (!usage) return null;
+  const promptTokens = usage.promptTokenCount ?? 0;
+  const completionTokens = usage.candidatesTokenCount ?? 0;
+  const totalTokens = usage.totalTokenCount ?? promptTokens + completionTokens;
+  if (totalTokens === 0 && promptTokens === 0 && completionTokens === 0) return null;
+  return { model, promptTokens, completionTokens, totalTokens };
+}
+
 export async function synthesizeActionPlanWithGemini(
   selection: ActionPlanSelection,
   ctx: GeminiSynthesisContext,
   input?: BuildProfileInput,
+  templates?: ReportTemplatesDoc,
 ): Promise<ActionPlanSynthesis> {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) return fallbackSynthesis(selection, input);
 
   const model = process.env.GEMINI_MODEL?.trim() || "gemini-2.0-flash";
-  const prompt = buildPrompt(selection, ctx);
+  const prompt = buildPrompt(selection, ctx, templates);
 
   try {
     const res = await fetch(
@@ -274,11 +301,17 @@ export async function synthesizeActionPlanWithGemini(
 
     const data = (await res.json()) as {
       candidates?: { content?: { parts?: { text?: string }[] } }[];
+      usageMetadata?: {
+        promptTokenCount?: number;
+        candidatesTokenCount?: number;
+        totalTokenCount?: number;
+      };
     };
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    const tokenUsage = parseGeminiTokenUsage(data.usageMetadata, model);
     if (!text) {
       const fallback = fallbackSynthesis(selection, input);
-      return { ...fallback, synthesisError: "Gemini returned empty content" };
+      return { ...fallback, synthesisError: "Gemini returned empty content", tokenUsage };
     }
 
     const parsed = parseGeminiJson(text) as ActionPlanSynthesis;
@@ -286,6 +319,7 @@ export async function synthesizeActionPlanWithGemini(
       ...parsed,
       opportunityCards: parsed.opportunityCards ?? selection.opportunityCards,
       synthesized: true,
+      tokenUsage,
     };
   } catch (e) {
     const fallback = fallbackSynthesis(selection, input);
@@ -298,8 +332,11 @@ export async function buildActionPlan(args: {
   selection: ActionPlanSelection;
   input: BuildProfileInput;
   config: RecommendationConfig;
+  reportTemplates?: ReportTemplatesDoc;
 }): Promise<ActionPlan> {
+  const { loadReportTemplatesAdmin } = await import("@/lib/server/platform-config");
+  const templates = args.reportTemplates ?? (await loadReportTemplatesAdmin());
   const ctx = buildGeminiSynthesisContext(args.input, args.config, args.selection);
-  const synthesis = await synthesizeActionPlanWithGemini(args.selection, ctx, args.input);
+  const synthesis = await synthesizeActionPlanWithGemini(args.selection, ctx, args.input, templates);
   return { ...args.selection, synthesis };
 }
