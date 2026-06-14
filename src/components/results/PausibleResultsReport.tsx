@@ -22,7 +22,6 @@ import {
   LaunchpadSlide,
   OpportunityCardsGrid,
   ReportFooter,
-  ReportLoadingPlaceholder,
   REPORT_PAGE,
   REPORT_PAGE_BODY,
   SlideLabel,
@@ -30,6 +29,8 @@ import {
   WellnessPersonalitySlide,
   WhereYouStandSlide,
 } from "@/components/results/report-ui";
+import { ReportPreparingScreen } from "@/components/results/ReportPreparingScreen";
+import { collectReportImageUrls, preloadReportImages } from "@/lib/results/preload-report-images";
 
 const TOTAL_PAGES = 11;
 const PILLAR_PAIR_A: PillarName[] = ["Nutrition", "Physical Activity"];
@@ -89,8 +90,10 @@ export function PausibleResultsReport({
   );
   const [planLoading, setPlanLoading] = useState(!initialCache);
   const [planError, setPlanError] = useState<string | null>(null);
+  const [assetsReady, setAssetsReady] = useState(false);
 
   const refId = reportAttemptRef(attemptId);
+  const reportReady = !planLoading && !!planData && assetsReady;
   const sections = planData?.plan.synthesis.reportSections;
   const synthesis = planData?.plan.synthesis;
 
@@ -149,6 +152,46 @@ export function PausibleResultsReport({
     };
   }, [attempt.actionPlanCache, attempt.answers, attempt.id, attempt.scores, forceRegenerate, onActionPlanCached]);
 
+  useEffect(() => {
+    if (planLoading || !planData) {
+      setAssetsReady(false);
+      return;
+    }
+
+    let cancelled = false;
+    void preloadReportImages(collectReportImageUrls(model)).then(() => {
+      if (!cancelled) setAssetsReady(true);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [model, planData, planLoading]);
+
+  const blindSpots = useMemo(
+    () => resolveBlindSpotColumns(sections, synthesis, attempt),
+    [sections, synthesis, attempt],
+  );
+
+  const successBlueprint = useMemo(
+    () => resolveSuccessBlueprintColumns(sections, synthesis, model),
+    [sections, synthesis, model],
+  );
+
+  if (!reportReady) {
+    return (
+      <ReportPreparingScreen
+        onBack={onBack}
+        error={planError}
+        subtitle={
+          planLoading
+            ? "Generating your personalized insights — this usually takes about 15 seconds."
+            : "Loading report visuals…"
+        }
+      />
+    );
+  }
+
   const handlePdf = async () => {
     const root = rootRef.current;
     if (!root) return;
@@ -167,16 +210,6 @@ export function PausibleResultsReport({
     sections?.personalityNarrative?.trim() ||
     model.primarySummary ||
     "Your wellness personality reflects how you naturally approach health, fitness, and recovery.";
-
-  const blindSpots = useMemo(
-    () => resolveBlindSpotColumns(sections, synthesis, attempt),
-    [sections, synthesis, attempt],
-  );
-
-  const successBlueprint = useMemo(
-    () => resolveSuccessBlueprintColumns(sections, synthesis, model),
-    [sections, synthesis, model],
-  );
 
   const traitNarratives = sections?.traitDeviationNarratives ?? [];
   const opportunityCards = synthesis?.opportunityCards ?? [];
@@ -218,7 +251,7 @@ export function PausibleResultsReport({
             </Link>
             <button
               type="button"
-              disabled={pdfBusy || planLoading}
+              disabled={pdfBusy}
               onClick={() => void handlePdf()}
               className="rounded-full bg-slate-900 px-5 py-2.5 text-xs font-bold text-white disabled:opacity-50"
             >
@@ -227,9 +260,6 @@ export function PausibleResultsReport({
           </div>
         </div>
         {pdfErr ? <p className="mx-auto max-w-[52rem] px-4 pb-2 text-center text-xs text-red-700">{pdfErr}</p> : null}
-        {planError ? (
-          <p className="mx-auto max-w-[52rem] px-4 pb-2 text-center text-xs text-amber-800">{planError}</p>
-        ) : null}
       </div>
 
       <div ref={rootRef} className="mx-auto flex max-w-[52rem] flex-col gap-5 py-8 sm:gap-6 sm:py-10">
@@ -254,13 +284,7 @@ export function PausibleResultsReport({
               title="What You Don't See"
               subtitle="The patterns that quietly shape your wellness journey"
             />
-            {planLoading ? (
-              <ReportLoadingPlaceholder label="Loading blind-spot insights…" />
-            ) : blindSpots.left.body || blindSpots.right.body ? (
-              <DualColumnSection left={blindSpots.left} right={blindSpots.right} />
-            ) : (
-              <p className="text-sm text-slate-500">Insights will appear once your action plan is ready.</p>
-            )}
+            <DualColumnSection left={blindSpots.left} right={blindSpots.right} />
             <p className="mt-6 text-[10px] text-slate-400">
               Emotional arc: Revelation — &ldquo;I never thought about it that way&rdquo;
             </p>
@@ -273,13 +297,7 @@ export function PausibleResultsReport({
           <div className={REPORT_PAGE_BODY}>
             <SlideLabel index="05" label="Your Success Blueprint" />
             <SlideTitle title="Your Success Blueprint" subtitle="What works specifically for your personality" />
-            {planLoading ? (
-              <ReportLoadingPlaceholder label="Loading success blueprint…" />
-            ) : successBlueprint.left.body || successBlueprint.right.body ? (
-              <DualColumnSection left={successBlueprint.left} right={successBlueprint.right} />
-            ) : (
-              <p className="text-sm text-slate-500">Blueprint content loading…</p>
-            )}
+            <DualColumnSection left={successBlueprint.left} right={successBlueprint.right} />
             <p className="mt-6 text-[10px] text-slate-400">
               Emotional arc: Hope + curiosity — &ldquo;This could actually work for me&rdquo;
             </p>
@@ -305,12 +323,10 @@ export function PausibleResultsReport({
               title="Your High-Impact Wellness Opportunities"
               subtitle="The 3 biggest areas where small changes will create the most impact"
             />
-            {planLoading ? (
-              <ReportLoadingPlaceholder label="Ranking your top opportunities…" />
-            ) : opportunityCards.length > 0 ? (
+            {opportunityCards.length > 0 ? (
               <OpportunityCardsGrid cards={opportunityCards} />
             ) : (
-              <p className="text-sm text-slate-500">No opportunity cards yet.</p>
+              <p className="text-sm text-slate-500">No opportunity cards for this profile.</p>
             )}
             <p className="mt-6 text-[10px] text-slate-400">
               Emotional arc: Excitement — &ldquo;These are genuinely useful&rdquo;
@@ -319,54 +335,32 @@ export function PausibleResultsReport({
           </div>
         </section>
 
-        {planLoading ? (
-          <section data-report-page className={REPORT_PAGE}>
-            <div className={REPORT_PAGE_BODY}>
-              <ReportLoadingPlaceholder label="Building pillar plans…" />
-            </div>
-          </section>
-        ) : (
-          <>
-            <DualPillarSlide
-              pillars={PILLAR_PAIR_A}
-              plans={synthesis?.pillarPlans ?? {}}
-              page={8}
-              totalPages={TOTAL_PAGES}
-              refId={refId}
-              slideIndex="08"
-              slideLabel="4-Pillar Action Plan (1/2)"
-              title="Your Personalized Action Plan"
-            />
-            <DualPillarSlide
-              pillars={PILLAR_PAIR_B}
-              plans={synthesis?.pillarPlans ?? {}}
-              page={9}
-              totalPages={TOTAL_PAGES}
-              refId={refId}
-              slideIndex="09"
-              slideLabel="4-Pillar Action Plan (2/2)"
-              title="Your Personalized Action Plan"
-            />
-          </>
-        )}
+        <DualPillarSlide
+          pillars={PILLAR_PAIR_A}
+          plans={synthesis?.pillarPlans ?? {}}
+          page={8}
+          totalPages={TOTAL_PAGES}
+          refId={refId}
+          slideIndex="08"
+          slideLabel="4-Pillar Action Plan (1/2)"
+          title="Your Personalized Action Plan"
+        />
+        <DualPillarSlide
+          pillars={PILLAR_PAIR_B}
+          plans={synthesis?.pillarPlans ?? {}}
+          page={9}
+          totalPages={TOTAL_PAGES}
+          refId={refId}
+          slideIndex="09"
+          slideLabel="4-Pillar Action Plan (2/2)"
+          title="Your Personalized Action Plan"
+        />
 
-        {planLoading ? (
-          <section data-report-page className={REPORT_PAGE}>
-            <div className={REPORT_PAGE_BODY}>
-              <ReportLoadingPlaceholder label="Preparing launchpad…" />
-            </div>
-          </section>
-        ) : synthesis ? (
+        {synthesis ? (
           <LaunchpadSlide launchpad={synthesis.launchpad} page={10} totalPages={TOTAL_PAGES} refId={refId} />
         ) : null}
 
-        {planLoading ? (
-          <section data-report-page className={REPORT_PAGE}>
-            <div className={REPORT_PAGE_BODY}>
-              <ReportLoadingPlaceholder label="Loading coaching notes…" />
-            </div>
-          </section>
-        ) : synthesis ? (
+        {synthesis ? (
           <CoachingSlide
             keyStrength={synthesis.coachNotes.keyStrength}
             keyRisk={synthesis.coachNotes.keyRisk}

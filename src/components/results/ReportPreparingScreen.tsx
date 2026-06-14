@@ -2,84 +2,33 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BrandLogo } from "@/components/BrandLogo";
-import { fetchAttempt } from "@/lib/data/attempt-service";
 import { REPORT_BUILDING_STAGE_MS, REPORT_BUILDING_STAGES } from "@/lib/results/report-building-stages";
 
-const STAGE_MS = REPORT_BUILDING_STAGE_MS;
-const STAGES = REPORT_BUILDING_STAGES;
-const MIN_DISPLAY_MS = 15000;
-const MAX_WAIT_MS = 45000;
+type Props = {
+  title?: string;
+  subtitle?: string;
+  error?: string | null;
+  onBack?: () => void;
+};
 
-export function ReportBuildingScreen({
-  attemptId,
-  nextPath,
-}: {
-  attemptId: string;
-  nextPath?: string;
-}) {
-  const router = useRouter();
+export function ReportPreparingScreen({
+  title = "Building your wellness report",
+  subtitle = "We’ll show your full report as soon as everything is ready.",
+  error = null,
+  onBack,
+}: Props) {
   const [stageIndex, setStageIndex] = useState(0);
-  const [prefetchError, setPrefetchError] = useState<string | null>(null);
+  const stage = REPORT_BUILDING_STAGES[stageIndex] ?? REPORT_BUILDING_STAGES[0];
+  const progressPct = Math.round(((stageIndex + 1) / REPORT_BUILDING_STAGES.length) * 100);
 
   useEffect(() => {
-    let cancelled = false;
-    let navigated = false;
-
-    const stageTimers = STAGES.slice(1).map((_, i) =>
-      window.setTimeout(() => {
-        if (!cancelled) setStageIndex(i + 1);
-      }, (i + 1) * STAGE_MS),
+    const timers = REPORT_BUILDING_STAGES.slice(1).map((_, i) =>
+      window.setTimeout(() => setStageIndex(i + 1), (i + 1) * REPORT_BUILDING_STAGE_MS),
     );
-
-    const go = () => {
-      if (cancelled || navigated) return;
-      navigated = true;
-      router.replace(nextPath ?? `/results/${encodeURIComponent(attemptId)}`);
-    };
-
-    async function prefetchActionPlan() {
-      try {
-        const attempt = await fetchAttempt(attemptId);
-        if (cancelled || !attempt) return;
-
-        const res = await fetch("/api/recommendations/action-plan", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            attemptId: attempt.id,
-            answers: attempt.answers,
-            scores: attempt.scores ?? null,
-          }),
-        });
-
-        if (!res.ok) {
-          const json = (await res.json().catch(() => ({}))) as { error?: string };
-          if (!cancelled) setPrefetchError(json.error ?? "Could not pre-build your action plan.");
-        }
-      } catch {
-        if (!cancelled) setPrefetchError("We’ll finish building your plan on the results page.");
-      }
-    }
-
-    const hardTimeout = window.setTimeout(go, MAX_WAIT_MS);
-
-    void (async () => {
-      await Promise.all([prefetchActionPlan(), new Promise((r) => setTimeout(r, MIN_DISPLAY_MS))]);
-      go();
-    })();
-
-    return () => {
-      cancelled = true;
-      stageTimers.forEach(clearTimeout);
-      clearTimeout(hardTimeout);
-    };
-  }, [attemptId, nextPath, router]);
-
-  const stage = STAGES[stageIndex];
-  const progressPct = Math.round(((stageIndex + 1) / STAGES.length) * 100);
+    return () => timers.forEach(clearTimeout);
+  }, []);
 
   return (
     <main className="min-h-screen bg-[#f7f8fa] scheme-light">
@@ -94,9 +43,19 @@ export function ReportBuildingScreen({
           <Link href="/" className="rounded-lg outline-offset-4" aria-label="Pausible home">
             <BrandLogo heightClass="h-7 sm:h-8" withWordmark wordmarkClassName="text-base sm:text-lg" />
           </Link>
-          <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-            Step 3 · Report
-          </span>
+          {onBack ? (
+            <button
+              type="button"
+              onClick={onBack}
+              className="rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50"
+            >
+              ← Back
+            </button>
+          ) : (
+            <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+              Wellness report
+            </span>
+          )}
         </div>
       </header>
 
@@ -105,7 +64,10 @@ export function ReportBuildingScreen({
           <div
             className={`relative overflow-hidden rounded-[2rem] border border-white/80 bg-linear-to-br ${stage.bg} p-5 shadow-[0_28px_70px_-40px_rgba(15,23,42,0.22)] ring-1 ${stage.ring} sm:p-7`}
           >
-            <div className="absolute inset-x-0 top-0 h-1 bg-linear-to-r opacity-90 transition-all duration-700 ease-out" style={{ width: `${progressPct}%` }} />
+            <div
+              className="absolute inset-x-0 top-0 h-1 bg-linear-to-r from-emerald-500 to-sky-500 opacity-90 transition-all duration-700 ease-out"
+              style={{ width: `${progressPct}%` }}
+            />
             <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[1.35rem] bg-white/70 shadow-inner">
               <Image
                 key={stage.image}
@@ -130,14 +92,14 @@ export function ReportBuildingScreen({
                     cy="28"
                     r="24"
                     fill="none"
-                    stroke="url(#reportProgress)"
+                    stroke="url(#reportPreparingProgress)"
                     strokeWidth="4"
                     strokeLinecap="round"
                     strokeDasharray={`${(progressPct / 100) * 150.8} 150.8`}
                     className="transition-all duration-700 ease-out"
                   />
                   <defs>
-                    <linearGradient id="reportProgress" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <linearGradient id="reportPreparingProgress" x1="0%" y1="0%" x2="100%" y2="0%">
                       <stop offset="0%" stopColor="#10b981" />
                       <stop offset="100%" stopColor="#0ea5e9" />
                     </linearGradient>
@@ -148,15 +110,13 @@ export function ReportBuildingScreen({
                 </span>
               </div>
               <div>
-                <h1 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
-                  Building your wellness report
-                </h1>
-                <p className="mt-1 text-sm text-slate-600">This usually takes about 15 seconds.</p>
+                <h1 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">{title}</h1>
+                <p className="mt-1 text-sm text-slate-600">{subtitle}</p>
               </div>
             </div>
 
             <ul className="space-y-3">
-              {STAGES.map((item, i) => {
+              {REPORT_BUILDING_STAGES.map((item, i) => {
                 const done = i < stageIndex;
                 const active = i === stageIndex;
                 return (
@@ -205,9 +165,9 @@ export function ReportBuildingScreen({
               })}
             </ul>
 
-            {prefetchError ? (
+            {error ? (
               <p className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                {prefetchError}
+                {error}
               </p>
             ) : null}
           </div>
