@@ -27,14 +27,21 @@ type Props = {
   attempt: SerializedAttempt;
   accent?: string;
   onActionPlanCached?: (cache: StoredActionPlanCache) => void;
+  forceRegenerate?: boolean;
 };
 
 function responseFromCache(cache: StoredActionPlanCache): ActionPlanApiResponse {
   return { plan: cache.plan };
 }
 
-export function WellnessActionPlan({ attempt, accent = "#0284c7", onActionPlanCached }: Props) {
-  const initialCache = attempt.actionPlanCache?.plan ? attempt.actionPlanCache : null;
+export function WellnessActionPlan({
+  attempt,
+  accent = "#0284c7",
+  onActionPlanCached,
+  forceRegenerate = false,
+}: Props) {
+  const initialCache =
+    !forceRegenerate && attempt.actionPlanCache?.plan ? attempt.actionPlanCache : null;
   const [data, setData] = useState<ActionPlanApiResponse | null>(() =>
     initialCache ? responseFromCache(initialCache) : null,
   );
@@ -42,7 +49,7 @@ export function WellnessActionPlan({ attempt, accent = "#0284c7", onActionPlanCa
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (attempt.actionPlanCache?.plan) {
+    if (!forceRegenerate && attempt.actionPlanCache?.plan) {
       setData(responseFromCache(attempt.actionPlanCache));
       setLoading(false);
       setError(null);
@@ -62,6 +69,7 @@ export function WellnessActionPlan({ attempt, accent = "#0284c7", onActionPlanCa
             attemptId: attempt.id,
             answers: attempt.answers,
             scores: attempt.scores ?? null,
+            forceRegenerate,
           }),
         });
         const json = (await res.json()) as ActionPlanApiResponse & {
@@ -98,7 +106,7 @@ export function WellnessActionPlan({ attempt, accent = "#0284c7", onActionPlanCa
     return () => {
       cancelled = true;
     };
-  }, [attempt.actionPlanCache, attempt.answers, attempt.id, attempt.scores, onActionPlanCached]);
+  }, [attempt.actionPlanCache, attempt.answers, attempt.id, attempt.scores, forceRegenerate, onActionPlanCached]);
 
   if (loading) {
     return (

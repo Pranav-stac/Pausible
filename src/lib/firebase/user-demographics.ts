@@ -11,6 +11,7 @@ export type DemographicsSource = "google" | "manual";
 
 export type StoredUserDemographics = {
   ageRange?: ProfileAgeRange;
+  dateOfBirth?: string;
   gender?: ProfileGender;
   demographicsSource?: DemographicsSource;
 };
@@ -27,6 +28,7 @@ export async function loadUserDemographics(uid: string): Promise<StoredUserDemog
     const data = snap.data();
     return {
       ageRange: typeof data.ageRange === "string" ? (data.ageRange as ProfileAgeRange) : undefined,
+      dateOfBirth: typeof data.dateOfBirth === "string" ? data.dateOfBirth : undefined,
       gender: typeof data.gender === "string" ? (data.gender as ProfileGender) : undefined,
       demographicsSource:
         data.demographicsSource === "google" || data.demographicsSource === "manual"
@@ -52,6 +54,7 @@ export async function saveUserDemographics(
       doc(db, "users", uid),
       {
         ageRange: demographics.ageRange ?? null,
+        dateOfBirth: demographics.dateOfBirth ?? null,
         gender: demographics.gender ?? null,
         demographicsSource: demographics.demographicsSource ?? "manual",
         updatedAt: serverTimestamp(),
@@ -71,10 +74,11 @@ export async function enrichUserDemographicsFromGoogle(user: User, accessToken: 
   if (existing?.demographicsSource === "manual" && existing.ageRange && existing.gender) return;
 
   const fromGoogle = await fetchGooglePeopleDemographics(accessToken);
-  if (!fromGoogle.ageRange && !fromGoogle.gender) return;
+  if (!fromGoogle.ageRange && !fromGoogle.gender && !fromGoogle.dateOfBirth) return;
 
   await saveUserDemographics(user.uid, {
     ageRange: existing?.ageRange ?? fromGoogle.ageRange,
+    dateOfBirth: existing?.dateOfBirth ?? fromGoogle.dateOfBirth,
     gender: existing?.gender ?? fromGoogle.gender,
     demographicsSource: "google",
   });

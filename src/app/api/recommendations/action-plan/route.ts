@@ -22,6 +22,7 @@ export const runtime = "nodejs";
 
 const bodySchema = z.object({
   attemptId: z.string().min(1).optional(),
+  forceRegenerate: z.boolean().optional(),
   answers: z.record(z.string(), z.union([z.string(), z.number(), z.array(z.string())])),
   scores: z
     .object({
@@ -65,6 +66,7 @@ export async function POST(req: Request) {
 
     const answers = parsed.data.answers as AttemptAnswers;
     const attemptId = parsed.data.attemptId?.trim();
+    const forceRegenerate = parsed.data.forceRegenerate === true;
     const clientScores = parsed.data.scores as AttemptScores | null | undefined;
 
     const db = attemptId ? getAdminFirestore() : null;
@@ -81,7 +83,7 @@ export async function POST(req: Request) {
     const { scores, recomputed } = await resolveScores(answers, clientScores, storedScores);
     const inputHash = hashActionPlanInputs(answers, scores);
 
-    if (attemptId && db && attemptSnapExists) {
+    if (!forceRegenerate && attemptId && db && attemptSnapExists) {
       const snap = await db.collection("attempts").doc(attemptId).get();
       const cached = readStoredActionPlanCache(snap.data()?.actionPlanCache, answers, scores);
       if (cached) return jsonFromCache(cached);

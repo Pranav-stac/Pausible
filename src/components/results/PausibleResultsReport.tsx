@@ -44,6 +44,7 @@ type Props = {
   onCopyShare?: () => void;
   onActionPlanCached?: (cache: StoredActionPlanCache) => void;
   onBack?: () => void;
+  forceRegenerate?: boolean;
 };
 
 function responseFromCache(cache: StoredActionPlanCache): ActionPlanApiResponse {
@@ -75,12 +76,14 @@ export function PausibleResultsReport({
   onCopyShare,
   onActionPlanCached,
   onBack,
+  forceRegenerate = false,
 }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfErr, setPdfErr] = useState<string | null>(null);
 
-  const initialCache = attempt.actionPlanCache?.plan ? attempt.actionPlanCache : null;
+  const initialCache =
+    !forceRegenerate && attempt.actionPlanCache?.plan ? attempt.actionPlanCache : null;
   const [planData, setPlanData] = useState<ActionPlanApiResponse | null>(() =>
     initialCache ? responseFromCache(initialCache) : null,
   );
@@ -92,7 +95,7 @@ export function PausibleResultsReport({
   const synthesis = planData?.plan.synthesis;
 
   useEffect(() => {
-    if (attempt.actionPlanCache?.plan) {
+    if (!forceRegenerate && attempt.actionPlanCache?.plan) {
       setPlanData(responseFromCache(attempt.actionPlanCache));
       setPlanLoading(false);
       setPlanError(null);
@@ -112,6 +115,7 @@ export function PausibleResultsReport({
             attemptId: attempt.id,
             answers: attempt.answers,
             scores: attempt.scores ?? null,
+            forceRegenerate,
           }),
         });
         const json = (await res.json()) as ActionPlanApiResponse & {
@@ -143,7 +147,7 @@ export function PausibleResultsReport({
     return () => {
       cancelled = true;
     };
-  }, [attempt.actionPlanCache, attempt.answers, attempt.id, attempt.scores, onActionPlanCached]);
+  }, [attempt.actionPlanCache, attempt.answers, attempt.id, attempt.scores, forceRegenerate, onActionPlanCached]);
 
   const handlePdf = async () => {
     const root = rootRef.current;

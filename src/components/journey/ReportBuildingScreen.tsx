@@ -42,8 +42,8 @@ const STAGES = [
   },
 ] as const;
 
-const STAGE_MS = 1600;
-const MIN_DISPLAY_MS = STAGES.length * STAGE_MS + 700;
+const STAGE_MS = 3750;
+const MIN_DISPLAY_MS = 15000;
 const MAX_WAIT_MS = 45000;
 
 export function ReportBuildingScreen({
@@ -184,7 +184,7 @@ export function ReportBuildingScreen({
                 <h1 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
                   Building your wellness report
                 </h1>
-                <p className="mt-1 text-sm text-slate-600">This usually takes under a minute.</p>
+                <p className="mt-1 text-sm text-slate-600">This usually takes about 15 seconds.</p>
               </div>
             </div>
 

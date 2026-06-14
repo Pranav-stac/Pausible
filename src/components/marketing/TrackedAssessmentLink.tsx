@@ -7,7 +7,9 @@ import { useCallback, useState } from "react";
 import { AssessmentLoginPromptDialog } from "@/components/marketing/AssessmentLoginPromptDialog";
 import { setPendingAssessmentHref } from "@/components/marketing/ResumePendingAssessmentNavigation";
 import { useFirebaseAuth } from "@/lib/firebase/auth-context";
+import { getFirebaseAuth } from "@/lib/firebase/client";
 import { isFirebaseConfigured } from "@/lib/firebase/config";
+import { registerWithEmailPassword, signInWithEmailPassword } from "@/lib/firebase/email-auth-flow";
 import { trackCtaAssessment } from "@/lib/analytics/track";
 
 export function TrackedAssessmentLink({
@@ -44,7 +46,7 @@ export function TrackedAssessmentLink({
     router.push(href);
   }, [href, router]);
 
-  const onSignIn = useCallback(async () => {
+  const onSignInWithGoogle = useCallback(async () => {
     setErr(null);
     setBusy(true);
     try {
@@ -61,6 +63,25 @@ export function TrackedAssessmentLink({
       setBusy(false);
     }
   }, [goToAssessment, linkGoogle, signInWithGoogle, user?.isAnonymous]);
+
+  const onSignInWithEmail = useCallback(
+    async (email: string, password: string, mode: "sign-in" | "register") => {
+      setErr(null);
+      setBusy(true);
+      try {
+        const auth = getFirebaseAuth();
+        if (!auth) throw new Error("Sign-in is not available right now.");
+        if (mode === "register") await registerWithEmailPassword(auth, email, password);
+        else await signInWithEmailPassword(auth, email, password);
+        goToAssessment();
+      } catch (e: unknown) {
+        setErr(e instanceof Error ? e.message : "Email sign-in failed.");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [goToAssessment],
+  );
 
   return (
     <>
@@ -87,7 +108,8 @@ export function TrackedAssessmentLink({
         onClose={() => {
           if (!busy) setDialogOpen(false);
         }}
-        onSignIn={() => void onSignIn()}
+        onSignInWithGoogle={() => void onSignInWithGoogle()}
+        onSignInWithEmail={(email, password, mode) => void onSignInWithEmail(email, password, mode)}
       />
     </>
   );

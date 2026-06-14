@@ -22,6 +22,7 @@ import { computeAttemptScores } from "@/lib/scoring/compute-attempt-scores";
 import { fetchPersonaScoringConfig } from "@/lib/data/persona-scoring-config-client";
 import { fetchPersonaCatalogClient } from "@/lib/data/persona-catalog-client";
 import { personaNeedsRecompute } from "@/lib/scoring/normalize-persona";
+import { shouldForceRegenerateReport } from "@/lib/recommendations/should-force-regenerate-report";
 
 function ResultsTopBar() {
   return (
@@ -57,6 +58,7 @@ export function ResultsClient() {
   const [error, setError] = useState<string | null>(null);
   const [fetching, setFetching] = useState(true);
   const [showFullReport, setShowFullReport] = useState(false);
+  const forceRegenerateReport = useMemo(() => shouldForceRegenerateReport(), []);
 
   useEffect(() => {
     if (!ready || settingsLoading || !attemptId || !effectiveUid) return;
@@ -111,7 +113,7 @@ export function ResultsClient() {
         }
       }
 
-      setAttempt(row);
+      setAttempt(forceRegenerateReport ? { ...row, actionPlanCache: null } : row);
 
       try {
         const asm = await fetchAssessment(row.assessmentId);
@@ -138,7 +140,7 @@ export function ResultsClient() {
     return () => {
       cancelled = true;
     };
-  }, [attemptId, effectiveUid, hasGoogleIdentity, mustUseGoogle, ready, requirePayment, router, settingsLoading]);
+  }, [attemptId, effectiveUid, forceRegenerateReport, hasGoogleIdentity, mustUseGoogle, ready, requirePayment, router, settingsLoading]);
 
   const dimensionRows = useMemo(
     () => (assessment && attempt ? dimensionRowsForAttempt(assessment, attempt) : []),
@@ -339,6 +341,7 @@ export function ResultsClient() {
           onCopyShare={() => void copyShare()}
           shareUrl={shareUrl}
           onActionPlanCached={handleActionPlanCached}
+          forceRegenerate={forceRegenerateReport}
         />
       ) : (
         <ResultsSummaryOverview

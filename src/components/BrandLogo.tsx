@@ -31,7 +31,7 @@ export function BrandLogo({
     <Image
       src="/Logo.png"
       alt={withWordmark ? "" : "Pausible"}
-      width={200}
+      width={48}
       height={48}
       priority={priority}
       aria-hidden={withWordmark}

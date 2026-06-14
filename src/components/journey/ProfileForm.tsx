@@ -8,17 +8,30 @@ import { loadProfileDraft, saveProfileDraft } from "@/lib/assessment/session-rec
 import { useFirebaseAuth } from "@/lib/firebase/auth-context";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { loadUserDemographics, saveUserDemographics } from "@/lib/firebase/user-demographics";
-import { PROFILE_AGE_OPTIONS, PROFILE_GENDER_OPTIONS, type ProfileAgeRange, type ProfileGender } from "@/lib/profile/demographics-options";
+import { ageYearsToRange, type ProfileAgeRange, type ProfileGender } from "@/lib/profile/demographics-options";
+import { PROFILE_GENDER_OPTIONS } from "@/lib/profile/demographics-options";
+
+function ageFromDateOfBirth(isoDate: string, now = new Date()): number | undefined {
+  const born = new Date(isoDate);
+  if (Number.isNaN(born.getTime())) return undefined;
+  let age = now.getFullYear() - born.getFullYear();
+  const monthDiff = now.getMonth() - born.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < born.getDate())) age -= 1;
+  if (age < 0 || age > 120) return undefined;
+  return age;
+}
 
 export function ProfileForm() {
   const router = useRouter();
   const { user, ready, hasGoogleIdentity, linkOrSignInWithGoogle } = useFirebaseAuth();
   const [displayName, setDisplayName] = useState("");
-  const [ageRange, setAgeRange] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
   const [gender, setGender] = useState("");
   const [demographicsSource, setDemographicsSource] = useState<"google" | "manual" | undefined>();
   const [googleBusy, setGoogleBusy] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
+
+  const maxDob = new Date().toISOString().slice(0, 10);
 
   useEffect(() => {
     if (!ready) return;
@@ -28,21 +41,21 @@ export function ProfileForm() {
     async function hydrate() {
       const draft = loadProfileDraft();
       let name = draft?.displayName ?? user?.displayName ?? "";
-      let age = draft?.ageRange ?? "";
+      let dob = draft?.dateOfBirth ?? "";
       let genderValue = draft?.gender ?? "";
       let source: "google" | "manual" | undefined;
 
       if (user?.uid && hasGoogleIdentity) {
         const stored = await loadUserDemographics(user.uid);
         if (cancelled) return;
-        if (stored?.ageRange) age = stored.ageRange;
+        if (stored?.dateOfBirth) dob = stored.dateOfBirth;
         if (stored?.gender) genderValue = stored.gender;
         source = stored?.demographicsSource;
         if (!name && user.displayName) name = user.displayName;
       }
 
       setDisplayName(name);
-      setAgeRange(age);
+      setDateOfBirth(dob);
       setGender(genderValue);
       setDemographicsSource(source);
       setLoadingProfile(false);
@@ -65,7 +78,7 @@ export function ProfileForm() {
       if (!signedIn?.uid) return;
 
       const stored = await loadUserDemographics(signedIn.uid);
-      if (stored?.ageRange) setAgeRange(stored.ageRange);
+      if (stored?.dateOfBirth) setDateOfBirth(stored.dateOfBirth);
       if (stored?.gender) setGender(stored.gender);
       if (stored?.demographicsSource) setDemographicsSource(stored.demographicsSource);
     } finally {
@@ -76,16 +89,20 @@ export function ProfileForm() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     const trimmedName = displayName.trim() || "Your profile";
+    const ageYears = dateOfBirth ? ageFromDateOfBirth(dateOfBirth) : undefined;
+    const ageRange = ageYears != null ? ageYearsToRange(ageYears) : undefined;
 
     saveProfileDraft({
       displayName: trimmedName,
-      ageRange: ageRange || undefined,
+      dateOfBirth: dateOfBirth || undefined,
+      ageRange,
       gender: gender || undefined,
     });
 
     if (user?.uid && hasGoogleIdentity) {
       await saveUserDemographics(user.uid, {
-        ageRange: (ageRange || undefined) as ProfileAgeRange | undefined,
+        dateOfBirth: dateOfBirth || undefined,
+        ageRange: ageRange as ProfileAgeRange | undefined,
         gender: (gender || undefined) as ProfileGender | undefined,
         demographicsSource: "manual",
       });
@@ -95,7 +112,7 @@ export function ProfileForm() {
   }
 
   const googleFilledDemographics =
-    demographicsSource === "google" && Boolean(ageRange && gender);
+    demographicsSource === "google" && Boolean(dateOfBirth && gender);
 
   return (
     <main className="min-h-screen bg-[#f7f8fa] scheme-light">
@@ -118,8 +135,8 @@ export function ProfileForm() {
               A few details before we begin
             </h1>
             <p className="mt-4 max-w-md text-base leading-relaxed text-slate-600">
-              Sign in with Google to pre-fill your name. Age and gender can be imported from your Google account when
-              you&apos;ve added them there — otherwise pick them below.
+              Sign in with Google to pre-fill your name. Date of birth and gender can be imported from your Google
+              account when you&apos;ve added them there — otherwise enter them below.
             </p>
             <ul className="mt-8 hidden max-w-sm space-y-3 text-sm text-slate-600 lg:block">
               <li className="flex gap-2">
@@ -148,7 +165,7 @@ export function ProfileForm() {
                   type="button"
                   disabled={googleBusy || !ready}
                   onClick={() => void onGoogleSignIn()}
-                  className="mt-3 w-full rounded-full border border-slate-200 bg-white py-2.5 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+                  className="mt-3 w-full cursor-pointer rounded-full border border-slate-200 bg-white py-2.5 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {googleBusy ? "Signing in…" : "Sign in with Google"}
                 </button>
@@ -171,24 +188,19 @@ export function ProfileForm() {
               </label>
               <div className="grid gap-5 sm:grid-cols-2">
                 <label className="block">
-                  <span className="text-sm font-semibold text-slate-800">Age range</span>
-                  <select
-                    value={ageRange}
+                  <span className="text-sm font-semibold text-slate-800">Date of birth</span>
+                  <input
+                    type="date"
+                    value={dateOfBirth}
+                    max={maxDob}
                     onChange={(e) => {
-                      setAgeRange(e.target.value);
+                      setDateOfBirth(e.target.value);
                       setDemographicsSource("manual");
                     }}
                     required
                     disabled={loadingProfile}
                     className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 disabled:opacity-60"
-                  >
-                    <option value="">Select…</option>
-                    {PROFILE_AGE_OPTIONS.map((o) => (
-                      <option key={o} value={o}>
-                        {o}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </label>
                 <label className="block">
                   <span className="text-sm font-semibold text-slate-800">Gender</span>
@@ -212,13 +224,15 @@ export function ProfileForm() {
                 </label>
               </div>
               {googleFilledDemographics ? (
-                <p className="text-xs text-slate-500">Age and gender were imported from your Google account. You can change them above.</p>
+                <p className="text-xs text-slate-500">
+                  Date of birth and gender were imported from your Google account. You can change them above.
+                </p>
               ) : null}
             </div>
             <button
               type="submit"
               disabled={loadingProfile}
-              className="mt-8 w-full rounded-full bg-slate-950 py-3.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
+              className="mt-8 w-full cursor-pointer rounded-full bg-slate-950 py-3.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Start assessment →
             </button>

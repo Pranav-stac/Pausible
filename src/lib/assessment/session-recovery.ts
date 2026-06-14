@@ -12,6 +12,7 @@ export type OceanProgress = {
 export type ProfileDraft = {
   displayName: string;
   ageRange?: string;
+  dateOfBirth?: string;
   gender?: string;
 };
 

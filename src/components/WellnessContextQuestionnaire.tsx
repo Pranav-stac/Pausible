@@ -22,7 +22,6 @@ import {
   wellnessContextAssessmentId,
 } from "@/data/wellness-context-questionnaire";
 import type { AssessmentDefinition, AssessmentQuestion, AssessmentSection, AttemptAnswers } from "@/types/models";
-import { assessmentTestToolsAllowed, randomAnswersForDefinition } from "@/lib/testing/random-assessment-fill";
 
 function flattenQuestions(def: AssessmentDefinition): AssessmentQuestion[] {
   const order: AssessmentQuestion[] = [];
@@ -379,47 +378,6 @@ export function WellnessContextQuestionnaire({
     router,
   ]);
 
-  const showTestFill = assessmentTestToolsAllowed();
-
-  const fillAllRandomTesting = useCallback(() => {
-    if (!questionnaire || !attemptUid) return;
-    const next = randomAnswersForDefinition(questionnaire);
-    setAnswers((prev) => ({ ...prev, ...next }));
-    setRevealedCount(total);
-    setExpandedPastIndex(null);
-
-    void (async () => {
-      try {
-        const attempt = await fetchAttempt(attemptId);
-        if (!attempt || attempt.uid !== attemptUid) return;
-        const merged: AttemptAnswers = { ...attempt.answers, ...next };
-        let claimSecret = "";
-        try {
-          if (typeof window !== "undefined") {
-            claimSecret = localStorage.getItem(claimStorageKey(attemptId)) ?? "";
-          }
-        } catch {
-          /* private mode */
-        }
-        const claim = claimSecret.length >= 16 ? { claimSecret } : {};
-        await upsertAttempt({
-          id: attemptId,
-          uid: attemptUid,
-          assessmentId: attempt.assessmentId,
-          answers: merged,
-          scores: attempt.scores ?? null,
-          personaAnalysis: attempt.personaAnalysis ?? null,
-          paymentStatus: attempt.paymentStatus,
-          shareToken: attempt.shareToken ?? null,
-          isLatestShareEligible: Boolean(attempt.isLatestShareEligible),
-          ...claim,
-        });
-      } catch {
-        /* ignore */
-      }
-    })();
-  }, [attemptId, attemptUid, questionnaire, total]);
-
   const loading = sessionLoading || !questionnaire;
   const marginUnderHeader = "scroll-mt-[10.75rem] sm:scroll-mt-[12.5rem]";
 
@@ -470,16 +428,6 @@ export function WellnessContextQuestionnaire({
               <BrandLogo heightClass="h-7 sm:h-8" withWordmark wordmarkClassName="text-base sm:text-[1.05rem]" />
             </Link>
             <div className="flex items-center gap-2">
-              {showTestFill ? (
-                <button
-                  type="button"
-                  title="Development / QA only — fills all wellness context questions"
-                  onClick={fillAllRandomTesting}
-                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-800 shadow-sm hover:bg-slate-50 sm:text-xs"
-                >
-                  Fill all (test)
-                </button>
-              ) : null}
               <span className="text-[11px] font-semibold text-slate-600">Step 2 of 2 · Context</span>
             </div>
           </div>

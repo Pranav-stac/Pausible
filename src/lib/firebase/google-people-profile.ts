@@ -10,8 +10,20 @@ type PeopleProfileResponse = {
 
 export type GooglePeopleDemographics = {
   ageRange?: ProfileAgeRange;
+  dateOfBirth?: string;
   gender?: ProfileGender;
 };
+
+function birthdayToIsoDate(birthday: PeopleBirthday | undefined): string | undefined {
+  const year = birthday?.date?.year;
+  if (year == null || year < 1900) return undefined;
+  const month = birthday?.date?.month ?? 1;
+  const day = birthday?.date?.day ?? 1;
+  const iso = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return undefined;
+  return iso;
+}
 
 function pickPrimaryBirthday(birthdays: PeopleBirthday[] | undefined): PeopleBirthday | undefined {
   if (!birthdays?.length) return undefined;
@@ -46,11 +58,13 @@ export async function fetchGooglePeopleDemographics(accessToken: string): Promis
   if (!res.ok) return {};
 
   const data = (await res.json()) as PeopleProfileResponse;
-  const age = ageFromBirthday(pickPrimaryBirthday(data.birthdays));
+  const birthday = pickPrimaryBirthday(data.birthdays);
+  const age = ageFromBirthday(birthday);
   const gender = mapGoogleGender(data.genders?.[0]?.value);
 
   return {
     ageRange: age != null ? ageYearsToRange(age) : undefined,
+    dateOfBirth: birthdayToIsoDate(birthday),
     gender,
   };
 }

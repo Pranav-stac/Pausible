@@ -30,19 +30,6 @@ import {
 
 const DEBOUNCE_SAVE_MS = 400;
 
-/** Short line for collapsed “answered” rows (shown under header so current question dominates). */
-function summarizeAnswerSnippet(q: AssessmentQuestion, raw: unknown): string {
-  const coerced = coerceAnswer(q, raw as number | string | string[] | undefined);
-  if (coerced === null) return "";
-  if (q.type === "likert") return `Chosen: ${coerced}`;
-  if (q.type === "single") {
-    const s = String(coerced);
-    return s.length > 48 ? `${s.slice(0, 46)}…` : s;
-  }
-  if (q.type === "multi" && Array.isArray(coerced)) return `${coerced.length} selected`;
-  return "";
-}
-
 function flattenQuestions(a: AssessmentDefinition): AssessmentQuestion[] {
   const order: AssessmentQuestion[] = [];
   for (const sec of a.sections) {
@@ -76,8 +63,6 @@ export function AssessmentRunner({
   const [localUid, setLocalUid] = useState<string | null>(null);
   /** Renders question cards 0..revealedCount-1; increments when the latest visible question is answered. */
   const [revealedCount, setRevealedCount] = useState(1);
-  /** Full editor for one answered question when user taps its compact row */
-  const [expandedPastIndex, setExpandedPastIndex] = useState<number | null>(null);
   const questionRefs = useRef<(HTMLDivElement | null)[]>([]);
   const attemptIdRef = useRef("");
   /** Same-tab proof stored on the attempt so Google sign-in can reclaim this run (see /api/attempts/claim). */
@@ -125,12 +110,7 @@ export function AssessmentRunner({
     } catch {
       /* quota / private mode */
     }
-    setExpandedPastIndex(null);
   }, [assessment]);
-
-  useEffect(() => {
-    queueMicrotask(() => setExpandedPastIndex(null));
-  }, [revealedCount]);
 
   useEffect(() => {
     if (bootstrapAssessment != null) return;
@@ -185,16 +165,6 @@ export function AssessmentRunner({
   const tryRevealNextAfterIndex = useCallback((answeredIndex: number) => {
     setRevealedCount((r) => (answeredIndex === r - 1 && r < total ? r + 1 : r));
   }, [total]);
-
-  const scrollToQuestion = useCallback((index: number) => {
-    const el = questionRefs.current[index];
-    el?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, []);
-
-  const scrollToPreviousBlock = useCallback(() => {
-    if (revealedCount < 2) return;
-    scrollToQuestion(Math.max(0, revealedCount - 2));
-  }, [revealedCount, scrollToQuestion]);
 
   useLayoutEffect(() => {
     if (revealedCount < 1 || typeof window === "undefined") return;
@@ -335,14 +305,7 @@ export function AssessmentRunner({
 
   const fillAllRandomTesting = useCallback(() => {
     if (!questions.length || !assessment || !attemptUid) return;
-    let next = randomAnswersForQuestions(questions);
-    if (assessment.id === defaultAssessmentId) {
-      const wellnessDef = getWellnessContextQuestionnaire();
-      next = {
-        ...next,
-        ...randomAnswersForQuestions(Object.values(wellnessDef.questions).filter(Boolean)),
-      };
-    }
+    const next = randomAnswersForQuestions(questions);
     setAnswers(next);
     setRevealedCount(questions.length);
 
@@ -352,13 +315,7 @@ export function AssessmentRunner({
       let merged: AttemptAnswers = { ...next };
       try {
         const prev = await fetchAttempt(id);
-        if (prev?.answers) {
-          merged = {};
-          for (const [key, val] of Object.entries(prev.answers)) {
-            if (!key.startsWith(WELLNESS_CONTEXT_PREFIX)) merged[key] = val;
-          }
-          merged = { ...merged, ...next };
-        }
+        if (prev?.answers) merged = { ...prev.answers, ...next };
       } catch {
         /* ignore */
       }
@@ -384,8 +341,6 @@ export function AssessmentRunner({
     if (!questions.length) return false;
     return questions.every((q) => coerceAnswer(q, answers[q.id]) !== null);
   }, [questions, answers]);
-
-  const canScrollPrev = revealedCount >= 2;
 
   if (!ready || attemptUid === null) {
     return (
@@ -424,11 +379,11 @@ export function AssessmentRunner({
             {showTestFill ? (
               <button
                 type="button"
-                title="Development / QA only — fills personality inventory and wellness context (step 2)"
+                title="Development / QA only — fills personality inventory only"
                 onClick={fillAllRandomTesting}
                 className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-800 shadow-sm hover:bg-slate-50 sm:text-xs lg:hidden"
               >
-                Fill all (test)
+                Fill personas (test)
               </button>
             ) : null}
           </div>
@@ -443,16 +398,6 @@ export function AssessmentRunner({
             <span className="shrink-0 text-[11px] font-semibold tabular-nums text-slate-700">{progress}%</span>
           </div>
 
-          <div className="flex justify-end">
-            <button
-              type="button"
-              disabled={!canScrollPrev}
-              onClick={() => scrollToPreviousBlock()}
-              className="min-h-[40px] rounded-full border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-800 shadow-sm hover:border-slate-400 hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-40 sm:text-sm"
-            >
-              ↑ Earlier question
-            </button>
-          </div>
         </div>
       </header>
 
@@ -489,49 +434,7 @@ export function AssessmentRunner({
             const activeIdx = revealedCount - 1;
             const isActive = idx === activeIdx;
             const isPast = idx < activeIdx;
-            const pastAnswered = isPast && coerceAnswer(q, raw) !== null;
-            const marginUnderHeader =
-              "scroll-mt-[10.75rem] sm:scroll-mt-[12.5rem]";
-            const snippet = summarizeAnswerSnippet(q, raw);
-
-            if (pastAnswered && expandedPastIndex !== idx) {
-              return (
-                <div
-                  key={q.id}
-                  ref={(el) => {
-                    questionRefs.current[idx] = el;
-                  }}
-                  className={marginUnderHeader}
-                >
-                  <button
-                    type="button"
-                    className="flex w-full items-start gap-3 rounded-2xl border border-slate-200/95 bg-white/95 px-4 py-3 text-left shadow-sm ring-1 ring-slate-100/85 transition-colors hover:border-sky-300/70 hover:bg-white active:bg-sky-50/40 sm:rounded-3xl sm:py-3.5"
-                    onClick={() => {
-                      setExpandedPastIndex(idx);
-                      window.requestAnimationFrame(() => {
-                        questionRefs.current[idx]?.scrollIntoView({
-                          behavior: "smooth",
-                          block: "start",
-                          inline: "nearest",
-                        });
-                      });
-                    }}
-                  >
-                    <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-800">
-                      ✓
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="text-[11px] font-semibold text-slate-500">
-                        Question {idx + 1} of {total} · Answered
-                      </span>
-                      <p className="mt-1 line-clamp-2 text-sm font-medium leading-snug text-slate-800">{q.prompt}</p>
-                      {snippet ? <p className="mt-1.5 truncate text-xs text-slate-500">{snippet}</p> : null}
-                      <p className="mt-2 text-[11px] font-semibold text-sky-700">Tap to change answer</p>
-                    </span>
-                  </button>
-                </div>
-              );
-            }
+            const marginUnderHeader = "scroll-mt-[10.75rem] sm:scroll-mt-[12.5rem]";
 
             return (
               <div
@@ -545,32 +448,19 @@ export function AssessmentRunner({
                   className={`rounded-3xl border bg-white p-5 shadow-[0_22px_50px_-32px_rgba(15,23,42,0.18)] sm:p-8 ${
                     isActive
                       ? "border-sky-300/80 ring-2 ring-sky-400/45 ring-offset-2 ring-offset-slate-50"
-                      : "border-slate-200/80"
+                      : isPast
+                        ? "border-slate-200/80"
+                        : "border-slate-200/80"
                   }`}
                 >
-                  {isPast && expandedPastIndex === idx ? (
-                    <div className="-mt-1 mb-4 flex justify-end">
-                      <button
-                        type="button"
-                        className="text-[11px] font-semibold text-sky-700 underline decoration-sky-300 underline-offset-2 hover:text-indigo-800"
-                        onClick={() => setExpandedPastIndex(null)}
-                      >
-                        Collapse summary
-                      </button>
-                    </div>
-                  ) : null}
                   <p className="mb-3 text-[11px] font-semibold tabular-nums tracking-wide text-slate-500 sm:text-xs">
                     Question {idx + 1} of {total}
                     {isActive ? <span className="ml-2 font-bold text-sky-700">· Current</span> : null}
+                    {isPast && coerceAnswer(q, raw) !== null ? (
+                      <span className="ml-2 font-semibold text-emerald-700">· Answered</span>
+                    ) : null}
                   </p>
                   <h2 className="text-lg font-bold leading-snug tracking-tight text-slate-950 sm:text-xl">{q.prompt}</h2>
-
-                  {q.type === "likert" && q.reverse ? (
-                    <p className="mt-3 text-[11px] leading-relaxed text-amber-900/90">
-                      <span className="font-semibold">Note:</span> Reverse-worded—your choice is scored automatically;
-                      answer for how you actually behave.
-                    </p>
-                  ) : null}
 
                   <div className="mt-7 max-w-3xl">
                     {q.type === "likert" && (
@@ -651,10 +541,10 @@ export function AssessmentRunner({
                 });
               }}
               disabled={!canFinish}
-              className="rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/20 disabled:opacity-40"
+              className="cursor-pointer rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/20 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {assessment.id === defaultAssessmentId
-                ? "Continue to wellness context"
+                ? "Submit and continue"
                 : requirePayment
                   ? "Finish & continue to checkout"
                   : "Finish & unlock results"}
@@ -726,7 +616,7 @@ function LikertScaleNumeric({
     "flex w-full touch-manipulation select-none flex-col items-center justify-center rounded-xl border px-0.5 py-2.5 text-sm font-bold transition-colors min-h-[2.75rem] min-w-0 sm:min-h-[3.1rem] sm:rounded-2xl sm:text-base";
   const inactive = preview
     ? "border-slate-200 bg-white text-slate-900"
-    : "cursor-pointer border-slate-200 bg-white text-slate-900 hover:border-sky-400/70 active:scale-[0.98]";
+    : "cursor-pointer border-slate-200 bg-white text-slate-900 hover:border-sky-400/70 hover:cursor-pointer active:scale-[0.98]";
   const active =
     "border-transparent bg-linear-to-br from-emerald-500 to-sky-500 text-white shadow-md shadow-teal-500/35";
 
@@ -808,7 +698,7 @@ function SingleChoice({
             type="button"
             disabled={disabled}
             onClick={() => onChange(opt)}
-            className={`flex w-full min-h-[3rem] items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm transition ${
+            className={`flex w-full min-h-[3rem] cursor-pointer items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm transition ${
               active
                 ? "border-violet-500 bg-linear-to-br from-violet-50 to-white text-slate-900 shadow-inner"
                 : "border-slate-200 bg-white text-slate-800 hover:border-slate-300"
@@ -852,7 +742,7 @@ function MultiChoiceAdvance({
             type="button"
             disabled={disabled}
             onClick={() => toggle(opt)}
-            className={`flex w-full min-h-[3rem] items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm transition ${
+            className={`flex w-full min-h-[3rem] cursor-pointer items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm transition ${
               active
                 ? "border-fuchsia-500 bg-fuchsia-50 text-slate-900"
                 : "border-slate-200 bg-white text-slate-800 hover:border-slate-300"
@@ -868,7 +758,7 @@ function MultiChoiceAdvance({
         type="button"
         disabled={disabled || !canContinue}
         onClick={() => onContinue(value)}
-        className="mt-3 w-full rounded-2xl bg-slate-950 py-3 text-sm font-semibold text-white disabled:opacity-40"
+        className="mt-3 w-full cursor-pointer rounded-2xl bg-slate-950 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
       >
         Continue
       </button>
