@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { ActionPlanApiResponse } from "@/lib/recommendations/client-types";
+import { formatPillarDoLine, formatPillarDontLine } from "@/lib/recommendations/pillar-display";
 import { buildStoredActionPlanCache, type StoredActionPlanCache } from "@/lib/recommendations/action-plan-cache";
 import type { PillarName } from "@/lib/recommendations/types";
 import { patchAttempt } from "@/lib/data/attempt-service";
@@ -211,10 +212,10 @@ export function WellnessActionPlan({ attempt, accent = "#0284c7", onActionPlanCa
                 <div className="border-b border-white/50 p-4 sm:border-b-0 sm:border-r">
                   <p className="text-[10px] font-bold uppercase text-emerald-800">Do</p>
                   <ul className="mt-2 space-y-2">
-                    {plan.dos.map((text) => (
-                      <li key={text} className="flex gap-2 text-sm text-slate-800">
+                    {plan.dos.map((item, idx) => (
+                      <li key={idx} className="flex gap-2 text-sm text-slate-800">
                         <span className="text-emerald-600">✓</span>
-                        <span>{text}</span>
+                        <span>{formatPillarDoLine(item)}</span>
                       </li>
                     ))}
                   </ul>
@@ -222,10 +223,10 @@ export function WellnessActionPlan({ attempt, accent = "#0284c7", onActionPlanCa
                 <div className="p-4">
                   <p className="text-[10px] font-bold uppercase text-rose-800">Don&apos;t</p>
                   <ul className="mt-2 space-y-2">
-                    {plan.donts.map((text) => (
-                      <li key={text} className="flex gap-2 text-sm text-slate-800">
+                    {plan.donts.map((item, idx) => (
+                      <li key={idx} className="flex gap-2 text-sm text-slate-800">
                         <span className="text-rose-500">✕</span>
-                        <span>{text}</span>
+                        <span>{formatPillarDontLine(item)}</span>
                       </li>
                     ))}
                   </ul>

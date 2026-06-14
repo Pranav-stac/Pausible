@@ -177,6 +177,9 @@ export type GeminiTokenUsage = {
   totalTokens: number;
 };
 
+export type PillarSynthesisDo = { action: string; why: string };
+export type PillarSynthesisDont = { behavior: string; why: string };
+
 export type ActionPlanSynthesis = {
   /** Legacy cluster summaries. */
   opportunities?: WellnessOpportunity[];
@@ -186,8 +189,8 @@ export type ActionPlanSynthesis = {
     {
       focusArea: string;
       focusReason: string;
-      dos: string[];
-      donts: string[];
+      dos: PillarSynthesisDo[];
+      donts: PillarSynthesisDont[];
       sourceIds: string[];
     }
   >;

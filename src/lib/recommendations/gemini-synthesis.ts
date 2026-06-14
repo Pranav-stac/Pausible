@@ -3,38 +3,46 @@ import type {
   ActionPlanSelection,
   ActionPlanSynthesis,
   GeminiTokenUsage,
+  OpportunityCard,
   PillarName,
+  PillarSynthesisDo,
+  PillarSynthesisDont,
 } from "@/lib/recommendations/types";
 import type { ReportTemplatesDoc } from "@/lib/admin/platform-config-types";
 import { DEFAULT_REPORT_TEMPLATES } from "@/lib/admin/platform-config-defaults";
 import type { BuildProfileInput } from "@/lib/recommendations/build-user-profile";
 import type { RecommendationConfig } from "@/lib/recommendations/firestore-config-types";
-import { LAUNCHPAD_GROUP_LABELS } from "@/lib/recommendations/select-action-plan";
+import { resolvedText } from "@/lib/recommendations/action-pool";
 import {
   buildGeminiSynthesisContext,
   type GeminiSynthesisContext,
 } from "@/lib/recommendations/build-gemini-synthesis-context";
-import { buildQuickProfile } from "@/lib/results/quick-profile";
+import { callGeminiSection, mergeTokenUsage, parseSectionJson, type GeminiSectionResult } from "@/lib/recommendations/gemini-api-client";
+import {
+  buildBlindSpotsPrompt,
+  buildCoachingPrompt,
+  buildDeviationPrompt,
+  buildLaunchpadPrompt,
+  buildOpportunitiesPrompt,
+  buildPersonalityPrompt,
+  buildPillarPrompt,
+  buildSuccessBlueprintPrompt,
+  buildSystemPrompt,
+  resolveFitBlend,
+} from "@/lib/recommendations/gemini-section-prompts";
+import { buildQuickProfile, friendlyTraitLabel } from "@/lib/results/quick-profile";
+import type { TraitKey } from "@/lib/scoring/persona-types";
 
 const PILLARS: PillarName[] = ["Nutrition", "Physical Activity", "Sleep & Recovery", "Mental Wellness"];
-
-const FIT_TIER_TONE: Record<string, string> = {
-  classic: "Assertive and confident — use 'You naturally...' / 'You do X because...'",
-  core: "Confident but softer — use 'You tend to...' / 'Your pattern suggests...'",
-  adaptive: "Exploratory — use 'You may find...' / 'People with your pattern often...'",
-  emerging: "Tentative and invitational — use 'Some aspects suggest...' / 'Consider whether...'",
-};
-
-const BLEND_RULES: Record<string, string> = {
-  pure: "Never mention a secondary persona. Write as if the user is purely one type.",
-  tendencies: "Include one sentence per section acknowledging secondary influence.",
-  strong_influence: "Dedicate substantive content to the blend — show how two sides interact.",
-};
 
 function formatAnswerList(raw: unknown): string | null {
   if (Array.isArray(raw) && raw.length) return raw.join(", ");
   if (typeof raw === "string" && raw.trim()) return raw.trim();
   return null;
+}
+
+function topBarrierLabel(ctx: GeminiSynthesisContext): string | undefined {
+  return ctx.matchedProfile.barriers[0]?.label;
 }
 
 function buildGoalsFallbackBody(selection: ActionPlanSelection, input?: BuildProfileInput): string {
@@ -55,7 +63,19 @@ function buildGoalsFallbackBody(selection: ActionPlanSelection, input?: BuildPro
   return "This pattern quietly competes with the goals you care about most. When motivation dips, it is often this background loop — not willpower — that deserves your attention first.";
 }
 
-function fallbackSynthesis(selection: ActionPlanSelection, input?: BuildProfileInput): ActionPlanSynthesis {
+function fallbackPillarDos(plan: ActionPlanSelection["pillarPlans"][PillarName]): PillarSynthesisDo[] {
+  return plan.dos.map((d) => ({ action: d.text, why: "This fits your persona-specific patterns." }));
+}
+
+function fallbackPillarDonts(plan: ActionPlanSelection["pillarPlans"][PillarName]): PillarSynthesisDont[] {
+  return plan.donts.map((d) => ({ behavior: d.text, why: "This pattern works against your natural wellness style." }));
+}
+
+function fallbackSynthesis(
+  selection: ActionPlanSelection,
+  input?: BuildProfileInput,
+  ctx?: GeminiSynthesisContext,
+): ActionPlanSynthesis {
   const pi = selection.piSeries;
   const persona = input?.scores?.persona;
 
@@ -71,8 +91,8 @@ function fallbackSynthesis(selection: ActionPlanSelection, input?: BuildProfileI
     pillarPlans[pillar] = {
       focusArea: plan.focusArea,
       focusReason: plan.focusReason,
-      dos: plan.dos.map((d) => d.text),
-      donts: plan.donts.map((d) => d.text),
+      dos: fallbackPillarDos(plan),
+      donts: fallbackPillarDonts(plan),
       sourceIds: plan.sourceIds,
     };
   }
@@ -96,16 +116,19 @@ function fallbackSynthesis(selection: ActionPlanSelection, input?: BuildProfileI
     coachingNotes: [
       pi.patternPredictionText || "Notice when routines slip under stress.",
       pi.successConditionText || "Protect the conditions where you do your best work.",
-      selection.coachSourceRows[0]?.text ?? "Start with one small win this week.",
-      selection.coachSourceRows[1]?.text ?? "Review weekly trends, not single bad days.",
+      selection.coachSourceRows[0] ? resolvedText(selection.coachSourceRows[0], selection.profile) : "Start with one small win this week.",
+      selection.coachSourceRows[1] ? resolvedText(selection.coachSourceRows[1], selection.profile) : "Review weekly trends, not single bad days.",
     ].filter(Boolean),
     sourceIds: [...pi.sourceIds, ...selection.coachSourceRows.map((r) => r.id)],
   };
 
-  const safetyGuidance = selection.safetyGuidance.map((s) => ({ id: s.id, text: s.text }));
+  const safetyGuidance = selection.safetyGuidance.map((s) => ({
+    id: s.id,
+    text: resolvedText(s, selection.profile),
+  }));
 
   const quickProfile = persona
-    ? buildQuickProfile(persona)
+    ? buildQuickProfile(persona, ctx ? topBarrierLabel(ctx) : undefined)
     : {
         wellnessStyle: "Personalized",
         energyPattern: "Steady-paced",
@@ -141,10 +164,11 @@ function fallbackSynthesis(selection: ActionPlanSelection, input?: BuildProfileI
         worksBody: pi.successConditionText?.trim() || "Your best results come when structure and recovery are protected together.",
         advantageBody: pi.strengthInsightText?.trim() || coachNotes.keyStrength,
       },
-      traitDeviationNarratives: (persona?.traitDeviations ?? []).slice(0, 2).map(
-        (d) =>
-          `Your ${d.trait.replace(/_/g, " ")} is ${Math.abs(d.deviation).toFixed(1)} points ${d.direction} than typical for your profile — a meaningful difference in how you show up day to day.`,
-      ),
+      traitDeviationNarratives: (persona?.traitDeviations ?? []).slice(0, 2).map((d) => {
+        const name = friendlyTraitLabel(d.trait as TraitKey);
+        const direction = d.direction === "above" ? "higher" : "lower";
+        return `Your ${name.toLowerCase()} is ${Math.abs(d.deviation).toFixed(1)} points ${direction} than typical for your profile — a meaningful difference in how you show up day to day.`;
+      }),
       opportunities,
     },
     synthesized: false,
@@ -152,180 +176,179 @@ function fallbackSynthesis(selection: ActionPlanSelection, input?: BuildProfileI
   };
 }
 
-function buildPrompt(
-  selection: ActionPlanSelection,
-  ctx: GeminiSynthesisContext,
-  templates: ReportTemplatesDoc = DEFAULT_REPORT_TEMPLATES,
-): string {
-  const { personality, matchedProfile } = ctx;
-  const fitTone = templates.geminiFitTierTone[personality.fitTier] ?? FIT_TIER_TONE[personality.fitTier] ?? FIT_TIER_TONE.classic;
-  const blendRule = templates.geminiBlendRules[personality.blendStrength] ?? BLEND_RULES[personality.blendStrength] ?? BLEND_RULES.pure;
-  const pi = selection.piSeries;
-
-  const payload = {
-    fitTier: personality.fitTier,
-    blendStrength: personality.blendStrength,
-    wellnessQuestionnaire: ctx.wellnessResponses,
-    personality: ctx.personality,
-    matchedTags: matchedProfile,
-    piSeries: {
-      blindSpot: pi.blindSpotText,
-      patternPrediction: pi.patternPredictionText,
-      successCondition: pi.successConditionText,
-      strengthInsight: pi.strengthInsightText,
-      secondaryBlindSpot: pi.secondaryBlindSpotText,
-      secondarySuccessCondition: pi.secondarySuccessConditionText,
-    },
-    opportunityCards: selection.opportunityCards,
-    pillarPlans: selection.pillarPlans,
-    launchpad: selection.launchpad,
-    coachSourceRows: selection.coachSourceRows.map((r) => ({
-      id: r.id,
-      text: r.text,
-      pillar: r.pillar,
-      personaContext: r.personaContext,
-    })),
-    safetyGuidance: selection.safetyGuidance,
-    rankedRecommendations: ctx.rankedRecommendations,
-    selectedPlan: ctx.selectedPlan,
-    allowedSourceIds: selection.allSourceIds,
-  };
-
-  return `You are Pausibl's wellness report writer (v2.1). Compose pre-personalized content — do NOT invent new medical advice.
-
-SYSTEM PRINCIPLES:
-- Warm, insightful, slightly surprising. Second person only.
-- Never use OCEAN trait names, animal persona names, MBTI, or motivational fluff.
-- Behaviorally specific: "Walk 20 minutes after dinner" not "be more active."
-- Fit tier tone: ${fitTone}
-- Blend strength: ${blendRule}
-
-You are a synthesizer only. Use ONLY rows in the payload — especially rankedRecommendations, selectedPlan, opportunityCards, pillarPlans, launchpad, coachSourceRows, and safetyGuidance. Do not invent new recommendations or advice. Preserve source IDs from allowedSourceIds.
-
-Return valid JSON:
-{
-  "opportunityCards": [{ "id": string, "headline": string (max 10 words), "whyItMatters": string (40-50 words), "sourceIds": string[], "pillar": string, "category": string, "impactLevel": "High"|"Very High" }],
-  "pillarPlans": {
-    "Nutrition": { "focusArea": string (max 15 words), "focusReason": string, "dos": string[4], "donts": string[2], "sourceIds": string[] },
-    "Physical Activity": { ... },
-    "Sleep & Recovery": { ... },
-    "Mental Wellness": { ... }
-  },
-  "launchpad": {
-    "start_here": [{ "id": string, "action": string, "context": string }],
-    "environment_setup": [{ "id": string, "action": string, "context": string }],
-    "recovery_rules": [{ "id": string, "action": string, "context": string }]
-  },
-  "coachNotes": { "keyStrength": string, "keyRisk": string, "coachingNotes": string[3-4], "sourceIds": string[] },
-  "safetyGuidance": [{ "id": string, "text": string }],
-  "reportSections": {
-    "personalityNarrative": string (150-200 words),
-    "quickProfile": { "wellnessStyle": string, "energyPattern": string, "motivationDriver": string, "riskFactor": string, "bestEnvironment": string, "personaPercentage": number, "archetype": string },
-    "blindSpots": {
-      "patternBody": string (80-100 words — the pattern you don't notice),
-      "goalsBody": string (60-80 words — what this means for user's goals and barriers)
-    },
-    "successBlueprint": {
-      "worksBody": string (80-100 words — what works for you),
-      "advantageBody": string (60-80 words — your natural advantage)
-    },
-    "traitDeviationNarratives": string[],
-    "opportunities": same as opportunityCards
-  }
-}
-
-Launchpad group labels: ${Object.entries(LAUNCHPAD_GROUP_LABELS).map(([k, v]) => `${k}=${v}`).join(", ")}
-
-INPUT:
-${JSON.stringify(payload, null, 2)}`;
-}
-
-function parseGeminiJson(text: string): unknown {
-  const trimmed = text.trim();
-  const fence = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const raw = fence ? fence[1].trim() : trimmed;
-  return JSON.parse(raw);
-}
-
-function parseGeminiTokenUsage(
-  usage:
-    | {
-        promptTokenCount?: number;
-        candidatesTokenCount?: number;
-        totalTokenCount?: number;
-      }
-    | undefined,
-  model: string,
-): GeminiTokenUsage | null {
-  if (!usage) return null;
-  const promptTokens = usage.promptTokenCount ?? 0;
-  const completionTokens = usage.candidatesTokenCount ?? 0;
-  const totalTokens = usage.totalTokenCount ?? promptTokens + completionTokens;
-  if (totalTokens === 0 && promptTokens === 0 && completionTokens === 0) return null;
-  return { model, promptTokens, completionTokens, totalTokens };
+function mergeOpportunityCards(
+  base: OpportunityCard[],
+  parsed: { cards?: { id: string; headline: string; whyItMatters: string }[] } | null,
+): OpportunityCard[] {
+  if (!parsed?.cards?.length) return base;
+  return base.map((card, i) => {
+    const hit = parsed.cards?.find((c) => c.id === card.id) ?? parsed.cards?.[i];
+    if (!hit) return card;
+    return {
+      ...card,
+      headline: hit.headline?.trim() || card.headline,
+      whyItMatters: hit.whyItMatters?.trim() || card.whyItMatters,
+    };
+  });
 }
 
 export async function synthesizeActionPlanWithGemini(
   selection: ActionPlanSelection,
   ctx: GeminiSynthesisContext,
   input?: BuildProfileInput,
-  templates?: ReportTemplatesDoc,
+  templates: ReportTemplatesDoc = DEFAULT_REPORT_TEMPLATES,
 ): Promise<ActionPlanSynthesis> {
+  const fallback = fallbackSynthesis(selection, input, ctx);
   const apiKey = process.env.GEMINI_API_KEY?.trim();
-  if (!apiKey) return fallbackSynthesis(selection, input);
+  if (!apiKey) return fallback;
 
   const model = process.env.GEMINI_MODEL?.trim() || "gemini-2.0-flash";
-  const prompt = buildPrompt(selection, ctx, templates);
+  const systemPrompt = buildSystemPrompt(templates);
+  const fb = resolveFitBlend(ctx, templates);
+  const persona = input?.scores?.persona;
+  const errors: string[] = [];
+  const tokenParts: (GeminiTokenUsage | null)[] = [];
 
-  try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.7,
-            responseMimeType: "application/json",
-          },
-        }),
-      },
-    );
+  const emptySection = (): GeminiSectionResult => ({ text: "", tokenUsage: null });
 
-    if (!res.ok) {
-      const errText = await res.text();
-      const fallback = fallbackSynthesis(selection, input);
-      return { ...fallback, synthesisError: `Gemini HTTP ${res.status}: ${errText.slice(0, 200)}` };
-    }
+  const call = (userPrompt: string): Promise<GeminiSectionResult> =>
+    userPrompt.trim()
+      ? callGeminiSection({ apiKey, model, systemPrompt, userPrompt, json: true })
+      : Promise.resolve(emptySection());
 
-    const data = (await res.json()) as {
-      candidates?: { content?: { parts?: { text?: string }[] } }[];
-      usageMetadata?: {
-        promptTokenCount?: number;
-        candidatesTokenCount?: number;
-        totalTokenCount?: number;
-      };
-    };
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    const tokenUsage = parseGeminiTokenUsage(data.usageMetadata, model);
-    if (!text) {
-      const fallback = fallbackSynthesis(selection, input);
-      return { ...fallback, synthesisError: "Gemini returned empty content", tokenUsage };
-    }
+  // Guide §13.3 — personality first, coaching last; other sections in parallel.
+  const personalityRes =
+    persona && input ? await call(buildPersonalityPrompt(ctx, input, fb)) : emptySection();
+  tokenParts.push(personalityRes.tokenUsage);
+  if (personalityRes.error) errors.push(`personality: ${personalityRes.error}`);
 
-    const parsed = parseGeminiJson(text) as ActionPlanSynthesis;
-    return {
-      ...parsed,
-      opportunityCards: parsed.opportunityCards ?? selection.opportunityCards,
-      synthesized: true,
-      tokenUsage,
-    };
-  } catch (e) {
-    const fallback = fallbackSynthesis(selection, input);
-    const msg = e instanceof Error ? e.message : String(e);
-    return { ...fallback, synthesisError: `Gemini error: ${msg}` };
+  const [
+    blindRes,
+    successRes,
+    deviationRes,
+    oppRes,
+    nutritionRes,
+    physicalRes,
+    sleepRes,
+    mentalRes,
+    launchpadRes,
+  ] = await Promise.all([
+    call(buildBlindSpotsPrompt(selection, ctx, fb)),
+    call(buildSuccessBlueprintPrompt(selection, ctx, fb)),
+    persona ? call(buildDeviationPrompt(persona, ctx, fb)) : Promise.resolve(emptySection()),
+    call(buildOpportunitiesPrompt(selection.opportunityCards, ctx, fb)),
+    call(buildPillarPrompt("Nutrition", selection.pillarPlans.Nutrition, ctx, fb)),
+    call(buildPillarPrompt("Physical Activity", selection.pillarPlans["Physical Activity"], ctx, fb)),
+    call(buildPillarPrompt("Sleep & Recovery", selection.pillarPlans["Sleep & Recovery"], ctx, fb)),
+    call(buildPillarPrompt("Mental Wellness", selection.pillarPlans["Mental Wellness"], ctx, fb)),
+    call(buildLaunchpadPrompt(selection, ctx, fb)),
+  ]);
+
+  for (const res of [blindRes, successRes, deviationRes, oppRes, nutritionRes, physicalRes, sleepRes, mentalRes, launchpadRes]) {
+    tokenParts.push(res.tokenUsage);
+    if (res.error) errors.push(res.error);
   }
+
+  const coachingRes = await call(buildCoachingPrompt(selection, ctx, fb));
+  tokenParts.push(coachingRes.tokenUsage);
+  if (coachingRes.error) errors.push(`coaching: ${coachingRes.error}`);
+
+  const personalityJson = parseSectionJson<{ personalityNarrative?: string }>(personalityRes.text);
+  const blindJson = parseSectionJson<{ patternBody?: string; goalsBody?: string }>(blindRes.text);
+  const successJson = parseSectionJson<{ worksBody?: string; advantageBody?: string }>(successRes.text);
+  const deviationJson = parseSectionJson<{ traitDeviationNarratives?: string[] }>(deviationRes.text);
+  const oppJson = parseSectionJson<{ cards?: { id: string; headline: string; whyItMatters: string }[] }>(oppRes.text);
+  const launchpadJson = parseSectionJson<ActionPlanSynthesis["launchpad"]>(launchpadRes.text);
+  const coachingJson = parseSectionJson<{
+    keyStrength?: string;
+    keyRisk?: string;
+    coachingNotes?: string[];
+    safetyGuidance?: { id: string; text: string }[];
+  }>(coachingRes.text);
+
+  const pillarJsonByName: Record<PillarName, {
+    focusArea?: string;
+    focusReason?: string;
+    dos?: PillarSynthesisDo[];
+    donts?: PillarSynthesisDont[];
+  } | null> = {
+    Nutrition: parseSectionJson(nutritionRes.text),
+    "Physical Activity": parseSectionJson(physicalRes.text),
+    "Sleep & Recovery": parseSectionJson(sleepRes.text),
+    "Mental Wellness": parseSectionJson(mentalRes.text),
+  };
+
+  const quickProfile = persona
+    ? buildQuickProfile(persona, topBarrierLabel(ctx))
+    : fallback.reportSections!.quickProfile;
+
+  const pillarPlans = {} as ActionPlanSynthesis["pillarPlans"];
+  for (const pillar of PILLARS) {
+    const base = selection.pillarPlans[pillar];
+    const parsed = pillarJsonByName[pillar];
+    pillarPlans[pillar] = {
+      focusArea: parsed?.focusArea?.trim() || base.focusArea,
+      focusReason: parsed?.focusReason?.trim() || base.focusReason,
+      dos: parsed?.dos?.length ? parsed.dos : fallbackPillarDos(base),
+      donts: parsed?.donts?.length ? parsed.donts : fallbackPillarDonts(base),
+      sourceIds: base.sourceIds,
+    };
+  }
+
+  const opportunityCards = mergeOpportunityCards(selection.opportunityCards, oppJson);
+
+  const launchpad = launchpadJson ?? fallback.launchpad;
+  const coachNotes = {
+    keyStrength: coachingJson?.keyStrength?.trim() || fallback.coachNotes.keyStrength,
+    keyRisk: coachingJson?.keyRisk?.trim() || fallback.coachNotes.keyRisk,
+    coachingNotes: coachingJson?.coachingNotes?.filter(Boolean).length
+      ? coachingJson.coachingNotes!.filter(Boolean)
+      : fallback.coachNotes.coachingNotes,
+    sourceIds: fallback.coachNotes.sourceIds,
+  };
+
+  const safetyGuidance =
+    coachingJson?.safetyGuidance?.length
+      ? coachingJson.safetyGuidance
+      : fallback.safetyGuidance;
+
+  const reportSections = {
+    personalityNarrative: personalityJson?.personalityNarrative?.trim() || fallback.reportSections!.personalityNarrative,
+    quickProfile,
+    blindSpots: {
+      patternBody: blindJson?.patternBody?.trim() || fallback.reportSections!.blindSpots.patternBody,
+      goalsBody: blindJson?.goalsBody?.trim() || fallback.reportSections!.blindSpots.goalsBody,
+    },
+    successBlueprint: {
+      worksBody: successJson?.worksBody?.trim() || fallback.reportSections!.successBlueprint.worksBody,
+      advantageBody: successJson?.advantageBody?.trim() || fallback.reportSections!.successBlueprint.advantageBody,
+    },
+    traitDeviationNarratives:
+      deviationJson?.traitDeviationNarratives?.filter(Boolean).length
+        ? deviationJson.traitDeviationNarratives!.filter(Boolean)
+        : fallback.reportSections!.traitDeviationNarratives,
+    opportunities: opportunityCards,
+  };
+
+  const tokenUsage = mergeTokenUsage(tokenParts, model);
+
+  return {
+    opportunities: opportunityCards.map((o) => ({
+      title: o.headline,
+      summary: o.whyItMatters,
+      sourceIds: o.sourceIds,
+      category: o.category,
+    })),
+    opportunityCards,
+    pillarPlans,
+    launchpad,
+    coachNotes,
+    safetyGuidance,
+    reportSections,
+    synthesized: true,
+    synthesisError: errors.length ? errors.join("; ") : undefined,
+    tokenUsage,
+  };
 }
 
 export async function buildActionPlan(args: {

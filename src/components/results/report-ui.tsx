@@ -9,7 +9,8 @@ import { PERSONA_KEYS } from "@/lib/scoring/persona-types";
 import { fitTierLabel, blendStrengthLabel } from "@/lib/scoring/persona-fit";
 import type { FitTier, BlendStrength, PersonaAnalysis } from "@/lib/scoring/persona-types";
 import { DEFAULT_PERSONA_CENTROIDS } from "@/lib/scoring/persona-defaults";
-import type { OpportunityCard, PillarName } from "@/lib/recommendations/types";
+import type { OpportunityCard, PillarName, PillarSynthesisDo, PillarSynthesisDont } from "@/lib/recommendations/types";
+import { normalizePillarDo, normalizePillarDont } from "@/lib/recommendations/pillar-display";
 import type { WellnessReportSections } from "@/lib/recommendations/types";
 import type { DualSectionPart } from "@/lib/results/report-section-split";
 
@@ -479,8 +480,8 @@ function PillarColumn({
   pillar: PillarName;
   focusArea: string;
   focusReason: string;
-  dos: string[];
-  donts: string[];
+  dos: (PillarSynthesisDo | string)[];
+  donts: (PillarSynthesisDont | string)[];
 }) {
   const short =
     pillar === "Physical Activity"
@@ -504,24 +505,32 @@ function PillarColumn({
       <div className="border-b border-slate-100 p-4">
         <p className="text-[10px] font-bold uppercase text-slate-600">4 Do&apos;s</p>
         <ol className="mt-2 space-y-2">
-          {dos.map((text, i) => (
-            <li key={text} className="text-xs leading-relaxed text-slate-700">
-              <span className="font-bold text-slate-500">{i + 1}. </span>
-              {text}
-            </li>
-          ))}
+          {dos.map((item, i) => {
+            const row = normalizePillarDo(item);
+            return (
+              <li key={`${row.action}-${i}`} className="text-xs leading-relaxed text-slate-700">
+                <span className="font-bold text-slate-500">{i + 1}. </span>
+                <span className="font-medium text-slate-900">{row.action}</span>
+                {row.why?.trim() ? <span className="block pl-4 text-slate-600">{row.why}</span> : null}
+              </li>
+            );
+          })}
         </ol>
       </div>
 
       <div className="p-4">
         <p className="text-[10px] font-bold uppercase text-slate-600">2 Don&apos;ts</p>
         <ol className="mt-2 space-y-2">
-          {donts.map((text, i) => (
-            <li key={text} className="text-xs leading-relaxed text-slate-700">
-              <span className="font-bold text-slate-500">{i + 1}. </span>
-              {text}
-            </li>
-          ))}
+          {donts.map((item, i) => {
+            const row = normalizePillarDont(item);
+            return (
+              <li key={`${row.behavior}-${i}`} className="text-xs leading-relaxed text-slate-700">
+                <span className="font-bold text-slate-500">{i + 1}. </span>
+                <span className="font-medium text-slate-900">{row.behavior}</span>
+                {row.why?.trim() ? <span className="block pl-4 text-slate-600">{row.why}</span> : null}
+              </li>
+            );
+          })}
         </ol>
       </div>
     </div>
@@ -539,7 +548,7 @@ export function DualPillarSlide({
   title,
 }: {
   pillars: PillarName[];
-  plans: Partial<Record<PillarName, { focusArea: string; focusReason: string; dos: string[]; donts: string[] }>>;
+  plans: Partial<Record<PillarName, { focusArea: string; focusReason: string; dos: (PillarSynthesisDo | string)[]; donts: (PillarSynthesisDont | string)[] }>>;
   page: number;
   totalPages: number;
   refId: string;

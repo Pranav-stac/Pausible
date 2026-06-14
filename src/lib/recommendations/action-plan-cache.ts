@@ -4,7 +4,7 @@ import type { ActionPlanApiResponse } from "@/lib/recommendations/client-types";
 import type { AttemptAnswers, AttemptScores } from "@/types/models";
 
 /** Bump when Gemini prompt/context changes so stale cached plans regenerate. */
-export const ACTION_PLAN_SYNTHESIS_VERSION = "v3-split-sections";
+export const ACTION_PLAN_SYNTHESIS_VERSION = "v4-guide-section-prompts";
 
 export type StoredActionPlanCache = {
   inputHash: string;
