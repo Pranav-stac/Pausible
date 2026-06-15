@@ -23,6 +23,7 @@ import { fetchPersonaScoringConfig } from "@/lib/data/persona-scoring-config-cli
 import { fetchPersonaCatalogClient } from "@/lib/data/persona-catalog-client";
 import { personaNeedsRecompute } from "@/lib/scoring/normalize-persona";
 import { shouldForceRegenerateReport } from "@/lib/recommendations/should-force-regenerate-report";
+import { useReportLlmProvider } from "@/lib/hooks/useReportLlmProvider";
 
 function ResultsTopBar() {
   return (
@@ -59,6 +60,7 @@ export function ResultsClient() {
   const [fetching, setFetching] = useState(true);
   const [showFullReport, setShowFullReport] = useState(false);
   const forceRegenerateReport = useMemo(() => shouldForceRegenerateReport(), []);
+  const { provider: reportLlmProvider, model: reportLlmModel, ready: reportLlmReady } = useReportLlmProvider();
 
   useEffect(() => {
     if (!ready || settingsLoading || !attemptId || !effectiveUid) return;
@@ -332,17 +334,23 @@ export function ResultsClient() {
     <div className="min-h-screen scheme-light text-slate-900">
       <ResultsTopBar />
       {showFullReport ? (
-        <PausibleResultsReport
-          model={reportModel}
-          attempt={attempt}
-          attemptId={attemptId}
-          personaAnalysis={attempt.scores?.persona ?? null}
-          onBack={() => setShowFullReport(false)}
-          onCopyShare={() => void copyShare()}
-          shareUrl={shareUrl}
-          onActionPlanCached={handleActionPlanCached}
-          forceRegenerate={forceRegenerateReport}
-        />
+        reportLlmReady ? (
+          <PausibleResultsReport
+            model={reportModel}
+            attempt={attempt}
+            attemptId={attemptId}
+            personaAnalysis={attempt.scores?.persona ?? null}
+            onBack={() => setShowFullReport(false)}
+            onCopyShare={() => void copyShare()}
+            shareUrl={shareUrl}
+            onActionPlanCached={handleActionPlanCached}
+            forceRegenerate={forceRegenerateReport}
+            reportLlmProvider={reportLlmProvider}
+            reportLlmModel={reportLlmModel}
+          />
+        ) : (
+          <div className="p-10 text-center text-sm text-slate-600">Loading report configuration…</div>
+        )
       ) : (
         <ResultsSummaryOverview
           model={reportModel}

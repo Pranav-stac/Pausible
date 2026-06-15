@@ -9,7 +9,8 @@ import { resolveBlindSpotColumns, resolveSuccessBlueprintColumns } from "@/lib/r
 import { PERSONA_DISPLAY } from "@/lib/scoring/persona-defaults";
 import type { ActionPlanApiResponse } from "@/lib/recommendations/client-types";
 import { buildStoredActionPlanCache, hashActionPlanInputs, type StoredActionPlanCache } from "@/lib/recommendations/action-plan-cache";
-import { DEFAULT_REPORT_LLM_PROVIDER } from "@/lib/recommendations/report-llm-types";
+import { isActionPlanClientCacheValid } from "@/lib/recommendations/action-plan-client-cache";
+import { reportLlmProviderLabel, type ReportLlmProvider } from "@/lib/recommendations/report-llm-types";
 import type { PillarName } from "@/lib/recommendations/types";
 import type { PersonaAnalysis } from "@/lib/scoring/persona-types";
 import type { SerializedAttempt } from "@/lib/local/attempts";
@@ -47,6 +48,8 @@ type Props = {
   onActionPlanCached?: (cache: StoredActionPlanCache) => void;
   onBack?: () => void;
   forceRegenerate?: boolean;
+  reportLlmProvider: ReportLlmProvider;
+  reportLlmModel: string;
 };
 
 function responseFromCache(cache: StoredActionPlanCache): ActionPlanApiResponse {
@@ -79,21 +82,25 @@ export function PausibleResultsReport({
   onActionPlanCached,
   onBack,
   forceRegenerate = false,
+  reportLlmProvider,
+  reportLlmModel,
 }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const loadedSigRef = useRef<string | null>(null);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfErr, setPdfErr] = useState<string | null>(null);
 
-  const initialCache =
-    !forceRegenerate && attempt.actionPlanCache?.plan ? attempt.actionPlanCache : null;
+  const clientCache = isActionPlanClientCacheValid(attempt.actionPlanCache, reportLlmProvider, forceRegenerate)
+    ? attempt.actionPlanCache
+    : null;
   const [planData, setPlanData] = useState<ActionPlanApiResponse | null>(() =>
-    initialCache ? responseFromCache(initialCache) : null,
+    clientCache ? responseFromCache(clientCache) : null,
   );
-  const [planLoading, setPlanLoading] = useState(!initialCache);
+  const [planLoading, setPlanLoading] = useState(!clientCache);
   const [planError, setPlanError] = useState<string | null>(null);
+  const [planMeta, setPlanMeta] = useState<{ cached?: boolean; llmProvider?: ReportLlmProvider }>({});
   const [assetsReady, setAssetsReady] = useState(
-    () => Boolean(initialCache) && collectReportImageUrls(model).length === 0,
+    () => Boolean(clientCache) && collectReportImageUrls(model).length === 0,
   );
 
   const refId = reportAttemptRef(attemptId);
@@ -101,17 +108,19 @@ export function PausibleResultsReport({
   const sections = planData?.plan.synthesis.reportSections;
   const synthesis = planData?.plan.synthesis;
 
-  const loadSig = `${attempt.id}|${forceRegenerate}|${hashActionPlanInputs(
+  const loadSig = `${attempt.id}|${forceRegenerate}|${reportLlmProvider}|${hashActionPlanInputs(
     attempt.answers,
     attempt.scores ?? null,
-    attempt.actionPlanCache?.llmProvider ?? DEFAULT_REPORT_LLM_PROVIDER,
+    reportLlmProvider,
   )}`;
 
   useEffect(() => {
-    if (!forceRegenerate && attempt.actionPlanCache?.plan) {
-      setPlanData(responseFromCache(attempt.actionPlanCache));
+    const validCache = isActionPlanClientCacheValid(attempt.actionPlanCache, reportLlmProvider, forceRegenerate);
+    if (validCache) {
+      setPlanData(responseFromCache(attempt.actionPlanCache!));
       setPlanLoading(false);
       setPlanError(null);
+      setPlanMeta({ cached: true, llmProvider: reportLlmProvider });
       loadedSigRef.current = loadSig;
       return;
     }
@@ -139,6 +148,7 @@ export function PausibleResultsReport({
           code?: string;
           inputHash?: string;
           llmProvider?: "gemini" | "gpt";
+          cached?: boolean;
         };
         if (!res.ok) {
           if (json.code === "recommendation_config_missing") {
@@ -149,11 +159,15 @@ export function PausibleResultsReport({
         if (cancelled) return;
         loadedSigRef.current = loadSig;
         setPlanData({ plan: json.plan });
+        setPlanMeta({
+          cached: json.cached,
+          llmProvider: json.llmProvider === "gpt" ? "gpt" : reportLlmProvider,
+        });
         if (json.inputHash) {
           const cache = buildStoredActionPlanCache(
             json.inputHash,
             json.plan,
-            json.llmProvider === "gpt" ? "gpt" : DEFAULT_REPORT_LLM_PROVIDER,
+            json.llmProvider === "gpt" ? "gpt" : reportLlmProvider,
           );
           onActionPlanCached?.(cache);
           void patchAttempt(attempt.id, { actionPlanCache: cache });
@@ -169,7 +183,16 @@ export function PausibleResultsReport({
     return () => {
       cancelled = true;
     };
-  }, [attempt.actionPlanCache, attempt.answers, attempt.id, attempt.scores, forceRegenerate, loadSig, onActionPlanCached]);
+  }, [
+    attempt.actionPlanCache,
+    attempt.answers,
+    attempt.id,
+    attempt.scores,
+    forceRegenerate,
+    loadSig,
+    onActionPlanCached,
+    reportLlmProvider,
+  ]);
 
   useEffect(() => {
     if (planLoading || !planData) {
@@ -201,7 +224,12 @@ export function PausibleResultsReport({
     return (
       <ReportPreparingScreen
         onBack={onBack}
-        error={planError}
+        error={
+          planError ??
+          (synthesis && !synthesis.synthesized && synthesis.synthesisError
+            ? synthesis.synthesisError
+            : null)
+        }
         subtitle={
           planLoading
             ? "Generating your personalized insights — this usually takes about 15 seconds."
@@ -242,6 +270,13 @@ export function PausibleResultsReport({
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Wellness report</p>
             <p className="text-sm font-bold text-slate-900">{model.personaTitle ?? model.primaryLabel}</p>
+            {synthesis ? (
+              <p className="mt-1 text-[10px] text-slate-500">
+                {synthesis.synthesized
+                  ? `${reportLlmProviderLabel(planMeta.llmProvider ?? synthesis.llmProvider ?? reportLlmProvider)} · ${synthesis.tokenUsage?.model ?? reportLlmModel}${planMeta.cached ? " · cached" : " · freshly generated"}`
+                  : `Template copy only — ${reportLlmProviderLabel(reportLlmProvider)} did not run`}
+              </p>
+            ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {onBack ? (

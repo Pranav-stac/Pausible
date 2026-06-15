@@ -352,6 +352,7 @@ export async function synthesizeActionPlanWithLlm(
   };
 
   const tokenUsage = mergeTokenUsage(tokenParts, model);
+  const llmSucceeded = (tokenUsage?.totalTokens ?? 0) > 0;
 
   return {
     opportunities: opportunityCards.map((o) => ({
@@ -366,7 +367,8 @@ export async function synthesizeActionPlanWithLlm(
     coachNotes,
     safetyGuidance,
     reportSections,
-    synthesized: true,
+    synthesized: llmSucceeded,
+    llmProvider: provider,
     synthesisError: errors.length ? errors.join("; ") : undefined,
     tokenUsage,
   };

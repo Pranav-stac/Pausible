@@ -1,3 +1,4 @@
+import type { ReportLlmProvider } from "@/lib/recommendations/report-llm-types";
 import type { BlendStrength, FitTier, PersonaKey } from "@/lib/scoring/persona-types";
 
 export type RecommendationStrength = "core" | "supporting" | "optional" | "conditional";
@@ -200,6 +201,7 @@ export type ActionPlanSynthesis = {
   safetyGuidance: { id: string; text: string }[];
   synthesized: boolean;
   synthesisError?: string;
+  llmProvider?: ReportLlmProvider;
   tokenUsage?: GeminiTokenUsage | null;
 };
 
