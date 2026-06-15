@@ -5,6 +5,8 @@ import { firebaseAdminErrorHint, isFirebaseAdminUnauthenticatedError } from "@/l
 import { getAdminFirestore } from "@/lib/firebase/server";
 import { DEFAULT_PRICE_INR, effectiveAssessmentPriceInr } from "@/lib/pricing";
 import { effectivePersonaAlpha } from "@/lib/server/persona-config";
+import { effectiveReportLlmProvider } from "@/lib/server/report-llm-config";
+import { DEFAULT_REPORT_LLM_PROVIDER } from "@/lib/recommendations/report-llm-types";
 import type { AppSettingsDoc } from "@/types/models";
 
 export async function GET(req: NextRequest) {
@@ -16,6 +18,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       requirePayment: true,
       priceInr: effectiveAssessmentPriceInr(undefined),
+      reportLlmProvider: DEFAULT_REPORT_LLM_PROVIDER,
       firestoreDegraded: true,
       firestoreMessage: firebaseAdminErrorHint(),
     });
@@ -27,6 +30,7 @@ export async function GET(req: NextRequest) {
       requirePayment: snap.exists ? d.requirePayment !== false : true,
       priceInr: effectiveAssessmentPriceInr(d.priceInr),
       personaAlpha: effectivePersonaAlpha(d),
+      reportLlmProvider: effectiveReportLlmProvider(d),
       envDefaultPriceInr:
         DEFAULT_PRICE_INR >= 1 && DEFAULT_PRICE_INR <= 500_000 ? Math.round(DEFAULT_PRICE_INR) : 499,
     });
@@ -36,6 +40,7 @@ export async function GET(req: NextRequest) {
         requirePayment: true,
         priceInr: effectiveAssessmentPriceInr(undefined),
         personaAlpha: effectivePersonaAlpha(undefined),
+        reportLlmProvider: DEFAULT_REPORT_LLM_PROVIDER,
         envDefaultPriceInr:
           DEFAULT_PRICE_INR >= 1 && DEFAULT_PRICE_INR <= 500_000 ? Math.round(DEFAULT_PRICE_INR) : 499,
         firestoreDegraded: true,
@@ -65,6 +70,7 @@ export async function PATCH(req: NextRequest) {
     requirePayment?: boolean;
     priceInr?: number | null;
     personaAlpha?: number | null;
+    reportLlmProvider?: "gemini" | "gpt";
   };
 
   const patch: Record<string, unknown> = { updatedAt: FieldValue.serverTimestamp() };
@@ -105,8 +111,17 @@ export async function PATCH(req: NextRequest) {
     }
   }
 
+  if ("reportLlmProvider" in body) {
+    touched = true;
+    if (body.reportLlmProvider === "gemini" || body.reportLlmProvider === "gpt") {
+      patch.reportLlmProvider = body.reportLlmProvider;
+    } else {
+      return NextResponse.json({ error: "reportLlmProvider must be gemini or gpt" }, { status: 400 });
+    }
+  }
+
   if (!touched) {
-    return NextResponse.json({ error: "Send requirePayment, priceInr, and/or personaAlpha" }, { status: 400 });
+    return NextResponse.json({ error: "Send requirePayment, priceInr, personaAlpha, and/or reportLlmProvider" }, { status: 400 });
   }
 
   const ref = db.doc("app_settings/global");
@@ -119,6 +134,7 @@ export async function PATCH(req: NextRequest) {
     requirePayment: snap2.exists ? d2.requirePayment !== false : true,
     priceInr: effectiveAssessmentPriceInr(d2.priceInr),
     personaAlpha: effectivePersonaAlpha(d2),
+    reportLlmProvider: effectiveReportLlmProvider(d2),
     envDefaultPriceInr:
       DEFAULT_PRICE_INR >= 1 && DEFAULT_PRICE_INR <= 500_000 ? Math.round(DEFAULT_PRICE_INR) : 499,
   });

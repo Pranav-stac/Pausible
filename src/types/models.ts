@@ -108,6 +108,8 @@ export type AppSettingsDoc = {
   priceInr?: number;
   /** Softmax temperature for persona Si = exp(alpha * -distance); default 1 */
   personaAlpha?: number;
+  /** LLM used for wellness report synthesis */
+  reportLlmProvider?: "gemini" | "gpt";
   updatedAt?: Timestamp;
 };
 

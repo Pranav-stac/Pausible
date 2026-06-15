@@ -18,6 +18,12 @@ import {
   type GeminiSynthesisContext,
 } from "@/lib/recommendations/build-gemini-synthesis-context";
 import { callGeminiSection, mergeTokenUsage, parseSectionJson, type GeminiSectionResult } from "@/lib/recommendations/gemini-api-client";
+import { callOpenAiSection } from "@/lib/recommendations/openai-api-client";
+import {
+  DEFAULT_REPORT_LLM_PROVIDER,
+  reportLlmModel,
+  type ReportLlmProvider,
+} from "@/lib/recommendations/report-llm-types";
 import {
   buildBlindSpotsPrompt,
   buildCoachingPrompt,
@@ -172,8 +178,15 @@ function fallbackSynthesis(
       opportunities,
     },
     synthesized: false,
-    synthesisError: "GEMINI_API_KEY not configured — showing deterministic copy from your matched recommendations.",
+    synthesisError: "LLM API key not configured — showing deterministic copy from your matched recommendations.",
   };
+}
+
+function missingApiKeyMessage(provider: ReportLlmProvider): string {
+  if (provider === "gpt") {
+    return "OPENAI_API_KEY not configured — showing deterministic copy from your matched recommendations.";
+  }
+  return "GEMINI_API_KEY not configured — showing deterministic copy from your matched recommendations.";
 }
 
 function mergeOpportunityCards(
@@ -192,17 +205,22 @@ function mergeOpportunityCards(
   });
 }
 
-export async function synthesizeActionPlanWithGemini(
+export async function synthesizeActionPlanWithLlm(
   selection: ActionPlanSelection,
   ctx: GeminiSynthesisContext,
   input?: BuildProfileInput,
   templates: ReportTemplatesDoc = DEFAULT_REPORT_TEMPLATES,
+  provider: ReportLlmProvider = DEFAULT_REPORT_LLM_PROVIDER,
 ): Promise<ActionPlanSynthesis> {
   const fallback = fallbackSynthesis(selection, input, ctx);
-  const apiKey = process.env.GEMINI_API_KEY?.trim();
-  if (!apiKey) return fallback;
+  const geminiKey = process.env.GEMINI_API_KEY?.trim();
+  const openaiKey = process.env.OPENAI_API_KEY?.trim();
+  const apiKey = provider === "gpt" ? openaiKey : geminiKey;
+  if (!apiKey) {
+    return { ...fallback, synthesisError: missingApiKeyMessage(provider) };
+  }
 
-  const model = process.env.GEMINI_MODEL?.trim() || "gemini-2.0-flash";
+  const model = reportLlmModel(provider);
   const systemPrompt = buildSystemPrompt(templates);
   const fb = resolveFitBlend(ctx, templates);
   const persona = input?.scores?.persona;
@@ -211,10 +229,13 @@ export async function synthesizeActionPlanWithGemini(
 
   const emptySection = (): GeminiSectionResult => ({ text: "", tokenUsage: null });
 
-  const call = (userPrompt: string): Promise<GeminiSectionResult> =>
-    userPrompt.trim()
-      ? callGeminiSection({ apiKey, model, systemPrompt, userPrompt, json: true })
-      : Promise.resolve(emptySection());
+  const call = (userPrompt: string): Promise<GeminiSectionResult> => {
+    if (!userPrompt.trim()) return Promise.resolve(emptySection());
+    if (provider === "gpt") {
+      return callOpenAiSection({ apiKey, model, systemPrompt, userPrompt, json: true });
+    }
+    return callGeminiSection({ apiKey, model, systemPrompt, userPrompt, json: true });
+  };
 
   // Guide §13.3 — personality first, coaching last; other sections in parallel.
   const personalityRes =
@@ -356,10 +377,16 @@ export async function buildActionPlan(args: {
   input: BuildProfileInput;
   config: RecommendationConfig;
   reportTemplates?: ReportTemplatesDoc;
+  llmProvider?: ReportLlmProvider;
 }): Promise<ActionPlan> {
   const { loadReportTemplatesAdmin } = await import("@/lib/server/platform-config");
+  const { loadReportLlmProviderAdmin } = await import("@/lib/server/report-llm-config");
   const templates = args.reportTemplates ?? (await loadReportTemplatesAdmin());
+  const llmProvider = args.llmProvider ?? (await loadReportLlmProviderAdmin());
   const ctx = buildGeminiSynthesisContext(args.input, args.config, args.selection);
-  const synthesis = await synthesizeActionPlanWithGemini(args.selection, ctx, args.input, templates);
+  const synthesis = await synthesizeActionPlanWithLlm(args.selection, ctx, args.input, templates, llmProvider);
   return { ...args.selection, synthesis };
 }
+
+/** @deprecated Use synthesizeActionPlanWithLlm */
+export const synthesizeActionPlanWithGemini = synthesizeActionPlanWithLlm;

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ActionPlanApiResponse } from "@/lib/recommendations/client-types";
 import { formatPillarDoLine, formatPillarDontLine } from "@/lib/recommendations/pillar-display";
 import { buildStoredActionPlanCache, hashActionPlanInputs, type StoredActionPlanCache } from "@/lib/recommendations/action-plan-cache";
+import { DEFAULT_REPORT_LLM_PROVIDER } from "@/lib/recommendations/report-llm-types";
 import type { PillarName } from "@/lib/recommendations/types";
 import { patchAttempt } from "@/lib/data/attempt-service";
 import type { SerializedAttempt } from "@/lib/local/attempts";
@@ -49,7 +50,11 @@ export function WellnessActionPlan({
   const [error, setError] = useState<string | null>(null);
   const loadedSigRef = useRef<string | null>(null);
 
-  const loadSig = `${attempt.id}|${forceRegenerate}|${hashActionPlanInputs(attempt.answers, attempt.scores ?? null)}`;
+  const loadSig = `${attempt.id}|${forceRegenerate}|${hashActionPlanInputs(
+    attempt.answers,
+    attempt.scores ?? null,
+    attempt.actionPlanCache?.llmProvider ?? DEFAULT_REPORT_LLM_PROVIDER,
+  )}`;
 
   useEffect(() => {
     if (!forceRegenerate && attempt.actionPlanCache?.plan) {
@@ -83,6 +88,7 @@ export function WellnessActionPlan({
           code?: string;
           inputHash?: string;
           cached?: boolean;
+          llmProvider?: "gemini" | "gpt";
         };
         if (!res.ok) {
           if (json.code === "recommendation_config_missing") {
@@ -98,7 +104,11 @@ export function WellnessActionPlan({
         setData({ plan: json.plan });
 
         if (json.inputHash) {
-          const cache = buildStoredActionPlanCache(json.inputHash, json.plan);
+          const cache = buildStoredActionPlanCache(
+            json.inputHash,
+            json.plan,
+            json.llmProvider === "gpt" ? "gpt" : DEFAULT_REPORT_LLM_PROVIDER,
+          );
           onActionPlanCached?.(cache);
           void patchAttempt(attempt.id, { actionPlanCache: cache });
         }

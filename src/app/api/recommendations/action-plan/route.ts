@@ -14,6 +14,7 @@ import {
 import { runRecommendationEngine } from "@/lib/recommendations/run-engine";
 import { getAdminFirestore } from "@/lib/firebase/server";
 import { loadPersonaScoringConfigAdmin } from "@/lib/server/persona-config";
+import { loadReportLlmProviderAdmin } from "@/lib/server/report-llm-config";
 import { computeAttemptScores } from "@/lib/scoring/compute-attempt-scores";
 import { personaNeedsRecompute } from "@/lib/scoring/normalize-persona";
 import type { AttemptAnswers, AttemptScores } from "@/types/models";
@@ -39,6 +40,7 @@ function jsonFromCache(cache: StoredActionPlanCache) {
   return NextResponse.json({
     plan: cache.plan,
     inputHash: cache.inputHash,
+    llmProvider: cache.llmProvider,
     cached: true,
   });
 }
@@ -81,17 +83,20 @@ export async function POST(req: Request) {
     }
 
     const { scores, recomputed } = await resolveScores(answers, clientScores, storedScores);
-    const inputHash = hashActionPlanInputs(answers, scores);
+    const llmProvider = await loadReportLlmProviderAdmin();
+    const inputHash = hashActionPlanInputs(answers, scores, llmProvider);
 
     if (!forceRegenerate && attemptId && db && attemptSnapExists) {
       const snap = await db.collection("attempts").doc(attemptId).get();
-      const cached = readStoredActionPlanCache(snap.data()?.actionPlanCache, answers, scores);
+      const cached = readStoredActionPlanCache(snap.data()?.actionPlanCache, answers, scores, {
+        currentProvider: llmProvider,
+      });
       if (cached) return jsonFromCache(cached);
     }
 
-    const plan = await runRecommendationEngine({ answers, scores });
+    const plan = await runRecommendationEngine({ answers, scores }, { llmProvider });
     const apiPlan = toActionPlanApiPayload(plan);
-    const cache = buildStoredActionPlanCache(inputHash, apiPlan);
+    const cache = buildStoredActionPlanCache(inputHash, apiPlan, llmProvider);
 
     if (attemptId && db) {
       await db.collection("attempts").doc(attemptId).set(
@@ -107,6 +112,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       plan: apiPlan,
       inputHash,
+      llmProvider,
       cached: false,
     });
   } catch (e) {

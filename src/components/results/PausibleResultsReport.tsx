@@ -9,6 +9,7 @@ import { resolveBlindSpotColumns, resolveSuccessBlueprintColumns } from "@/lib/r
 import { PERSONA_DISPLAY } from "@/lib/scoring/persona-defaults";
 import type { ActionPlanApiResponse } from "@/lib/recommendations/client-types";
 import { buildStoredActionPlanCache, hashActionPlanInputs, type StoredActionPlanCache } from "@/lib/recommendations/action-plan-cache";
+import { DEFAULT_REPORT_LLM_PROVIDER } from "@/lib/recommendations/report-llm-types";
 import type { PillarName } from "@/lib/recommendations/types";
 import type { PersonaAnalysis } from "@/lib/scoring/persona-types";
 import type { SerializedAttempt } from "@/lib/local/attempts";
@@ -100,7 +101,11 @@ export function PausibleResultsReport({
   const sections = planData?.plan.synthesis.reportSections;
   const synthesis = planData?.plan.synthesis;
 
-  const loadSig = `${attempt.id}|${forceRegenerate}|${hashActionPlanInputs(attempt.answers, attempt.scores ?? null)}`;
+  const loadSig = `${attempt.id}|${forceRegenerate}|${hashActionPlanInputs(
+    attempt.answers,
+    attempt.scores ?? null,
+    attempt.actionPlanCache?.llmProvider ?? DEFAULT_REPORT_LLM_PROVIDER,
+  )}`;
 
   useEffect(() => {
     if (!forceRegenerate && attempt.actionPlanCache?.plan) {
@@ -133,6 +138,7 @@ export function PausibleResultsReport({
           error?: string;
           code?: string;
           inputHash?: string;
+          llmProvider?: "gemini" | "gpt";
         };
         if (!res.ok) {
           if (json.code === "recommendation_config_missing") {
@@ -144,7 +150,11 @@ export function PausibleResultsReport({
         loadedSigRef.current = loadSig;
         setPlanData({ plan: json.plan });
         if (json.inputHash) {
-          const cache = buildStoredActionPlanCache(json.inputHash, json.plan);
+          const cache = buildStoredActionPlanCache(
+            json.inputHash,
+            json.plan,
+            json.llmProvider === "gpt" ? "gpt" : DEFAULT_REPORT_LLM_PROVIDER,
+          );
           onActionPlanCached?.(cache);
           void patchAttempt(attempt.id, { actionPlanCache: cache });
         }

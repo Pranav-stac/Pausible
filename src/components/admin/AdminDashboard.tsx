@@ -132,6 +132,7 @@ export function AdminDashboard() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [requirePayment, setRequirePayment] = useState(true);
   const [priceInrDraft, setPriceInrDraft] = useState("499");
+  const [reportLlmProvider, setReportLlmProvider] = useState<"gemini" | "gpt">("gemini");
   const [envDefaultPriceInr, setEnvDefaultPriceInr] = useState(499);
 
   const [analyticsData, setAnalyticsData] = useState<AdminAnalyticsResponse | null>(null);
@@ -262,12 +263,14 @@ export function AdminDashboard() {
     const j = (await res.json()) as {
       requirePayment: boolean;
       priceInr: number;
+      reportLlmProvider?: "gemini" | "gpt";
       envDefaultPriceInr?: number;
       firestoreDegraded?: boolean;
       firestoreMessage?: string;
     };
     setRequirePayment(j.requirePayment);
     setPriceInrDraft(String(j.priceInr));
+    setReportLlmProvider(j.reportLlmProvider === "gpt" ? "gpt" : "gemini");
     if (typeof j.envDefaultPriceInr === "number") setEnvDefaultPriceInr(j.envDefaultPriceInr);
     bumpInfraNotice(j.firestoreDegraded ? j.firestoreMessage : null);
   }, [api, bumpInfraNotice]);
@@ -411,6 +414,24 @@ export function AdminDashboard() {
       setErr(e instanceof Error ? e.message : "Reset failed");
     }
   }, [api, refreshSettingsRemote]);
+
+  const saveReportLlmProvider = useCallback(async () => {
+    setErr(null);
+    try {
+      await api("/api/admin/settings", {
+        method: "PATCH",
+        body: JSON.stringify({ reportLlmProvider }),
+      });
+      setMsg(
+        reportLlmProvider === "gpt"
+          ? "Report LLM set to OpenAI GPT (GPT-5.4). New reports will use GPT; refresh existing results to regenerate."
+          : "Report LLM set to Google Gemini. New reports will use Gemini; refresh existing results to regenerate.",
+      );
+      await refreshSettingsRemote();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Save failed");
+    }
+  }, [api, refreshSettingsRemote, reportLlmProvider]);
 
   const seedDefault = useCallback(async () => {
     try {
@@ -1361,6 +1382,37 @@ export function AdminDashboard() {
                     className="rounded-full border border-slate-200 bg-white px-5 py-2 text-xs font-semibold text-slate-800"
                   >
                     Clear override (use .env)
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <h2 className="text-sm font-semibold">Report LLM</h2>
+                <p className="mt-2 text-xs text-slate-600">
+                  Choose which model generates wellness report copy. Gemini uses{" "}
+                  <code className="rounded bg-slate-100 px-1">GEMINI_API_KEY</code> (
+                  <code className="rounded bg-slate-100 px-1">GEMINI_MODEL</code> or gemini-2.0-flash). GPT uses{" "}
+                  <code className="rounded bg-slate-100 px-1">OPENAI_API_KEY</code> (
+                  <code className="rounded bg-slate-100 px-1">OPENAI_MODEL</code> or gpt-5.4).
+                </p>
+                <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+                  <label className="flex flex-col text-xs font-semibold text-slate-700">
+                    Provider
+                    <select
+                      value={reportLlmProvider}
+                      onChange={(e) => setReportLlmProvider(e.target.value === "gpt" ? "gpt" : "gemini")}
+                      className="mt-1 w-full min-w-[12rem] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium sm:w-56"
+                    >
+                      <option value="gemini">Google Gemini</option>
+                      <option value="gpt">OpenAI GPT (GPT-5.4)</option>
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => void saveReportLlmProvider()}
+                    className="rounded-full bg-slate-950 px-5 py-2 text-xs font-semibold text-white"
+                  >
+                    Save LLM provider
                   </button>
                 </div>
               </div>
