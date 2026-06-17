@@ -7,6 +7,7 @@ import { doc, getDoc } from "firebase/firestore";
 import type { AssessmentDefinition } from "@/types/models";
 import { AssessmentUiEditor } from "@/components/admin/AssessmentUiEditor";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { AttemptLlmContextPanel } from "@/components/admin/AttemptLlmContextPanel";
 import { AttemptPersonaDetail } from "@/components/admin/AttemptPersonaDetail";
 import { PersonaCentroidsEditor } from "@/components/admin/PersonaCentroidsEditor";
 import { PersonaCatalogEditor } from "@/components/admin/PersonaCatalogEditor";
@@ -1473,7 +1474,7 @@ export function AdminDashboard() {
             aria-label="Close panel"
             onClick={() => setAttemptDrawerId(null)}
           />
-          <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-lg flex-col border-l border-slate-200 bg-white shadow-2xl">
+          <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-2xl flex-col border-l border-slate-200 bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b px-4 py-3">
               <h3 className="text-sm font-semibold">Attempt detail</h3>
               <button type="button" className="text-sm font-semibold text-slate-500" onClick={() => setAttemptDrawerId(null)}>
@@ -1487,6 +1488,7 @@ export function AdminDashboard() {
                   ((attemptDrawer.scores as { persona?: PersonaAnalysis } | null)?.persona ?? null)
                 }
               />
+              <AttemptLlmContextPanel attemptId={attemptDrawerId} api={api} />
               <details className="mt-6">
                 <summary className="cursor-pointer font-semibold text-slate-600">Raw attempt metadata</summary>
                 <dl className="mt-2 space-y-2">
