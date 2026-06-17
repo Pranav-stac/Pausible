@@ -217,7 +217,7 @@ export async function synthesizeActionPlanWithLlm(
   const openaiKey = process.env.OPENAI_API_KEY?.trim();
   const apiKey = provider === "gpt" ? openaiKey : geminiKey;
   if (!apiKey) {
-    return { ...fallback, synthesisError: missingApiKeyMessage(provider) };
+    return { ...fallback, llmProvider: provider, synthesisError: missingApiKeyMessage(provider) };
   }
 
   const model = reportLlmModel(provider);
@@ -369,7 +369,7 @@ export async function synthesizeActionPlanWithLlm(
     reportSections,
     synthesized: llmSucceeded,
     llmProvider: provider,
-    synthesisError: errors.length ? errors.join("; ") : undefined,
+    ...(errors.length ? { synthesisError: errors.join("; ") } : {}),
     tokenUsage,
   };
 }

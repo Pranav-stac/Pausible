@@ -16,6 +16,7 @@ import { getFirebaseAuth, getFirebaseDb } from "@/lib/firebase/client";
 import { isFirebaseConfigured } from "@/lib/firebase/config";
 import type { AttemptAnswers, AttemptScores } from "@/types/models";
 import type { PersonaAnalysis } from "@/lib/scoring/persona-types";
+import { stripUndefinedDeep } from "@/lib/firebase/strip-undefined";
 import { readStoredActionPlanCache, type StoredActionPlanCache } from "@/lib/recommendations/action-plan-cache";
 import {
   localGetAttempt,
@@ -119,9 +120,9 @@ export async function upsertAttempt(data: WritableAttempt): Promise<void> {
     payload.claimSecret = data.claimSecret;
   }
   if (data.actionPlanCache !== undefined) {
-    payload.actionPlanCache = data.actionPlanCache;
+    payload.actionPlanCache = stripUndefinedDeep(data.actionPlanCache);
   }
-  await setDoc(ref, payload, { merge: true });
+  await setDoc(ref, stripUndefinedDeep(payload), { merge: true });
 }
 
 export async function patchAttempt(attemptId: string, patch: Partial<WritableAttempt>): Promise<void> {
@@ -133,7 +134,7 @@ export async function patchAttempt(attemptId: string, patch: Partial<WritableAtt
   }
   const db = getFirebaseDb();
   if (!db) throw new Error("Firestore unavailable");
-  const payload: Record<string, unknown> = { ...patch, updatedAt: serverTimestamp() };
+  const payload: Record<string, unknown> = stripUndefinedDeep({ ...patch, updatedAt: serverTimestamp() });
   if (patch.paymentStatus === "paid") payload.paidAt = serverTimestamp();
   await updateDoc(doc(db, "attempts", attemptId), payload);
 }

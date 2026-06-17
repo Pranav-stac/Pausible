@@ -6,6 +6,7 @@ import {
   parseReportLlmProvider,
   type ReportLlmProvider,
 } from "@/lib/recommendations/report-llm-types";
+import { stripUndefinedDeep } from "@/lib/firebase/strip-undefined";
 import type { AttemptAnswers, AttemptScores } from "@/types/models";
 
 /** Bump when prompt/context changes so stale cached plans regenerate. */
@@ -35,13 +36,13 @@ export function buildStoredActionPlanCache(
   plan: ActionPlanApiResponse["plan"],
   llmProvider: ReportLlmProvider = DEFAULT_REPORT_LLM_PROVIDER,
 ): StoredActionPlanCache {
-  return {
+  return stripUndefinedDeep({
     inputHash,
     plan,
     llmProvider,
     synthesizedAt: new Date().toISOString(),
     tokenUsage: plan.audit.tokenUsage ?? plan.synthesis.tokenUsage ?? null,
-  };
+  });
 }
 
 export function hashActionPlanInputs(
@@ -59,7 +60,7 @@ export function hashActionPlanInputs(
 }
 
 export function toActionPlanApiPayload(plan: ActionPlan): ActionPlanApiResponse["plan"] {
-  return {
+  return stripUndefinedDeep({
     profile: plan.profile,
     synthesis: plan.synthesis,
     audit: {
@@ -72,7 +73,7 @@ export function toActionPlanApiPayload(plan: ActionPlan): ActionPlanApiResponse[
       })),
       tokenUsage: plan.synthesis.tokenUsage ?? null,
     },
-  };
+  });
 }
 
 export function readStoredActionPlanCache(

@@ -271,11 +271,16 @@ export function PausibleResultsReport({
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Wellness report</p>
             <p className="text-sm font-bold text-slate-900">{model.personaTitle ?? model.primaryLabel}</p>
             {synthesis ? (
-              <p className="mt-1 text-[10px] text-slate-500">
-                {synthesis.synthesized
-                  ? `${reportLlmProviderLabel(planMeta.llmProvider ?? synthesis.llmProvider ?? reportLlmProvider)} · ${synthesis.tokenUsage?.model ?? reportLlmModel}${planMeta.cached ? " · cached" : " · freshly generated"}`
-                  : `Template copy only — ${reportLlmProviderLabel(reportLlmProvider)} did not run`}
-              </p>
+              <div className="mt-1 space-y-0.5">
+                <p className="text-[10px] text-slate-500">
+                  {synthesis.synthesized
+                    ? `${reportLlmProviderLabel(planMeta.llmProvider ?? synthesis.llmProvider ?? reportLlmProvider)} · ${synthesis.tokenUsage?.model ?? reportLlmModel}${planMeta.cached ? " · cached" : " · freshly generated"}`
+                    : `Template copy only — ${reportLlmProviderLabel(reportLlmProvider)} did not run`}
+                </p>
+                {!synthesis.synthesized && synthesis.synthesisError ? (
+                  <p className="text-[10px] leading-snug text-amber-800">{synthesis.synthesisError}</p>
+                ) : null}
+              </div>
             ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-2">

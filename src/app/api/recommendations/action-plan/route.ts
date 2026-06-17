@@ -13,6 +13,7 @@ import {
 } from "@/lib/recommendations/load-recommendation-config";
 import { runRecommendationEngine } from "@/lib/recommendations/run-engine";
 import { getAdminFirestore } from "@/lib/firebase/server";
+import { stripUndefinedDeep } from "@/lib/firebase/strip-undefined";
 import { loadPersonaScoringConfigAdmin } from "@/lib/server/persona-config";
 import { loadReportLlmProviderAdmin } from "@/lib/server/report-llm-config";
 import { computeAttemptScores } from "@/lib/scoring/compute-attempt-scores";
@@ -100,11 +101,11 @@ export async function POST(req: Request) {
 
     if (attemptId && db) {
       await db.collection("attempts").doc(attemptId).set(
-        {
+        stripUndefinedDeep({
           actionPlanCache: cache,
           ...(recomputed ? { scores, personaAnalysis: scores.persona ?? null } : {}),
           updatedAt: FieldValue.serverTimestamp(),
-        },
+        }),
         { merge: true },
       );
     }
