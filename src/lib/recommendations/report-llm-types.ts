@@ -10,7 +10,7 @@ export function reportLlmModel(provider: ReportLlmProvider): string {
   if (provider === "gpt") {
     return process.env.OPENAI_MODEL?.trim() || "gpt-5.4";
   }
-  return process.env.GEMINI_MODEL?.trim() || "gemini-2.0-flash";
+  return process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash";
 }
 
 export function reportLlmProviderLabel(provider: ReportLlmProvider): string {

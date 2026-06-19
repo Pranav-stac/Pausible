@@ -71,7 +71,16 @@ export function sectionOutputFromSynthesis(
   const reportSections = synthesis.reportSections;
   switch (sectionId) {
     case "primary_pattern":
-      return reportSections?.primaryPattern ?? null;
+      if (reportSections?.primaryPattern) return reportSections.primaryPattern;
+      if (reportSections?.personalityNarrative || reportSections?.successBlueprint) {
+        return {
+          personaNarrative: reportSections.personalityNarrative ?? null,
+          successBlueprint: reportSections.successBlueprint ?? null,
+          traitDeviationNarratives: reportSections.traitDeviationNarratives ?? null,
+          _legacy: true,
+        };
+      }
+      return null;
     case "secondary_pattern":
       return reportSections?.secondaryPattern ?? null;
     case "blind_spots":

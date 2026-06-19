@@ -122,6 +122,13 @@ export function AttemptLlmContextPanel({ attemptId, api }: Props) {
 
   if (!data) return null;
 
+  const cachedProvider = data.reportOutput.llmProvider;
+  const cachedModel = data.reportOutput.tokenUsage?.model;
+  const providerMismatch =
+    data.reportOutput.available &&
+    cachedProvider != null &&
+    cachedProvider !== data.provider;
+
   const handlePdf = async () => {
     setPdfBusy(true);
     setPdfErr(null);
@@ -140,8 +147,8 @@ export function AttemptLlmContextPanel({ attemptId, api }: Props) {
         <div>
           <h4 className="text-sm font-semibold text-slate-900">LLM report context</h4>
           <p className="mt-1 text-xs text-slate-600">
-            Structured inputs and prompts passed to {reportLlmProviderLabel(data.provider)} ({data.model}) for each report
-            section.
+            Prompt preview uses the <strong>current</strong> admin provider ({reportLlmProviderLabel(data.provider)}{" "}
+            · {data.model}). Cached report output below may have been generated with a different provider.
           </p>
         </div>
         <button
@@ -157,11 +164,23 @@ export function AttemptLlmContextPanel({ attemptId, api }: Props) {
 
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
         <p>
-          <span className="font-semibold text-slate-900">Provider:</span> {reportLlmProviderLabel(data.provider)}
+          <span className="font-semibold text-slate-900">Current admin provider:</span>{" "}
+          {reportLlmProviderLabel(data.provider)} · {data.model}
         </p>
-        <p className="mt-1">
-          <span className="font-semibold text-slate-900">Model:</span> {data.model}
-        </p>
+        {data.reportOutput.available ? (
+          <p className="mt-1">
+            <span className="font-semibold text-slate-900">Cached report provider:</span>{" "}
+            {reportLlmProviderLabel(cachedProvider ?? data.provider)}
+            {cachedModel ? ` · ${cachedModel}` : ""}
+          </p>
+        ) : null}
+        {providerMismatch ? (
+          <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-amber-900">
+            Cached report was generated with {reportLlmProviderLabel(cachedProvider!)}. Admin is now set to{" "}
+            {reportLlmProviderLabel(data.provider)}. Open the user results page and refresh to regenerate with the
+            current provider.
+          </p>
+        ) : null}
         <p className="mt-1">
           <span className="font-semibold text-slate-900">Fit tier:</span> {data.fitBlend.fitTier} ·{" "}
           <span className="font-semibold text-slate-900">Blend:</span> {data.fitBlend.blendStrength}
@@ -191,7 +210,12 @@ export function AttemptLlmContextPanel({ attemptId, api }: Props) {
         ) : null}
         {data.reportOutput.synthesisError ? (
           <p className="mt-1 text-amber-800">
-            <span className="font-semibold">Synthesis error:</span> {data.reportOutput.synthesisError}
+            <span className="font-semibold">Synthesis error (from cached report):</span>{" "}
+            {data.reportOutput.synthesisError.includes("Gemini HTTP") &&
+            data.reportOutput.synthesisError.includes("personality:")
+              ? "Legacy Gemini report (pre–v2.0 pipeline, gemini-2.0-flash retired June 2026). Regenerate the report with the current provider. Details: "
+              : null}
+            {data.reportOutput.synthesisError}
           </p>
         ) : null}
       </div>

@@ -1392,7 +1392,7 @@ export function AdminDashboard() {
                 <p className="mt-2 text-xs text-slate-600">
                   Choose which model generates wellness report copy. Gemini uses{" "}
                   <code className="rounded bg-slate-100 px-1">GEMINI_API_KEY</code> (
-                  <code className="rounded bg-slate-100 px-1">GEMINI_MODEL</code> or gemini-2.0-flash). GPT uses{" "}
+                  <code className="rounded bg-slate-100 px-1">GEMINI_MODEL</code> or gemini-3.5-flash). GPT uses{" "}
                   <code className="rounded bg-slate-100 px-1">OPENAI_API_KEY</code> (
                   <code className="rounded bg-slate-100 px-1">OPENAI_MODEL</code> or gpt-5.4).
                 </p>
