@@ -18,7 +18,7 @@ import type { ReportLlmProvider } from "@/lib/recommendations/report-llm-types";
 import { reportLlmModel } from "@/lib/recommendations/report-llm-types";
 import { scoreAll } from "@/lib/recommendations/score";
 import { selectActionPlan } from "@/lib/recommendations/select-action-plan";
-import type { ActionPlanSelection, OpportunityCard, PillarName } from "@/lib/recommendations/types";
+import type { ActionPlanSelection, ActionPlanSynthesis, OpportunityCard, PillarName } from "@/lib/recommendations/types";
 import { loadReportLlmProviderAdmin } from "@/lib/server/report-llm-config";
 import { loadReportTemplatesAdmin } from "@/lib/server/platform-config";
 import type { PersonaAnalysis } from "@/lib/scoring/persona-types";
@@ -31,8 +31,18 @@ export type AttemptLlmSectionContext = {
   userPrompt: string;
   inputData: Record<string, unknown>;
   outputSchema: Record<string, unknown>;
+  output: unknown | null;
   skipped: boolean;
   skipReason?: string;
+};
+
+export type AttemptLlmReportOutputMeta = {
+  available: boolean;
+  synthesized: boolean;
+  synthesisError?: string;
+  tokenUsage?: ActionPlanSynthesis["tokenUsage"];
+  llmProvider?: ActionPlanSynthesis["llmProvider"];
+  synthesizedAt?: string;
 };
 
 export type AttemptLlmContextPackage = {
@@ -41,11 +51,64 @@ export type AttemptLlmContextPackage = {
   systemPrompt: string;
   fitBlend: SectionFitBlend & { fitTone: string; blendRule: string };
   sharedContext: GeminiSynthesisContext;
+  reportOutput: AttemptLlmReportOutputMeta;
   sections: AttemptLlmSectionContext[];
 };
 
+const PILLAR_SECTION_IDS: Record<string, PillarName> = {
+  pillar_nutrition: "Nutrition",
+  pillar_physical_activity: "Physical Activity",
+  "pillar_sleep_&_recovery": "Sleep & Recovery",
+  pillar_mental_wellness: "Mental Wellness",
+};
+
+export function sectionOutputFromSynthesis(
+  sectionId: string,
+  synthesis: ActionPlanSynthesis | null | undefined,
+): unknown | null {
+  if (!synthesis) return null;
+
+  const reportSections = synthesis.reportSections;
+  switch (sectionId) {
+    case "primary_pattern":
+      return reportSections?.primaryPattern ?? null;
+    case "secondary_pattern":
+      return reportSections?.secondaryPattern ?? null;
+    case "blind_spots":
+      return reportSections?.blindSpots ?? null;
+    case "high_impact_priorities":
+      return synthesis.opportunityCards?.length ? synthesis.opportunityCards : null;
+    default: {
+      const pillar = PILLAR_SECTION_IDS[sectionId];
+      return pillar ? synthesis.pillarPlans?.[pillar] ?? null : null;
+    }
+  }
+}
+
+export function attachSynthesisOutputs(
+  pkg: Omit<AttemptLlmContextPackage, "reportOutput"> & { reportOutput?: AttemptLlmReportOutputMeta },
+  synthesis: ActionPlanSynthesis | null | undefined,
+  meta?: { synthesizedAt?: string; llmProvider?: ActionPlanSynthesis["llmProvider"] },
+): AttemptLlmContextPackage {
+  return {
+    ...pkg,
+    reportOutput: {
+      available: Boolean(synthesis),
+      synthesized: synthesis?.synthesized ?? false,
+      synthesisError: synthesis?.synthesisError,
+      tokenUsage: synthesis?.tokenUsage ?? undefined,
+      llmProvider: synthesis?.llmProvider ?? meta?.llmProvider,
+      synthesizedAt: meta?.synthesizedAt,
+    },
+    sections: pkg.sections.map((section) => ({
+      ...section,
+      output: sectionOutputFromSynthesis(section.id, synthesis),
+    })),
+  };
+}
+
 function section(
-  partial: Omit<AttemptLlmSectionContext, "skipped" | "userPrompt"> & {
+  partial: Omit<AttemptLlmSectionContext, "skipped" | "userPrompt" | "output"> & {
     userPrompt: string;
     skipReason?: string;
   },
@@ -53,6 +116,7 @@ function section(
   const skipped = !partial.userPrompt.trim();
   return {
     ...partial,
+    output: null,
     skipped,
     skipReason: skipped ? partial.skipReason ?? "No prompt generated for this section" : undefined,
   };
@@ -187,12 +251,15 @@ export async function buildAttemptLlmContextPackage(input: BuildProfileInput): P
   const fitBlend = resolveFitBlend(ctx, templates);
   const persona = input.scores?.persona ?? null;
 
-  return {
-    provider,
-    model: reportLlmModel(provider),
-    systemPrompt: buildSystemPrompt(templates),
-    fitBlend,
-    sharedContext: ctx,
-    sections: buildSections({ selection, ctx, input, templates, persona }),
-  };
+  return attachSynthesisOutputs(
+    {
+      provider,
+      model: reportLlmModel(provider),
+      systemPrompt: buildSystemPrompt(templates),
+      fitBlend,
+      sharedContext: ctx,
+      sections: buildSections({ selection, ctx, input, templates, persona }),
+    },
+    null,
+  );
 }

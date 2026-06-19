@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api/admin-auth";
-import { buildAttemptLlmContextPackage } from "@/lib/recommendations/build-attempt-llm-context";
+import { buildAttemptLlmContextPackage, attachSynthesisOutputs } from "@/lib/recommendations/build-attempt-llm-context";
+import type { ActionPlanSynthesis } from "@/lib/recommendations/types";
+import { parseReportLlmProvider } from "@/lib/recommendations/report-llm-types";
 import { RecommendationConfigNotFoundError } from "@/lib/recommendations/load-recommendation-config";
 import { firebaseAdminErrorHint, isFirebaseAdminUnauthenticatedError } from "@/lib/firebase/admin-firestore-errors";
 import { getAdminFirestore } from "@/lib/firebase/server";
@@ -36,7 +38,23 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ attemptId: 
     }
 
     const pkg = await buildAttemptLlmContextPackage({ answers, scores });
-    return NextResponse.json({ attemptId, ...pkg });
+
+    const cache = x.actionPlanCache;
+    const cacheRow = cache && typeof cache === "object" ? (cache as Record<string, unknown>) : null;
+    const plan = cacheRow?.plan && typeof cacheRow.plan === "object" ? (cacheRow.plan as Record<string, unknown>) : null;
+    const synthesis =
+      plan?.synthesis && typeof plan.synthesis === "object"
+        ? (plan.synthesis as ActionPlanSynthesis)
+        : null;
+    const synthesizedAt = typeof cacheRow?.synthesizedAt === "string" ? cacheRow.synthesizedAt : undefined;
+    const cacheProvider = parseReportLlmProvider(cacheRow?.llmProvider);
+
+    const enriched = attachSynthesisOutputs(pkg, synthesis, {
+      synthesizedAt,
+      llmProvider: cacheProvider,
+    });
+
+    return NextResponse.json({ attemptId, ...enriched });
   } catch (e) {
     if (e instanceof RecommendationConfigNotFoundError) {
       return NextResponse.json({ error: e.message, code: "recommendation_config_missing" }, { status: 503 });

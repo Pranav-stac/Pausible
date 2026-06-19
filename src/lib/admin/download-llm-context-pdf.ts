@@ -68,6 +68,10 @@ export async function downloadLlmContextAsPdf(pkg: AttemptLlmContextPackage, att
     }
     block("Structured input data", JSON.stringify(section.inputData, null, 2));
     block("Expected JSON output", JSON.stringify(section.outputSchema, null, 2));
+    block(
+      "Actual LLM output",
+      section.output != null ? JSON.stringify(section.output, null, 2) : "(no stored output)",
+    );
     block("User prompt sent to LLM", section.userPrompt || "(empty)");
     y += 3;
   }

@@ -55,6 +55,17 @@ function SectionCard({ section, defaultOpen = false }: { section: AttemptLlmSect
         </div>
 
         <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Actual LLM output</p>
+          {section.output != null ? (
+            <JsonBlock value={section.output} />
+          ) : (
+            <p className="mt-2 rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-500">
+              No stored output for this section (report not generated yet or section was skipped).
+            </p>
+          )}
+        </div>
+
+        <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">User prompt sent to LLM</p>
           <pre className="mt-2 max-h-80 overflow-auto whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50 p-3 font-mono text-[10px] leading-relaxed text-slate-800">
             {section.userPrompt || "(empty)"}
@@ -155,6 +166,34 @@ export function AttemptLlmContextPanel({ attemptId, api }: Props) {
           <span className="font-semibold text-slate-900">Fit tier:</span> {data.fitBlend.fitTier} ·{" "}
           <span className="font-semibold text-slate-900">Blend:</span> {data.fitBlend.blendStrength}
         </p>
+        <p className="mt-2 border-t border-slate-200 pt-2">
+          <span className="font-semibold text-slate-900">Report output:</span>{" "}
+          {data.reportOutput.available
+            ? data.reportOutput.synthesized
+              ? "Generated"
+              : "Fallback (LLM unavailable)"
+            : "Not cached on this attempt"}
+          {data.reportOutput.synthesizedAt ? (
+            <>
+              {" "}
+              · <span className="font-semibold text-slate-900">At:</span>{" "}
+              {new Date(data.reportOutput.synthesizedAt).toLocaleString()}
+            </>
+          ) : null}
+        </p>
+        {data.reportOutput.tokenUsage ? (
+          <p className="mt-1">
+            <span className="font-semibold text-slate-900">Tokens:</span>{" "}
+            {data.reportOutput.tokenUsage.totalTokens.toLocaleString()} total (
+            {data.reportOutput.tokenUsage.promptTokens.toLocaleString()} in ·{" "}
+            {data.reportOutput.tokenUsage.completionTokens.toLocaleString()} out)
+          </p>
+        ) : null}
+        {data.reportOutput.synthesisError ? (
+          <p className="mt-1 text-amber-800">
+            <span className="font-semibold">Synthesis error:</span> {data.reportOutput.synthesisError}
+          </p>
+        ) : null}
       </div>
 
       <details className="rounded-xl border border-slate-200 bg-white">
