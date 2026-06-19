@@ -9,6 +9,7 @@ import { AssessmentUiEditor } from "@/components/admin/AssessmentUiEditor";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { AttemptLlmContextPanel } from "@/components/admin/AttemptLlmContextPanel";
 import { AttemptPersonaDetail } from "@/components/admin/AttemptPersonaDetail";
+import { AdminAttemptReportDownloader } from "@/components/admin/AdminAttemptReportDownloader";
 import { PersonaCentroidsEditor } from "@/components/admin/PersonaCentroidsEditor";
 import { PersonaCatalogEditor } from "@/components/admin/PersonaCatalogEditor";
 import { ScoringConfigEditor } from "@/components/admin/ScoringConfigEditor";
@@ -1504,7 +1505,8 @@ export function AdminDashboard() {
                     ))}
                 </dl>
               </details>
-              <div className="mt-6 flex gap-2">
+              <div className="mt-6 flex flex-wrap items-center gap-2">
+                <AdminAttemptReportDownloader attemptId={attemptDrawerId} api={api} />
                 <Link
                   href={(attemptDrawer.resultsUrl as string) ?? `#`}
                   target="_blank"

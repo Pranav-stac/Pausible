@@ -87,30 +87,33 @@ export function AttemptLlmContextPanel({ attemptId, api }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfErr, setPdfErr] = useState<string | null>(null);
+  const [regenBusy, setRegenBusy] = useState(false);
+  const [regenMsg, setRegenMsg] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadContext = async (cancelled: () => boolean) => {
     setLoading(true);
     setError(null);
     setData(null);
+    try {
+      const res = await api(`/api/admin/attempt-llm-context/${encodeURIComponent(attemptId)}`);
+      const json = (await res.json()) as AttemptLlmContextPackage & { error?: string };
+      if (!res.ok) throw new Error(json.error ?? `Request failed (${res.status})`);
+      if (!cancelled()) setData(json);
+    } catch (e) {
+      if (!cancelled()) setError(e instanceof Error ? e.message : "Failed to load LLM context");
+    } finally {
+      if (!cancelled()) setLoading(false);
+    }
+  };
 
-    void (async () => {
-      try {
-        const res = await api(`/api/admin/attempt-llm-context/${encodeURIComponent(attemptId)}`);
-        const json = (await res.json()) as AttemptLlmContextPackage & { error?: string };
-        if (!res.ok) throw new Error(json.error ?? `Request failed (${res.status})`);
-        if (!cancelled) setData(json);
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load LLM context");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-
+  useEffect(() => {
+    let cancelled = false;
+    void loadContext(() => cancelled);
     return () => {
       cancelled = true;
     };
-  }, [attemptId, api]);
+  }, [attemptId, api, reloadKey]);
 
   if (loading) {
     return <p className="mt-6 text-xs text-slate-500">Building LLM section context…</p>;
@@ -128,6 +131,38 @@ export function AttemptLlmContextPanel({ attemptId, api }: Props) {
     data.reportOutput.available &&
     cachedProvider != null &&
     cachedProvider !== data.provider;
+
+  const handleRegenerate = async () => {
+    setRegenBusy(true);
+    setRegenMsg(null);
+    try {
+      const res = await api(`/api/admin/attempts/${encodeURIComponent(attemptId)}/regenerate-report`, {
+        method: "POST",
+      });
+      const json = (await res.json()) as {
+        ok?: boolean;
+        error?: string;
+        llmProvider?: "gemini" | "gpt";
+        model?: string;
+        synthesized?: boolean;
+        synthesisError?: string | null;
+        tokenUsage?: { totalTokens?: number } | null;
+      };
+      if (!res.ok) throw new Error(json.error ?? `Regenerate failed (${res.status})`);
+      const providerLabel = reportLlmProviderLabel(json.llmProvider === "gpt" ? "gpt" : "gemini");
+      const tokens = json.tokenUsage?.totalTokens;
+      setRegenMsg(
+        json.synthesized
+          ? `Regenerated with ${providerLabel} (${json.model}).${tokens ? ` ${tokens.toLocaleString()} tokens used.` : ""}`
+          : `Ran ${providerLabel} but fell back to template copy.${json.synthesisError ? ` ${json.synthesisError}` : ""}`,
+      );
+      setReloadKey((k) => k + 1);
+    } catch (e) {
+      setRegenMsg(e instanceof Error ? e.message : "Could not regenerate report.");
+    } finally {
+      setRegenBusy(false);
+    }
+  };
 
   const handlePdf = async () => {
     setPdfBusy(true);
@@ -151,15 +186,32 @@ export function AttemptLlmContextPanel({ attemptId, api }: Props) {
             · {data.model}). Cached report output below may have been generated with a different provider.
           </p>
         </div>
-        <button
-          type="button"
-          disabled={pdfBusy}
-          onClick={() => void handlePdf()}
-          className="shrink-0 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-60"
-        >
-          {pdfBusy ? "Preparing PDF…" : "Download PDF"}
-        </button>
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          <button
+            type="button"
+            disabled={regenBusy}
+            onClick={() => void handleRegenerate()}
+            className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+          >
+            {regenBusy ? "Regenerating…" : "Regenerate with current provider"}
+          </button>
+          <button
+            type="button"
+            disabled={pdfBusy}
+            onClick={() => void handlePdf()}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-60"
+          >
+            {pdfBusy ? "Preparing PDF…" : "Download LLM context PDF"}
+          </button>
+        </div>
       </div>
+      {regenMsg ? (
+        <p
+          className={`text-xs ${regenMsg.includes("fell back") || regenMsg.includes("failed") || regenMsg.includes("not set") ? "text-amber-800" : "text-emerald-800"}`}
+        >
+          {regenMsg}
+        </p>
+      ) : null}
       {pdfErr ? <p className="text-xs text-red-700">{pdfErr}</p> : null}
 
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
@@ -176,9 +228,12 @@ export function AttemptLlmContextPanel({ attemptId, api }: Props) {
         ) : null}
         {providerMismatch ? (
           <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-amber-900">
-            Cached report was generated with {reportLlmProviderLabel(cachedProvider!)}. Admin is now set to{" "}
-            {reportLlmProviderLabel(data.provider)}. Open the user results page and refresh to regenerate with the
-            current provider.
+            Cached report was generated with {reportLlmProviderLabel(cachedProvider!)} on{" "}
+            {data.reportOutput.synthesizedAt
+              ? new Date(data.reportOutput.synthesizedAt).toLocaleString()
+              : "an earlier date"}
+            . Admin is now {reportLlmProviderLabel(data.provider)} — GPT is <strong>not</strong> used until you click{" "}
+            <strong>Regenerate with current provider</strong> above.
           </p>
         ) : null}
         <p className="mt-1">

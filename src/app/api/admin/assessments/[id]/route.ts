@@ -8,6 +8,20 @@ async function adminGate(req: NextRequest) {
   return requireAdmin(req);
 }
 
+export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const adminUser = await adminGate(req);
+  if (!adminUser.ok) return adminUser.response;
+
+  const { id } = await ctx.params;
+  const db = getAdminFirestore();
+  if (!db) return NextResponse.json({ error: "No admin SDK" }, { status: 503 });
+
+  const snap = await db.collection("assessments").doc(id).get();
+  if (!snap.exists) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  return NextResponse.json({ ...(snap.data() as AssessmentDefinition), id: snap.id });
+}
+
 export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const adminUser = await adminGate(req);
   if (!adminUser.ok) return adminUser.response;

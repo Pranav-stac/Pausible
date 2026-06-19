@@ -1,11 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, useEffect, useMemo } from "react";
+import { useRef, useState, useEffect } from "react";
 import type { ResultsReportModel } from "@/lib/results/build-results-report";
 import { reportAttemptRef } from "@/lib/results/build-results-report";
 import { downloadReportAsPdf } from "@/lib/results/download-report-pdf";
-import { resolveBlindSpotColumns } from "@/lib/results/resolve-report-sections";
 import type { ActionPlanApiResponse } from "@/lib/recommendations/client-types";
 import { buildStoredActionPlanCache, hashActionPlanInputs, type StoredActionPlanCache } from "@/lib/recommendations/action-plan-cache";
 import { isActionPlanClientCacheValid } from "@/lib/recommendations/action-plan-client-cache";
@@ -13,26 +12,9 @@ import { reportLlmProviderLabel, type ReportLlmProvider } from "@/lib/recommenda
 import type { PersonaAnalysis } from "@/lib/scoring/persona-types";
 import type { SerializedAttempt } from "@/lib/local/attempts";
 import { patchAttempt } from "@/lib/data/attempt-service";
-import {
-  CoverSlide,
-  DualColumnSection,
-  KeyActionsSlide,
-  PatternMatchSlide,
-  PrimaryPatternSlide,
-  PriorityCardsSlide,
-  ReportFooter,
-  REPORT_PAGE,
-  REPORT_PAGE_BODY,
-  SecondaryPatternSlide,
-  SlideLabel,
-  SlideTitle,
-  UnderstandingWellnessPersonalitySlide,
-  WhatComesNextSlide,
-} from "@/components/results/report-ui";
+import { WellnessReportSlideStack } from "@/components/results/WellnessReportSlideStack";
 import { ReportPreparingScreen } from "@/components/results/ReportPreparingScreen";
 import { collectReportImageUrls, preloadReportImages } from "@/lib/results/preload-report-images";
-
-const TOTAL_PAGES = 9;
 
 type Props = {
   model: ResultsReportModel;
@@ -190,16 +172,7 @@ export function PausibleResultsReport({
     };
   }, [model, planData, planLoading]);
 
-  const blindSpots = useMemo(
-    () => resolveBlindSpotColumns(sections, synthesis, attempt),
-    [sections, synthesis, attempt],
-  );
-
-  const primaryPattern = sections?.primaryPattern;
-  const secondaryPattern = sections?.secondaryPattern;
-  const opportunityCards = synthesis?.opportunityCards ?? [];
-
-  if (!reportReady) {
+  if (!reportReady || !planData || !synthesis) {
     return (
       <ReportPreparingScreen
         onBack={onBack}
@@ -291,66 +264,14 @@ export function PausibleResultsReport({
       </div>
 
       <div ref={rootRef} className="mx-auto flex max-w-[52rem] flex-col gap-5 py-8 sm:gap-6 sm:py-10">
-        <CoverSlide model={model} refId={refId} totalPages={TOTAL_PAGES} />
-        <UnderstandingWellnessPersonalitySlide page={2} totalPages={TOTAL_PAGES} refId={refId} />
-
-        <PatternMatchSlide
+        <WellnessReportSlideStack
           model={model}
-          quickProfile={sections?.quickProfile}
+          refId={refId}
+          attempt={attempt}
           personaAnalysis={personaAnalysis}
-          page={3}
-          totalPages={TOTAL_PAGES}
-          refId={refId}
+          synthesis={synthesis}
+          sections={sections}
         />
-
-        <PrimaryPatternSlide
-          model={model}
-          primaryPattern={primaryPattern}
-          page={4}
-          totalPages={TOTAL_PAGES}
-          refId={refId}
-        />
-
-        <SecondaryPatternSlide
-          model={model}
-          secondaryPattern={secondaryPattern}
-          page={5}
-          totalPages={TOTAL_PAGES}
-          refId={refId}
-        />
-
-        <section data-report-page className={REPORT_PAGE}>
-          <div className={REPORT_PAGE_BODY}>
-            <SlideLabel index="06" label="What You Don't See" />
-            <SlideTitle
-              title="What You Don't See"
-              subtitle="The patterns that quietly shape your wellness journey"
-            />
-            <p className="mb-5 text-sm text-slate-600">
-              Every wellness personality has patterns that are hard to see from the inside. Recognising them is the first step to working with them.
-            </p>
-            <DualColumnSection left={blindSpots.left} right={blindSpots.right} />
-            <ReportFooter page={6} total={TOTAL_PAGES} refId={refId} />
-          </div>
-        </section>
-
-        {synthesis ? (
-          <KeyActionsSlide
-            plans={synthesis.pillarPlans}
-            page={7}
-            totalPages={TOTAL_PAGES}
-            refId={refId}
-          />
-        ) : null}
-
-        <PriorityCardsSlide
-          cards={opportunityCards}
-          page={8}
-          totalPages={TOTAL_PAGES}
-          refId={refId}
-        />
-
-        <WhatComesNextSlide page={9} totalPages={TOTAL_PAGES} refId={refId} />
       </div>
 
       {/* Share + history only on summary view — full report is print/PDF focused */}

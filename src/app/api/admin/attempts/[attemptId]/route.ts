@@ -46,6 +46,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ attemptId: 
   const x = snap.data() ?? {};
   const answers = typeof x.answers === "object" && x.answers ? (x.answers as Record<string, unknown>) : {};
   const scores = typeof x.scores === "object" ? x.scores : null;
+  const actionPlanCache = typeof x.actionPlanCache === "object" ? x.actionPlanCache : null;
   const personaAnalysis =
     x.personaAnalysis && typeof x.personaAnalysis === "object"
       ? x.personaAnalysis
@@ -68,9 +69,11 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ attemptId: 
     paidAt: serializeValue(x.paidAt),
     claimedAt: serializeValue(x.claimedAt),
     answersCount: Object.keys(answers).length,
+    answers,
     answersPreview: answers,
     scores,
     personaAnalysis,
+    actionPlanCache,
     resultsUrl: `/results/${snap.id}`,
   });
 }
