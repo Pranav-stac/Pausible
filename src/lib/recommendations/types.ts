@@ -230,7 +230,7 @@ export type ActionPlanSynthesis = {
   reportSections?: WellnessReportSections;
   safetyGuidance: { id: string; text: string }[];
   synthesized: boolean;
-  synthesisError?: string;
+  synthesisError?: string | null;
   llmProvider?: ReportLlmProvider;
   tokenUsage?: GeminiTokenUsage | null;
 };

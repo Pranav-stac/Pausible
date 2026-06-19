@@ -5,6 +5,26 @@ import { downloadLlmContextAsPdf } from "@/lib/admin/download-llm-context-pdf";
 import type { AttemptLlmContextPackage, AttemptLlmSectionContext } from "@/lib/recommendations/build-attempt-llm-context";
 import { reportLlmProviderLabel } from "@/lib/recommendations/report-llm-types";
 
+function visibleSynthesisError(
+  error: string | null | undefined,
+  meta: { synthesized?: boolean; cachedProvider?: string; currentProvider: string },
+): string | null {
+  if (!error?.trim()) return null;
+  const isLegacyGeminiPipeline =
+    error.includes("personality:") ||
+    error.includes("coaching:") ||
+    (error.includes("Gemini HTTP") && error.includes("gemini-2.0-flash"));
+  if (
+    isLegacyGeminiPipeline &&
+    meta.synthesized &&
+    meta.cachedProvider === meta.currentProvider &&
+    meta.currentProvider === "gpt"
+  ) {
+    return null;
+  }
+  return error;
+}
+
 function JsonBlock({ value }: { value: unknown }) {
   return (
     <pre className="mt-2 max-h-64 overflow-auto rounded-lg bg-slate-950 p-3 font-mono text-[10px] leading-relaxed text-slate-100">
@@ -127,6 +147,11 @@ export function AttemptLlmContextPanel({ attemptId, api }: Props) {
 
   const cachedProvider = data.reportOutput.llmProvider;
   const cachedModel = data.reportOutput.tokenUsage?.model;
+  const synthesisError = visibleSynthesisError(data.reportOutput.synthesisError, {
+    synthesized: data.reportOutput.synthesized,
+    cachedProvider,
+    currentProvider: data.provider,
+  });
   const providerMismatch =
     data.reportOutput.available &&
     cachedProvider != null &&
@@ -263,14 +288,9 @@ export function AttemptLlmContextPanel({ attemptId, api }: Props) {
             {data.reportOutput.tokenUsage.completionTokens.toLocaleString()} out)
           </p>
         ) : null}
-        {data.reportOutput.synthesisError ? (
+        {synthesisError ? (
           <p className="mt-1 text-amber-800">
-            <span className="font-semibold">Synthesis error (from cached report):</span>{" "}
-            {data.reportOutput.synthesisError.includes("Gemini HTTP") &&
-            data.reportOutput.synthesisError.includes("personality:")
-              ? "Legacy Gemini report (pre–v2.0 pipeline, gemini-2.0-flash retired June 2026). Regenerate the report with the current provider. Details: "
-              : null}
-            {data.reportOutput.synthesisError}
+            <span className="font-semibold">Synthesis error (from cached report):</span> {synthesisError}
           </p>
         ) : null}
       </div>

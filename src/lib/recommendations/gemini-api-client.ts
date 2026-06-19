@@ -1,6 +1,5 @@
 import type { GeminiTokenUsage } from "@/lib/recommendations/types";
-
-const SECTION_MAX_OUTPUT_TOKENS = 500;
+import { SECTION_OUTPUT_TOKENS } from "@/lib/recommendations/section-output-limits";
 
 export type GeminiSectionResult = {
   text: string;
@@ -60,6 +59,7 @@ export async function callGeminiSection(args: {
   systemPrompt: string;
   userPrompt: string;
   json?: boolean;
+  maxOutputTokens?: number;
 }): Promise<GeminiSectionResult> {
   if (!args.userPrompt.trim()) {
     return { text: "", tokenUsage: null, error: "Empty section prompt" };
@@ -76,7 +76,7 @@ export async function callGeminiSection(args: {
           contents: [{ role: "user", parts: [{ text: args.userPrompt }] }],
           generationConfig: {
             temperature: 0.7,
-            maxOutputTokens: SECTION_MAX_OUTPUT_TOKENS,
+            maxOutputTokens: args.maxOutputTokens ?? SECTION_OUTPUT_TOKENS.default,
             ...(args.json ? { responseMimeType: "application/json" } : {}),
           },
         }),

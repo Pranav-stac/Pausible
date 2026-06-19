@@ -1,7 +1,6 @@
 import type { GeminiTokenUsage } from "@/lib/recommendations/types";
 import { parseSectionJson } from "@/lib/recommendations/gemini-api-client";
-
-const SECTION_MAX_OUTPUT_TOKENS = 500;
+import { SECTION_OUTPUT_TOKENS } from "@/lib/recommendations/section-output-limits";
 
 export type OpenAiSectionResult = {
   text: string;
@@ -58,12 +57,13 @@ async function callOpenAiResponses(args: {
   systemPrompt: string;
   userPrompt: string;
   json?: boolean;
+  maxOutputTokens?: number;
 }): Promise<OpenAiSectionResult> {
   const body: Record<string, unknown> = {
     model: args.model,
     instructions: args.systemPrompt,
     input: args.userPrompt,
-    max_output_tokens: SECTION_MAX_OUTPUT_TOKENS,
+    max_output_tokens: args.maxOutputTokens ?? SECTION_OUTPUT_TOKENS.default,
     store: false,
   };
 
@@ -110,7 +110,7 @@ async function callOpenAiResponses(args: {
 }
 
 function buildChatCompletionBody(
-  args: { model: string; systemPrompt: string; userPrompt: string; json?: boolean },
+  args: { model: string; systemPrompt: string; userPrompt: string; json?: boolean; maxOutputTokens?: number },
   tokenField: "max_tokens" | "max_completion_tokens",
 ): Record<string, unknown> {
   return {
@@ -120,7 +120,7 @@ function buildChatCompletionBody(
       { role: "user", content: args.userPrompt },
     ],
     temperature: 0.7,
-    [tokenField]: SECTION_MAX_OUTPUT_TOKENS,
+    [tokenField]: args.maxOutputTokens ?? SECTION_OUTPUT_TOKENS.default,
     ...(args.json ? { response_format: { type: "json_object" } } : {}),
   };
 }
@@ -131,6 +131,7 @@ async function callOpenAiChatCompletions(args: {
   systemPrompt: string;
   userPrompt: string;
   json?: boolean;
+  maxOutputTokens?: number;
 }): Promise<OpenAiSectionResult> {
   const primaryField = shouldUseResponsesApi(args.model) ? "max_completion_tokens" : "max_tokens";
   const fallbackField = primaryField === "max_tokens" ? "max_completion_tokens" : "max_tokens";
@@ -185,6 +186,7 @@ export async function callOpenAiSection(args: {
   systemPrompt: string;
   userPrompt: string;
   json?: boolean;
+  maxOutputTokens?: number;
 }): Promise<OpenAiSectionResult> {
   if (!args.userPrompt.trim()) {
     return { text: "", tokenUsage: null, error: "Empty section prompt" };

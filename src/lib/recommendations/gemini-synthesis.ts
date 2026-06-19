@@ -21,6 +21,7 @@ import {
 } from "@/lib/recommendations/build-gemini-synthesis-context";
 import { callGeminiSection, mergeTokenUsage, parseSectionJson, type GeminiSectionResult } from "@/lib/recommendations/gemini-api-client";
 import { callOpenAiSection } from "@/lib/recommendations/openai-api-client";
+import { SECTION_OUTPUT_TOKENS } from "@/lib/recommendations/section-output-limits";
 import {
   DEFAULT_REPORT_LLM_PROVIDER,
   reportLlmModel,
@@ -263,27 +264,41 @@ export async function synthesizeActionPlanWithLlm(
 
   const emptySection = (): GeminiSectionResult => ({ text: "", tokenUsage: null });
 
-  const call = (userPrompt: string): Promise<GeminiSectionResult> => {
+  const call = (
+    userPrompt: string,
+    maxOutputTokens: number = SECTION_OUTPUT_TOKENS.default,
+  ): Promise<GeminiSectionResult> => {
     if (!userPrompt.trim()) return Promise.resolve(emptySection());
     if (provider === "gpt") {
-      return callOpenAiSection({ apiKey, model, systemPrompt, userPrompt, json: true });
+      return callOpenAiSection({ apiKey, model, systemPrompt, userPrompt, json: true, maxOutputTokens });
     }
-    return callGeminiSection({ apiKey, model, systemPrompt, userPrompt, json: true });
+    return callGeminiSection({ apiKey, model, systemPrompt, userPrompt, json: true, maxOutputTokens });
   };
 
   // Guide §13.3 — Primary first, then parallel sections, priorities after pillars.
   const primaryRes =
-    persona && input ? await call(buildPrimaryPatternPrompt(selection, ctx, input, fb)) : emptySection();
+    persona && input
+      ? await call(buildPrimaryPatternPrompt(selection, ctx, input, fb), SECTION_OUTPUT_TOKENS.primaryPattern)
+      : emptySection();
   tokenParts.push(primaryRes.tokenUsage);
   if (primaryRes.error) errors.push(`primary_pattern: ${primaryRes.error}`);
 
   const [blindRes, secondaryRes, nutritionRes, physicalRes, sleepRes, mentalRes] = await Promise.all([
-    call(buildBlindSpotsPrompt(selection, ctx, fb)),
-    call(buildSecondaryPatternPrompt(selection, ctx, fb)),
-    call(buildPillarPrompt("Nutrition", selection.pillarPlans.Nutrition, ctx, fb)),
-    call(buildPillarPrompt("Physical Activity", selection.pillarPlans["Physical Activity"], ctx, fb)),
-    call(buildPillarPrompt("Sleep & Recovery", selection.pillarPlans["Sleep & Recovery"], ctx, fb)),
-    call(buildPillarPrompt("Mental Wellness", selection.pillarPlans["Mental Wellness"], ctx, fb)),
+    call(buildBlindSpotsPrompt(selection, ctx, fb), SECTION_OUTPUT_TOKENS.blindSpots),
+    call(buildSecondaryPatternPrompt(selection, ctx, fb), SECTION_OUTPUT_TOKENS.secondaryPattern),
+    call(buildPillarPrompt("Nutrition", selection.pillarPlans.Nutrition, ctx, fb), SECTION_OUTPUT_TOKENS.pillar),
+    call(
+      buildPillarPrompt("Physical Activity", selection.pillarPlans["Physical Activity"], ctx, fb),
+      SECTION_OUTPUT_TOKENS.pillar,
+    ),
+    call(
+      buildPillarPrompt("Sleep & Recovery", selection.pillarPlans["Sleep & Recovery"], ctx, fb),
+      SECTION_OUTPUT_TOKENS.pillar,
+    ),
+    call(
+      buildPillarPrompt("Mental Wellness", selection.pillarPlans["Mental Wellness"], ctx, fb),
+      SECTION_OUTPUT_TOKENS.pillar,
+    ),
   ]);
 
   for (const res of [blindRes, secondaryRes, nutritionRes, physicalRes, sleepRes, mentalRes]) {
@@ -291,11 +306,17 @@ export async function synthesizeActionPlanWithLlm(
     if (res.error) errors.push(res.error);
   }
 
-  const prioritiesRes = await call(buildHighImpactPrioritiesPrompt(selection.opportunityCards, ctx, fb));
+  const prioritiesRes = await call(
+    buildHighImpactPrioritiesPrompt(selection.opportunityCards, ctx, fb),
+    SECTION_OUTPUT_TOKENS.priorities,
+  );
   tokenParts.push(prioritiesRes.tokenUsage);
   if (prioritiesRes.error) errors.push(`priorities: ${prioritiesRes.error}`);
 
   const primaryJson = parseSectionJson<PrimaryPatternSection>(primaryRes.text);
+  if (primaryRes.text.trim() && !primaryJson?.personaNarrative?.trim()) {
+    errors.push("primary_pattern: response was not valid JSON or missing personaNarrative");
+  }
   const blindJson = parseSectionJson<{ patternBody?: string; goalsBody?: string }>(blindRes.text);
   const secondaryJson = parseSectionJson<SecondaryPatternSection>(secondaryRes.text);
   const prioritiesJson = parseSectionJson<{
@@ -401,7 +422,7 @@ export async function synthesizeActionPlanWithLlm(
     reportSections,
     synthesized: llmSucceeded,
     llmProvider: provider,
-    ...(errors.length ? { synthesisError: errors.join("; ") } : {}),
+    synthesisError: errors.length ? errors.join("; ") : null,
     tokenUsage,
   };
 }

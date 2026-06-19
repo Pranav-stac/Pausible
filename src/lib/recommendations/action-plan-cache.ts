@@ -62,7 +62,11 @@ export function hashActionPlanInputs(
 export function toActionPlanApiPayload(plan: ActionPlan): ActionPlanApiResponse["plan"] {
   return stripUndefinedDeep({
     profile: plan.profile,
-    synthesis: plan.synthesis,
+    synthesis: {
+      ...plan.synthesis,
+      // Firestore merge keeps omitted nested fields — null clears a prior synthesisError.
+      synthesisError: plan.synthesis.synthesisError ?? null,
+    },
     audit: {
       sourceIds: plan.allSourceIds,
       rankedTop: plan.ranked.slice(0, 15).map((r) => ({

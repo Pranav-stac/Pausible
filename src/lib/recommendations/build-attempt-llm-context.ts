@@ -39,7 +39,7 @@ export type AttemptLlmSectionContext = {
 export type AttemptLlmReportOutputMeta = {
   available: boolean;
   synthesized: boolean;
-  synthesisError?: string;
+  synthesisError?: string | null;
   tokenUsage?: ActionPlanSynthesis["tokenUsage"];
   llmProvider?: ActionPlanSynthesis["llmProvider"];
   synthesizedAt?: string;
