@@ -213,6 +213,8 @@ function applyOpportunityCardFallbacks(cards: OpportunityCard[]): OpportunityCar
     };
   });
 }
+
+function mergePriorityCards(
   base: OpportunityCard[],
   parsed: {
     priorityCards?: {
