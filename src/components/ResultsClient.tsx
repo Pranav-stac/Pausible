@@ -100,7 +100,12 @@ export function ResultsClient() {
         return;
       }
 
-      if (personaNeedsRecompute(row.scores?.persona) || !row.scores?.dimensions) {
+      const needsScoreRecompute =
+        forceRegenerateReport ||
+        personaNeedsRecompute(row.scores?.persona) ||
+        !row.scores?.dimensions;
+
+      if (needsScoreRecompute) {
         try {
           const personaConfig = await fetchPersonaScoringConfig();
           const scores = computeAttemptScores(row.answers, personaConfig);
@@ -108,8 +113,13 @@ export function ResultsClient() {
             ...row,
             scores,
             personaAnalysis: scores.persona ?? row.personaAnalysis ?? null,
+            ...(forceRegenerateReport ? { actionPlanCache: null } : {}),
           };
-          void patchAttempt(row.id, { scores, personaAnalysis: scores.persona ?? null });
+          void patchAttempt(row.id, {
+            scores,
+            personaAnalysis: scores.persona ?? null,
+            ...(forceRegenerateReport ? { actionPlanCache: null } : {}),
+          });
         } catch {
           /* show whatever we have */
         }

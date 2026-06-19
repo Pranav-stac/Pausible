@@ -50,7 +50,13 @@ async function resolveScores(
   answers: AttemptAnswers,
   clientScores: AttemptScores | null | undefined,
   storedScores: AttemptScores | null | undefined,
+  forceRecompute = false,
 ): Promise<{ scores: AttemptScores; recomputed: boolean }> {
+  if (forceRecompute) {
+    const personaConfig = await loadPersonaScoringConfigAdmin();
+    return { scores: computeAttemptScores(answers, personaConfig), recomputed: true };
+  }
+
   const candidate = storedScores && !personaNeedsRecompute(storedScores.persona) ? storedScores : clientScores;
   if (candidate?.persona && !personaNeedsRecompute(candidate.persona) && candidate.dimensions) {
     return { scores: candidate, recomputed: false };
@@ -83,7 +89,7 @@ export async function POST(req: Request) {
       }
     }
 
-    const { scores, recomputed } = await resolveScores(answers, clientScores, storedScores);
+    const { scores, recomputed } = await resolveScores(answers, clientScores, storedScores, forceRegenerate);
     const llmProvider = await loadReportLlmProviderAdmin();
     const inputHash = hashActionPlanInputs(answers, scores, llmProvider);
 
