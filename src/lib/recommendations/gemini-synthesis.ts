@@ -195,7 +195,24 @@ function missingApiKeyMessage(provider: ReportLlmProvider): string {
   return "GEMINI_API_KEY not configured — showing deterministic copy from your matched recommendations.";
 }
 
-function mergePriorityCards(
+function applyOpportunityCardFallbacks(cards: OpportunityCard[]): OpportunityCard[] {
+  return cards.map((card, i) => {
+    const rank = card.rank || i + 1;
+    const firstSentence = card.personaContextText.split(".")[0]?.trim() ?? "";
+    return {
+      ...card,
+      rank,
+      headline:
+        card.headline?.trim() ||
+        firstSentence.slice(0, 80) ||
+        card.category.replace(/_/g, " "),
+      whyItMatters:
+        card.whyItMatters?.trim() ||
+        `This pillar scored highly for your profile (cluster ${card.clusterScore.toFixed(0)}).`,
+      startThisWeek: card.startThisWeek?.trim() || firstSentence || card.personaContextText,
+    };
+  });
+}
   base: OpportunityCard[],
   parsed: {
     priorityCards?: {
@@ -345,7 +362,9 @@ export async function synthesizeActionPlanWithLlm(
     };
   }
 
-  const opportunityCards = mergePriorityCards(selection.opportunityCards, prioritiesJson);
+  const opportunityCards = applyOpportunityCardFallbacks(
+    mergePriorityCards(selection.opportunityCards, prioritiesJson),
+  );
 
   const safetyGuidance = selection.safetyGuidance.map((s) => ({
     id: s.id,

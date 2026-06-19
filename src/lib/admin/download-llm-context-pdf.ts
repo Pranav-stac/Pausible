@@ -3,6 +3,14 @@
 import type { AttemptLlmContextPackage } from "@/lib/recommendations/build-attempt-llm-context";
 import { reportLlmProviderLabel } from "@/lib/recommendations/report-llm-types";
 
+function outputSourceLabel(output: unknown): string {
+  if (output == null) return "missing";
+  const text = JSON.stringify(output);
+  if (text.includes('"This fits your persona-specific patterns."')) return "deterministic fallback";
+  if (text.includes('"_legacy":true') || text.includes('"_legacy": true')) return "legacy cached report";
+  return "stored synthesis";
+}
+
 const MARGIN_MM = 14;
 const LINE_HEIGHT_MM = 4.2;
 const PAGE_H_MM = 297;
@@ -46,12 +54,32 @@ export async function downloadLlmContextAsPdf(pkg: AttemptLlmContextPackage, att
   };
 
   heading(`LLM report context — ${attemptId}`);
+  const cachedProvider = pkg.reportOutput.llmProvider;
+  const cachedModel = pkg.reportOutput.tokenUsage?.model;
+  const reportStatus = !pkg.reportOutput.available
+    ? "No cached report on this attempt"
+    : pkg.reportOutput.synthesized
+      ? "LLM synthesis ran (see per-section output source below)"
+      : "Deterministic fallback only (LLM did not complete)";
+
   writeWrapped(
     [
-      `Provider: ${reportLlmProviderLabel(pkg.provider)}`,
-      `Model: ${pkg.model}`,
+      `Current admin provider (prompt preview): ${reportLlmProviderLabel(pkg.provider)} · ${pkg.model}`,
+      pkg.reportOutput.available
+        ? `Cached report provider: ${reportLlmProviderLabel(cachedProvider ?? pkg.provider)}${cachedModel ? ` · ${cachedModel}` : ""}`
+        : null,
+      pkg.reportOutput.synthesizedAt
+        ? `Cached at: ${new Date(pkg.reportOutput.synthesizedAt).toLocaleString()}`
+        : null,
+      `Report status: ${reportStatus}`,
+      pkg.reportOutput.tokenUsage
+        ? `Tokens: ${pkg.reportOutput.tokenUsage.totalTokens} (${pkg.reportOutput.tokenUsage.promptTokens} in · ${pkg.reportOutput.tokenUsage.completionTokens} out)`
+        : null,
+      pkg.reportOutput.synthesisError ? `Synthesis errors: ${pkg.reportOutput.synthesisError}` : null,
       `Fit tier: ${pkg.fitBlend.fitTier} · Blend: ${pkg.fitBlend.blendStrength}`,
-    ].join("\n"),
+    ]
+      .filter(Boolean)
+      .join("\n"),
     9,
   );
   y += 2;
@@ -69,7 +97,7 @@ export async function downloadLlmContextAsPdf(pkg: AttemptLlmContextPackage, att
     block("Structured input data", JSON.stringify(section.inputData, null, 2));
     block("Expected JSON output", JSON.stringify(section.outputSchema, null, 2));
     block(
-      "Actual LLM output",
+      `Actual LLM output (${outputSourceLabel(section.output)})`,
       section.output != null ? JSON.stringify(section.output, null, 2) : "(no stored output)",
     );
     block("User prompt sent to LLM", section.userPrompt || "(empty)");
