@@ -57,8 +57,8 @@ export function resolveBlindSpotColumns(
   if (!legacy.right.body.trim()) {
     legacy.right.body = goalsFallbackFromAttempt(attempt);
   }
-  if (!legacy.left.body.trim() && synthesis?.coachNotes.keyRisk) {
-    legacy.left.body = synthesis.coachNotes.keyRisk;
+  if (!legacy.left.body.trim() && synthesis?.reportSections?.primaryPattern?.behaviouralBoxes?.[2]?.content) {
+    legacy.left.body = synthesis.reportSections.primaryPattern.behaviouralBoxes[2].content;
   }
   return legacy;
 }
@@ -86,11 +86,8 @@ export function resolveSuccessBlueprintColumns(
     sb?.heading,
   );
 
-  if (!legacy.right.body.trim() && synthesis?.coachNotes.keyStrength) {
-    legacy.right.body = synthesis.coachNotes.keyStrength;
-  }
-  if (!legacy.left.body.trim() && synthesis?.coachNotes.coachingNotes?.[1]) {
-    legacy.left.body = synthesis.coachNotes.coachingNotes[1];
+  if (!legacy.right.body.trim() && synthesis?.reportSections?.primaryPattern?.personaNarrative) {
+    legacy.right.body = synthesis.reportSections.primaryPattern.personaNarrative;
   }
   return legacy;
 }

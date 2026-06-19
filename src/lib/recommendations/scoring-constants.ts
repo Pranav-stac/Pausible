@@ -12,8 +12,8 @@ export const A12_MAX_SCORE = 145;
 export const A12_PERSONA_PRIMARY_BY_FIT_TIER = {
   classic: 25,
   core: 20,
-  adaptive: 15,
-  emerging: 10,
+  leaning: 15,
+  exploring: 10,
 } as const;
 
 export const A12_PERSONA = {

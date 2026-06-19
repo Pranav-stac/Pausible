@@ -14,8 +14,8 @@ function validateBody(body: unknown): ScoringConfigDoc | null {
   const b = body as Partial<ScoringConfigDoc>;
   const merged = mergeScoringConfig(b);
   if (merged.likertMin >= merged.likertMax) return null;
-  const { classic, core, adaptive, emerging } = merged.fitTierBands;
-  if (!(classic > core && core > adaptive && adaptive > emerging)) return null;
+  const { classic, core, leaning, exploring } = merged.fitTierBands;
+  if (!(classic > core && core > leaning && leaning > exploring)) return null;
   if (!(merged.blendRatioBands.pure > merged.blendRatioBands.tendencies)) return null;
   return merged;
 }

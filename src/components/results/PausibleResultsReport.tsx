@@ -5,38 +5,34 @@ import { useRef, useState, useEffect, useMemo } from "react";
 import type { ResultsReportModel } from "@/lib/results/build-results-report";
 import { reportAttemptRef } from "@/lib/results/build-results-report";
 import { downloadReportAsPdf } from "@/lib/results/download-report-pdf";
-import { resolveBlindSpotColumns, resolveSuccessBlueprintColumns } from "@/lib/results/resolve-report-sections";
-import { PERSONA_DISPLAY } from "@/lib/scoring/persona-defaults";
+import { resolveBlindSpotColumns } from "@/lib/results/resolve-report-sections";
 import type { ActionPlanApiResponse } from "@/lib/recommendations/client-types";
 import { buildStoredActionPlanCache, hashActionPlanInputs, type StoredActionPlanCache } from "@/lib/recommendations/action-plan-cache";
 import { isActionPlanClientCacheValid } from "@/lib/recommendations/action-plan-client-cache";
 import { reportLlmProviderLabel, type ReportLlmProvider } from "@/lib/recommendations/report-llm-types";
-import type { PillarName } from "@/lib/recommendations/types";
 import type { PersonaAnalysis } from "@/lib/scoring/persona-types";
 import type { SerializedAttempt } from "@/lib/local/attempts";
 import { patchAttempt } from "@/lib/data/attempt-service";
 import {
-  CoachingSlide,
   CoverSlide,
   DualColumnSection,
-  DualPillarSlide,
-  IntroductionSlide,
-  LaunchpadSlide,
-  OpportunityCardsGrid,
+  KeyActionsSlide,
+  PatternMatchSlide,
+  PrimaryPatternSlide,
+  PriorityCardsSlide,
   ReportFooter,
   REPORT_PAGE,
   REPORT_PAGE_BODY,
+  SecondaryPatternSlide,
   SlideLabel,
   SlideTitle,
-  WellnessPersonalitySlide,
-  WhereYouStandSlide,
+  UnderstandingWellnessPersonalitySlide,
+  WhatComesNextSlide,
 } from "@/components/results/report-ui";
 import { ReportPreparingScreen } from "@/components/results/ReportPreparingScreen";
 import { collectReportImageUrls, preloadReportImages } from "@/lib/results/preload-report-images";
 
-const TOTAL_PAGES = 11;
-const PILLAR_PAIR_A: PillarName[] = ["Nutrition", "Physical Activity"];
-const PILLAR_PAIR_B: PillarName[] = ["Sleep & Recovery", "Mental Wellness"];
+const TOTAL_PAGES = 9;
 
 type Props = {
   model: ResultsReportModel;
@@ -54,22 +50,6 @@ type Props = {
 
 function responseFromCache(cache: StoredActionPlanCache): ActionPlanApiResponse {
   return { plan: cache.plan };
-}
-
-function secondaryInfluenceText(model: ResultsReportModel): string | null {
-  if (!model.secondaryKey || model.blendStrength === "pure") return null;
-  const secondary = PERSONA_DISPLAY[model.secondaryKey];
-  if (model.blendStrength === "strong_influence") {
-    return `Your ${secondary.label} side is not a minor footnote — it actively shapes how you respond under pressure. When planning wellness, account for both your ${model.animalName ?? model.primaryLabel} need for structure and your ${secondary.label} pull toward ${secondary.archetype.toLowerCase()} patterns.`;
-  }
-  return `You also show ${secondary.label} tendencies — enough to influence timing, social context, or recovery choices even when your primary pattern leads.`;
-}
-
-function secondaryContextText(model: ResultsReportModel): string | null {
-  if (!model.secondaryKey || model.blendStrength === "pure" || model.blendStrength === "tendencies") return null;
-  const secondary = PERSONA_DISPLAY[model.secondaryKey];
-  const pct = model.secondaryPct != null ? `${model.secondaryPct.toFixed(0)}% match` : "secondary match";
-  return `Strong ${secondary.label} influence (${pct}) means your wellness plan should explicitly address both sides. The distribution chart shows how closely you align with each archetype — your blend is a feature, not noise.`;
 }
 
 export function PausibleResultsReport({
@@ -215,10 +195,9 @@ export function PausibleResultsReport({
     [sections, synthesis, attempt],
   );
 
-  const successBlueprint = useMemo(
-    () => resolveSuccessBlueprintColumns(sections, synthesis, model),
-    [sections, synthesis, model],
-  );
+  const primaryPattern = sections?.primaryPattern;
+  const secondaryPattern = sections?.secondaryPattern;
+  const opportunityCards = synthesis?.opportunityCards ?? [];
 
   if (!reportReady) {
     return (
@@ -252,16 +231,6 @@ export function PausibleResultsReport({
       setPdfBusy(false);
     }
   };
-
-  const personalityText =
-    sections?.personalityNarrative?.trim() ||
-    model.primarySummary ||
-    "Your wellness personality reflects how you naturally approach health, fitness, and recovery.";
-
-  const traitNarratives = sections?.traitDeviationNarratives ?? [];
-  const opportunityCards = synthesis?.opportunityCards ?? [];
-  const secondaryInfluence = secondaryInfluenceText(model);
-  const secondaryContext = secondaryContextText(model);
 
   return (
     <div className="scheme-light min-h-screen bg-slate-100 pb-16 text-slate-900">
@@ -323,113 +292,65 @@ export function PausibleResultsReport({
 
       <div ref={rootRef} className="mx-auto flex max-w-[52rem] flex-col gap-5 py-8 sm:gap-6 sm:py-10">
         <CoverSlide model={model} refId={refId} totalPages={TOTAL_PAGES} />
-        <IntroductionSlide page={2} totalPages={TOTAL_PAGES} refId={refId} />
+        <UnderstandingWellnessPersonalitySlide page={2} totalPages={TOTAL_PAGES} refId={refId} />
 
-        <WellnessPersonalitySlide
+        <PatternMatchSlide
           model={model}
-          narrative={personalityText}
-          secondaryInfluence={secondaryInfluence}
           quickProfile={sections?.quickProfile}
+          personaAnalysis={personaAnalysis}
           page={3}
           totalPages={TOTAL_PAGES}
           refId={refId}
         />
 
-        {/* Slide 04 — What You Don't See */}
+        <PrimaryPatternSlide
+          model={model}
+          primaryPattern={primaryPattern}
+          page={4}
+          totalPages={TOTAL_PAGES}
+          refId={refId}
+        />
+
+        <SecondaryPatternSlide
+          model={model}
+          secondaryPattern={secondaryPattern}
+          page={5}
+          totalPages={TOTAL_PAGES}
+          refId={refId}
+        />
+
         <section data-report-page className={REPORT_PAGE}>
           <div className={REPORT_PAGE_BODY}>
-            <SlideLabel index="04" label="What You Don't See" />
+            <SlideLabel index="06" label="What You Don't See" />
             <SlideTitle
               title="What You Don't See"
               subtitle="The patterns that quietly shape your wellness journey"
             />
+            <p className="mb-5 text-sm text-slate-600">
+              Every wellness personality has patterns that are hard to see from the inside. Recognising them is the first step to working with them.
+            </p>
             <DualColumnSection left={blindSpots.left} right={blindSpots.right} />
-            <p className="mt-6 text-[10px] text-slate-400">
-              Emotional arc: Revelation — &ldquo;I never thought about it that way&rdquo;
-            </p>
-            <ReportFooter page={4} total={TOTAL_PAGES} refId={refId} />
+            <ReportFooter page={6} total={TOTAL_PAGES} refId={refId} />
           </div>
         </section>
-
-        {/* Slide 05 — Success Blueprint */}
-        <section data-report-page className={REPORT_PAGE}>
-          <div className={REPORT_PAGE_BODY}>
-            <SlideLabel index="05" label="Your Success Blueprint" />
-            <SlideTitle title="Your Success Blueprint" subtitle="What works specifically for your personality" />
-            <DualColumnSection left={successBlueprint.left} right={successBlueprint.right} />
-            <p className="mt-6 text-[10px] text-slate-400">
-              Emotional arc: Hope + curiosity — &ldquo;This could actually work for me&rdquo;
-            </p>
-            <ReportFooter page={5} total={TOTAL_PAGES} refId={refId} />
-          </div>
-        </section>
-
-        <WhereYouStandSlide
-          model={model}
-          personaAnalysis={personaAnalysis}
-          traitDeviationNarratives={traitNarratives}
-          secondaryContext={secondaryContext}
-          page={6}
-          totalPages={TOTAL_PAGES}
-          refId={refId}
-        />
-
-        {/* Slide 07 — Opportunities */}
-        <section data-report-page className={REPORT_PAGE}>
-          <div className={REPORT_PAGE_BODY}>
-            <SlideLabel index="07" label="High-Impact Wellness Opportunities" />
-            <SlideTitle
-              title="Your High-Impact Wellness Opportunities"
-              subtitle="The 3 biggest areas where small changes will create the most impact"
-            />
-            {opportunityCards.length > 0 ? (
-              <OpportunityCardsGrid cards={opportunityCards} />
-            ) : (
-              <p className="text-sm text-slate-500">No opportunity cards for this profile.</p>
-            )}
-            <p className="mt-6 text-[10px] text-slate-400">
-              Emotional arc: Excitement — &ldquo;These are genuinely useful&rdquo;
-            </p>
-            <ReportFooter page={7} total={TOTAL_PAGES} refId={refId} />
-          </div>
-        </section>
-
-        <DualPillarSlide
-          pillars={PILLAR_PAIR_A}
-          plans={synthesis?.pillarPlans ?? {}}
-          page={8}
-          totalPages={TOTAL_PAGES}
-          refId={refId}
-          slideIndex="08"
-          slideLabel="4-Pillar Action Plan (1/2)"
-          title="Your Personalized Action Plan"
-        />
-        <DualPillarSlide
-          pillars={PILLAR_PAIR_B}
-          plans={synthesis?.pillarPlans ?? {}}
-          page={9}
-          totalPages={TOTAL_PAGES}
-          refId={refId}
-          slideIndex="09"
-          slideLabel="4-Pillar Action Plan (2/2)"
-          title="Your Personalized Action Plan"
-        />
 
         {synthesis ? (
-          <LaunchpadSlide launchpad={synthesis.launchpad} page={10} totalPages={TOTAL_PAGES} refId={refId} />
-        ) : null}
-
-        {synthesis ? (
-          <CoachingSlide
-            keyStrength={synthesis.coachNotes.keyStrength}
-            keyRisk={synthesis.coachNotes.keyRisk}
-            coachingNotes={synthesis.coachNotes.coachingNotes ?? []}
-            safetyGuidance={synthesis.safetyGuidance}
-            page={11}
+          <KeyActionsSlide
+            plans={synthesis.pillarPlans}
+            page={7}
             totalPages={TOTAL_PAGES}
             refId={refId}
           />
         ) : null}
+
+        <PriorityCardsSlide
+          cards={opportunityCards}
+          page={8}
+          totalPages={TOTAL_PAGES}
+          refId={refId}
+        />
+
+        <WhatComesNextSlide page={9} totalPages={TOTAL_PAGES} refId={refId} />
       </div>
 
       {/* Share + history only on summary view — full report is print/PDF focused */}

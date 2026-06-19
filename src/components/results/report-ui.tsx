@@ -36,7 +36,7 @@ export function ReportFooter({
 }) {
   return (
     <footer className="mt-auto flex items-center justify-between border-t border-slate-200 pt-4 text-[10px] text-slate-400">
-      <span>Pausible · Wellness Intelligence Report · v2.0</span>
+      <span>Pausible · Wellness Intelligence Report · v4.0</span>
       <span className="tabular-nums">
         {refId} · {page}/{total}
       </span>
@@ -155,10 +155,11 @@ export function CoverSlide({
 
         <div className="grid flex-1 gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
           <div className="space-y-5">
-            <p className="text-sm font-bold tracking-tight text-slate-900">Pausible</p>
+            <p className="text-sm font-bold tracking-tight text-teal-800">Pausible</p>
             <h1 className="text-3xl font-bold leading-tight text-slate-950 sm:text-4xl">
-              {model.animalName ?? model.primaryLabel}
+              Wellness Intelligence Report
             </h1>
+            <p className="text-lg font-semibold text-slate-700">{model.animalName ?? model.primaryLabel}</p>
 
             <ContentBlock title="Persona title">
               <p className="text-base font-semibold leading-snug text-slate-900">
@@ -194,56 +195,389 @@ export function CoverSlide({
   );
 }
 
-export function IntroductionSlide({ page, totalPages, refId }: { page: number; totalPages: number; refId: string }) {
+export function UnderstandingWellnessPersonalitySlide({
+  page,
+  totalPages,
+  refId,
+}: {
+  page: number;
+  totalPages: number;
+  refId: string;
+}) {
+  const personas = [
+    { key: "self_regulated_planner" as const, blurb: "Consistent, structured, and self-regulated. Thrives on routine and predictable systems." },
+    { key: "resilient_performer" as const, blurb: "Disciplined, driven, and performance-oriented. Pushes hard and values effort." },
+    { key: "curious_explorer" as const, blurb: "Explorative, adaptable, and knowledge-seeking. Loves trying new approaches." },
+    { key: "stress_sensitive" as const, blurb: "Observant, analytical, and emotionally sensitive. Notices subtle patterns." },
+    { key: "social_motivator" as const, blurb: "Social, energetic, and community-driven. Draws motivation from groups." },
+    { key: "brittle_avoidant" as const, blurb: "Cautious, self-protective, and deliberate. Takes time before committing." },
+  ];
+
   return (
     <section data-report-page className={REPORT_PAGE}>
       <div className={REPORT_PAGE_BODY}>
-        <SlideLabel index="02" label="Introduction" />
-        <SlideTitle title="Introduction" />
+        <SlideLabel index="02" label="Understanding Your Wellness Personality" />
+        <SlideTitle
+          title="Understanding Your Wellness Personality"
+          subtitle="Six distinct wellness patterns shaped by how you think, feel, and behave around health decisions."
+        />
+        <p className="mb-5 text-sm leading-relaxed text-slate-700">
+          Most people align strongly with one primary pattern and show influence from a secondary pattern.
+          Understanding your pattern helps personalize every recommendation in this report to match how you actually operate.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {personas.map(({ key, blurb }) => {
+            const animal = PERSONA_ANIMAL[key];
+            const display = PERSONA_DISPLAY[key];
+            return (
+              <div key={key} className="rounded-lg border border-teal-100 bg-teal-50/40 p-4">
+                <p className="text-sm font-bold text-teal-900">{animal.name}</p>
+                <p className="mt-1 text-xs leading-relaxed text-slate-700">{blurb}</p>
+                <p className="mt-1 text-[10px] text-slate-500">{display.archetype}</p>
+              </div>
+            );
+          })}
+        </div>
+        <ReportFooter page={page} total={totalPages} refId={refId} />
+      </div>
+    </section>
+  );
+}
 
-        <ContentBlock title="About the report" className="mb-5">
-          <p className="text-sm leading-relaxed text-slate-700">
-            Your Wellness Intelligence Report maps your behavioral patterns to six persona archetypes, then translates
-            those patterns into personalized nutrition, movement, sleep, and mental wellness guidance — built from your
-            assessment, goals, and barriers.
-          </p>
-        </ContentBlock>
+export function PatternMatchSlide({
+  model,
+  quickProfile,
+  personaAnalysis,
+  page,
+  totalPages,
+  refId,
+}: {
+  model: ResultsReportModel;
+  quickProfile?: WellnessReportSections["quickProfile"];
+  personaAnalysis: PersonaAnalysis | null;
+  page: number;
+  totalPages: number;
+  refId: string;
+}) {
+  const primaryKey = model.primaryKey;
 
-        <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-          <ContentBlock title="Key objectives of the report">
-            <ul className="space-y-2.5 text-sm text-slate-700">
-              <li className="flex gap-2">
-                <span className="text-slate-400">1.</span>
-                Reveal how you naturally approach wellness — strengths and blind spots.
-              </li>
-              <li className="flex gap-2">
-                <span className="text-slate-400">2.</span>
-                Show where you stand relative to your primary persona pattern.
-              </li>
-              <li className="flex gap-2">
-                <span className="text-slate-400">3.</span>
-                Deliver a prioritized, persona-matched action plan you can start this week.
-              </li>
-            </ul>
+  return (
+    <section data-report-page className={REPORT_PAGE}>
+      <div className={REPORT_PAGE_BODY}>
+        <SlideLabel index="03" label="Your Pattern Match" />
+        <SlideTitle
+          title="Your Pattern Match"
+          subtitle={`You are most closely aligned with the ${model.animalName ?? model.primaryLabel} pattern${model.secondaryLabel ? `, with ${model.secondaryLabel} influence` : ""}.`}
+        />
+        <p className="mb-4 text-sm font-semibold text-slate-800">{model.personaTitle ?? model.primaryLabel}</p>
+
+        <div className="mb-5 grid gap-4 lg:grid-cols-2">
+          <ContentBlock title="Pattern alignment">
+            <PersonaDistribution mix={model.personaMix} />
           </ContentBlock>
-
-          <ContentBlock title="Persona archetypes">
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {PERSONA_KEYS.map((key) => {
-                const animal = PERSONA_ANIMAL[key];
-                const display = PERSONA_DISPLAY[key];
-                return (
-                  <div key={key} className="rounded-md border border-slate-100 bg-slate-50/80 p-2.5 text-center">
-                    <span className="text-xl">{animal.emoji}</span>
-                    <p className="mt-1 text-[11px] font-bold text-slate-800">{animal.name}</p>
-                    <p className="mt-0.5 text-[10px] leading-snug text-slate-500">{display.archetype}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </ContentBlock>
+          {personaAnalysis && primaryKey ? (
+            <ContentBlock title="OCEAN radar chart">
+              <p className="mb-2 text-xs text-slate-600">
+                Your five core wellness traits compared to the {model.animalName ?? model.primaryLabel} pattern.
+              </p>
+              <div className="flex justify-center py-2">
+                <OceanRadarChart
+                  userScores={personaAnalysis.traitAverages}
+                  centroidScores={DEFAULT_PERSONA_CENTROIDS[primaryKey]}
+                  size={220}
+                  accent="#0d9488"
+                />
+              </div>
+            </ContentBlock>
+          ) : null}
         </div>
 
+        {quickProfile ? (
+          <ContentBlock title="Quick profile">
+            <dl className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 text-xs">
+              {[
+                { k: "Wellness style", v: quickProfile.wellnessStyle },
+                { k: "Energy pattern", v: quickProfile.energyPattern },
+                { k: "Motivation driver", v: quickProfile.motivationDriver },
+                { k: "Top risk factor", v: quickProfile.riskFactor },
+                { k: "Best environment", v: quickProfile.bestEnvironment },
+                {
+                  k: "Persona fit score",
+                  v:
+                    model.fitScore != null
+                      ? `${Math.round(model.fitScore)}/100 — ${model.fitTier ? fitTierLabel(model.fitTier as FitTier) : ""} tier`
+                      : "—",
+                },
+              ].map((row) => (
+                <div key={row.k} className="rounded-md bg-slate-50 px-3 py-2">
+                  <dt className="text-[9px] font-bold uppercase tracking-wide text-slate-400">{row.k}</dt>
+                  <dd className="mt-0.5 font-semibold text-slate-800">{row.v}</dd>
+                </div>
+              ))}
+            </dl>
+          </ContentBlock>
+        ) : null}
+
+        <ReportFooter page={page} total={totalPages} refId={refId} />
+      </div>
+    </section>
+  );
+}
+
+function BehaviouralBoxesGrid({ boxes }: { boxes: { title: string; content: string }[] }) {
+  if (!boxes.length) return null;
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      {boxes.map((box) => (
+        <div key={box.title} className="rounded-lg border border-slate-200 bg-slate-50/80 p-4">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{box.title}</p>
+          <p className="mt-2 text-sm leading-relaxed text-slate-700">{box.content}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function PrimaryPatternSlide({
+  model,
+  primaryPattern,
+  page,
+  totalPages,
+  refId,
+}: {
+  model: ResultsReportModel;
+  primaryPattern?: WellnessReportSections["primaryPattern"];
+  page: number;
+  totalPages: number;
+  refId: string;
+}) {
+  return (
+    <section data-report-page className={REPORT_PAGE}>
+      <div className={REPORT_PAGE_BODY}>
+        <SlideLabel index="04" label="Your Primary Pattern" />
+        <SlideTitle title={`Your Primary Pattern: ${model.animalName ?? model.primaryLabel}`} />
+
+        <ContentBlock title="Persona description" className="mb-5">
+          <ProseBlock text={primaryPattern?.personaNarrative ?? "—"} />
+        </ContentBlock>
+
+        <BehaviouralBoxesGrid boxes={primaryPattern?.behaviouralBoxes ?? []} />
+
+        {(primaryPattern?.traitDeviations?.length ?? 0) > 0 ? (
+          <ContentBlock title="Trait deviations" className="mt-5">
+            <div className="grid gap-3 sm:grid-cols-2">
+              {primaryPattern!.traitDeviations!.map((d) => (
+                <div key={d.trait} className="rounded-md border border-amber-100 bg-amber-50/60 p-3">
+                  <p className="text-xs font-bold text-amber-900">
+                    {d.trait} — {d.direction} than typical
+                  </p>
+                  <p className="mt-1 text-sm text-slate-700">{d.content}</p>
+                </div>
+              ))}
+            </div>
+          </ContentBlock>
+        ) : null}
+
+        <ReportFooter page={page} total={totalPages} refId={refId} />
+      </div>
+    </section>
+  );
+}
+
+export function SecondaryPatternSlide({
+  model,
+  secondaryPattern,
+  page,
+  totalPages,
+  refId,
+}: {
+  model: ResultsReportModel;
+  secondaryPattern?: WellnessReportSections["secondaryPattern"];
+  page: number;
+  totalPages: number;
+  refId: string;
+}) {
+  if (!secondaryPattern?.secondaryNarrative?.trim() && model.blendStrength === "pure") return null;
+
+  return (
+    <section data-report-page className={REPORT_PAGE}>
+      <div className={REPORT_PAGE_BODY}>
+        <SlideLabel index="05" label="Your Secondary Pattern and Blend" />
+        <SlideTitle title={`Your Secondary Pattern: ${model.secondaryLabel ?? "Secondary influence"}`} />
+
+        <ContentBlock title="Persona description" className="mb-5">
+          <ProseBlock text={secondaryPattern?.secondaryNarrative ?? "—"} />
+        </ContentBlock>
+
+        <BehaviouralBoxesGrid boxes={secondaryPattern?.behaviouralBoxes ?? []} />
+
+        {secondaryPattern?.blendNarrative?.trim() ? (
+          <ContentBlock title="How your two patterns interact" className="mt-5">
+            <ProseBlock text={secondaryPattern.blendNarrative} />
+          </ContentBlock>
+        ) : null}
+
+        <ReportFooter page={page} total={totalPages} refId={refId} />
+      </div>
+    </section>
+  );
+}
+
+export function KeyActionsSlide({
+  plans,
+  page,
+  totalPages,
+  refId,
+}: {
+  plans: Partial<Record<PillarName, { focusArea: string; focusReason: string; dos: (PillarSynthesisDo | string)[]; donts: (PillarSynthesisDont | string)[] }>>;
+  page: number;
+  totalPages: number;
+  refId: string;
+}) {
+  const pillars: PillarName[] = ["Sleep & Recovery", "Nutrition", "Physical Activity", "Mental Wellness"];
+  const colors: Record<PillarName, string> = {
+    "Sleep & Recovery": "border-teal-200 bg-teal-50",
+    Nutrition: "border-emerald-200 bg-emerald-50",
+    "Physical Activity": "border-sky-200 bg-sky-50",
+    "Mental Wellness": "border-amber-200 bg-amber-50",
+  };
+
+  return (
+    <section data-report-page className={REPORT_PAGE}>
+      <div className={REPORT_PAGE_BODY}>
+        <SlideLabel index="07" label="Your Key Actions" />
+        <SlideTitle
+          title="Your Key Actions"
+          subtitle="Personalized actions across all four wellness pillars, tailored to your pattern."
+        />
+        <div className="space-y-4">
+          {pillars.map((pillar) => {
+            const plan = plans[pillar];
+            if (!plan) return null;
+            return (
+              <div key={pillar} className={`overflow-hidden rounded-lg border ${colors[pillar]}`}>
+                <div className="border-b border-inherit px-4 py-2">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-800">{pillar}</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">{plan.focusArea}</p>
+                </div>
+                <div className="grid gap-4 p-4 sm:grid-cols-2">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase text-slate-600">Do</p>
+                    <ol className="mt-2 space-y-2">
+                      {plan.dos.slice(0, 3).map((item, i) => {
+                        const row = normalizePillarDo(item);
+                        return (
+                          <li key={`${row.action}-${i}`} className="text-xs text-slate-700">
+                            <span className="font-medium text-slate-900">{row.action}</span>
+                            {row.why ? <span className="block text-slate-600">{row.why}</span> : null}
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase text-slate-600">Don&apos;t</p>
+                    <ol className="mt-2 space-y-2">
+                      {plan.donts.slice(0, 2).map((item, i) => {
+                        const row = normalizePillarDont(item);
+                        return (
+                          <li key={`${row.behavior}-${i}`} className="text-xs text-slate-700">
+                            <span className="font-medium text-slate-900">{row.behavior}</span>
+                            {row.why ? <span className="block text-slate-600">{row.why}</span> : null}
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <ReportFooter page={page} total={totalPages} refId={refId} />
+      </div>
+    </section>
+  );
+}
+
+export function PriorityCardsSlide({
+  cards,
+  page,
+  totalPages,
+  refId,
+}: {
+  cards: OpportunityCard[];
+  page: number;
+  totalPages: number;
+  refId: string;
+}) {
+  return (
+    <section data-report-page className={REPORT_PAGE}>
+      <div className={REPORT_PAGE_BODY}>
+        <SlideLabel index="08" label="Your High-Impact Priorities" />
+        <SlideTitle
+          title="Your High-Impact Priorities"
+          subtitle="Based on your pattern and goals, these are the areas where small changes will have the largest impact."
+        />
+        <div className="space-y-4">
+          {cards.map((card) => (
+            <article key={card.id} className="rounded-lg border border-slate-200 p-4">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-teal-700">
+                Priority {card.rank} — {PILLAR_SHORT[card.pillar]}
+              </p>
+              <h3 className="mt-1 text-base font-bold text-slate-950">{card.headline}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-slate-700">{card.whyItMatters}</p>
+              {card.startThisWeek ? (
+                <p className="mt-3 text-sm font-medium text-slate-900">
+                  First step: <span className="font-normal text-slate-700">{card.startThisWeek}</span>
+                </p>
+              ) : null}
+            </article>
+          ))}
+        </div>
+        <ReportFooter page={page} total={totalPages} refId={refId} />
+      </div>
+    </section>
+  );
+}
+
+export function WhatComesNextSlide({
+  page,
+  totalPages,
+  refId,
+}: {
+  page: number;
+  totalPages: number;
+  refId: string;
+}) {
+  const steps = [
+    { title: "Start Small", body: "Pick one action from the Key Actions page and do it this week. Just one." },
+    { title: "Track How You Feel", body: "Pay attention to what changes when you follow through — energy, mood, sleep quality." },
+    { title: "Revisit in 4 Weeks", body: "Come back to this report after 4 weeks and notice which recommendations became habits." },
+  ];
+
+  return (
+    <section data-report-page className={REPORT_PAGE}>
+      <div className={REPORT_PAGE_BODY}>
+        <SlideLabel index="09" label="What Comes Next" />
+        <SlideTitle title="What Comes Next" />
+        <p className="mb-5 text-sm leading-relaxed text-slate-700">
+          This report is your starting point. The recommendations inside are designed to work with your personality, not against it.
+          Start with what feels easiest, build from there, and return whenever you need to recalibrate.
+        </p>
+        <div className="space-y-3">
+          {steps.map((step) => (
+            <div key={step.title} className="rounded-lg border border-teal-100 bg-teal-50/50 p-4">
+              <p className="text-sm font-bold text-teal-900">{step.title}</p>
+              <p className="mt-1 text-sm text-slate-700">{step.body}</p>
+            </div>
+          ))}
+        </div>
+        <p className="mt-6 text-xs leading-relaxed text-slate-500">
+          This report contains general wellness information personalized to your assessment results. It is not a substitute
+          for professional medical, nutritional, or psychological advice.
+        </p>
+        <p className="mt-2 text-sm font-bold text-teal-800">pausibl.com</p>
         <ReportFooter page={page} total={totalPages} refId={refId} />
       </div>
     </section>
@@ -503,7 +837,7 @@ function PillarColumn({
       </div>
 
       <div className="border-b border-slate-100 p-4">
-        <p className="text-[10px] font-bold uppercase text-slate-600">4 Do&apos;s</p>
+        <p className="text-[10px] font-bold uppercase text-slate-600">3 Do&apos;s</p>
         <ol className="mt-2 space-y-2">
           {dos.map((item, i) => {
             const row = normalizePillarDo(item);

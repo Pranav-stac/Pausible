@@ -249,7 +249,7 @@ export function buildRecommendationSeedPayload(): RecommendationConfig {
 
   return {
     version: "1",
-    masterVersion: "v1.7",
+    masterVersion: "v1.8",
     recommendations,
     tagMappingRules,
     wellnessFields: buildWellnessFields(),

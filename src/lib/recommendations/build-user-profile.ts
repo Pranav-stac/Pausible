@@ -1,4 +1,5 @@
 import { personaKeyToCsvAlias } from "@/lib/recommendations/persona-aliases";
+import { normalizeFitTier } from "@/lib/scoring/persona-fit";
 import type { RecommendationConfig, WellnessFieldConfig } from "@/lib/recommendations/firestore-config-types";
 import type { UserProfile } from "@/lib/recommendations/types";
 import type { PersonaKey } from "@/lib/scoring/persona-types";
@@ -151,7 +152,7 @@ export function buildUserProfile(input: BuildProfileInput, config: Recommendatio
 
   const primaryPersonaAlias = personaKeyToCsvAlias(primaryPersona);
   const secondaryPersonaAlias = personaKeyToCsvAlias(secondaryPersona);
-  const fitTier = scores?.persona?.fitTier ?? "classic";
+  const fitTier = normalizeFitTier(scores?.persona?.fitTier ?? "classic");
   const blendRatio = scores?.persona?.blendRatio ?? 2.5;
   const blendStrength = scores?.persona?.blendStrength ?? "pure";
   const oceanTags = scores?.persona?.oceanTags ?? [];

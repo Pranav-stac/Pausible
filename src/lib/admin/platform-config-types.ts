@@ -10,7 +10,7 @@ export type ScoringConfigDoc = {
   likertMin: number;
   likertMax: number;
   traitDeviationThreshold: number;
-  fitTierBands: { classic: number; core: number; adaptive: number; emerging: number };
+  fitTierBands: { classic: number; core: number; leaning: number; exploring: number };
   blendRatioBands: { pure: number; tendencies: number };
   updatedAt?: string;
 };

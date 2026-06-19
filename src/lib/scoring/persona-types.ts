@@ -42,7 +42,7 @@ export type QuestionItemResponse = {
   responseScore: number;
 };
 
-export type FitTier = "classic" | "core" | "adaptive" | "emerging";
+export type FitTier = "classic" | "core" | "leaning" | "exploring";
 export type BlendStrength = "pure" | "tendencies" | "strong_influence";
 
 export type TraitDeviation = {

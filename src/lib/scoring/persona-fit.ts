@@ -55,21 +55,30 @@ export function computeFitScore(primaryDistance: number, maxInterCentroidDistanc
   return Math.min(100, Math.max(0, raw));
 }
 
+/** Map legacy tier keys from stored attempts / old Firestore config. */
+export function normalizeFitTier(tier: string | undefined | null): FitTier {
+  if (tier === "adaptive") return "leaning";
+  if (tier === "emerging") return "exploring";
+  if (tier === "classic" || tier === "core" || tier === "leaning" || tier === "exploring") return tier;
+  return "classic";
+}
+
 export function computeFitTier(fitScore: number, bands = DEFAULT_BANDS.fitTierBands): FitTier {
   if (fitScore >= bands.classic) return "classic";
   if (fitScore >= bands.core) return "core";
-  if (fitScore >= bands.adaptive) return "adaptive";
-  return "emerging";
+  if (fitScore >= bands.leaning) return "leaning";
+  return "exploring";
 }
 
-export function fitTierLabel(tier: FitTier): string {
+export function fitTierLabel(tier: FitTier | string): string {
+  const normalized = normalizeFitTier(tier);
   const labels: Record<FitTier, string> = {
     classic: "Classic",
     core: "Core",
-    adaptive: "Adaptive",
-    emerging: "Emerging",
+    leaning: "Leaning",
+    exploring: "Exploring",
   };
-  return labels[tier];
+  return labels[normalized];
 }
 
 /** blend_ratio = secondary_distance / primary_distance */

@@ -15,6 +15,7 @@ import type {
   ScoredRecommendation,
   UserProfile,
 } from "@/lib/recommendations/types";
+import { normalizeFitTier } from "@/lib/scoring/persona-fit";
 
 function intersect(a: string[], b: string[]): string[] {
   const set = new Set(b);
@@ -30,7 +31,7 @@ function personaPoints(row: RecommendationRow, profile: UserProfile) {
   const secondaryMatch = fit.includes(secondary);
   const allMatch = fit.includes("all_personas");
 
-  const primaryBonus = A12_PERSONA_PRIMARY_BY_FIT_TIER[profile.fitTier] ?? 25;
+  const primaryBonus = A12_PERSONA_PRIMARY_BY_FIT_TIER[normalizeFitTier(profile.fitTier)] ?? 25;
 
   let persona = 0;
   if (primaryMatch) persona += primaryBonus;

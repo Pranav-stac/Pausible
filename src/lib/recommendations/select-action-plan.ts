@@ -1,11 +1,9 @@
 import { isActionPlanPoolRow, resolvedText } from "@/lib/recommendations/action-pool";
-import { selectHighImpactOpportunities } from "@/lib/recommendations/select-opportunities";
+import { selectHighImpactPriorities } from "@/lib/recommendations/select-opportunities";
 import { selectPiSeries } from "@/lib/recommendations/select-pi-series";
 import { selectTriggeredSafetyGuidance } from "@/lib/recommendations/safety";
 import type {
   ActionPlanSelection,
-  LaunchpadGroup,
-  LaunchpadItem,
   PillarActionPlan,
   PillarName,
   ScoredRecommendation,
@@ -56,7 +54,7 @@ function buildPillarPlan(
   const dosPool = inPillar.filter((r) => r.type === "do" || r.type === "first_action");
   const dontsPool = inPillar.filter((r) => r.type === "dont");
 
-  const dos = pickUniqueByCategory(dosPool, 4, used);
+  const dos = pickUniqueByCategory(dosPool, 3, used);
   const donts = pickUnique(dontsPool, 2, used);
   if (focus) used.add(focus.id);
 
@@ -83,67 +81,21 @@ function buildPillarPlan(
   };
 }
 
-function selectLaunchpad(ranked: ScoredRecommendation[], profile: UserProfile, used: Set<string>): LaunchpadItem[] {
-  const pool = ranked.filter((r) => isActionPlanPoolRow(r));
-  const items: LaunchpadItem[] = [];
-
-  const firstActions = pickUnique(
-    pool.filter((r) => r.type === "first_action" && (r.strength === "core" || r.strength === "supporting")),
-    2,
-    used,
-  );
-  for (const r of firstActions) {
-    items.push({
-      id: r.id,
-      text: resolvedText(r, profile),
-      pillar: r.pillar,
-      group: "start_here",
-    });
-  }
-
-  const envChanges = pickUnique(pool.filter((r) => r.type === "environment_change"), 2, used);
-  for (const r of envChanges) {
-    items.push({
-      id: r.id,
-      text: resolvedText(r, profile),
-      pillar: r.pillar,
-      group: "environment_setup",
-    });
-  }
-
-  const recoveryRules = pickUnique(pool.filter((r) => r.type === "recovery_rule"), 2, used);
-  for (const r of recoveryRules) {
-    items.push({
-      id: r.id,
-      text: resolvedText(r, profile),
-      pillar: r.pillar,
-      group: "recovery_rules",
-    });
-  }
-
-  return items;
-}
-
-/** v2.1 report section selection (Content Logic Guide + A12-A13). */
+/** v2.0 report section selection (Content Logic Guide + Template v4.0). */
 export function selectActionPlan(
   ranked: ScoredRecommendation[],
   profile: UserProfile,
 ): ActionPlanSelection {
   const used = new Set<string>();
   const piSeries = selectPiSeries(ranked, profile);
-  const opportunityCards = selectHighImpactOpportunities(ranked, profile);
-  for (const c of opportunityCards) used.add(c.id);
 
   const pillarPlans = {} as Record<PillarName, PillarActionPlan>;
   for (const pillar of PILLARS) {
     pillarPlans[pillar] = buildPillarPlan(pillar, ranked, profile, used);
   }
 
-  const launchpad = selectLaunchpad(ranked, profile, used);
-
-  const coachSourceRows = ranked
-    .filter((r) => isActionPlanPoolRow(r) && r.type !== "mindset_shift")
-    .slice(0, 5);
+  const opportunityCards = selectHighImpactPriorities(ranked, profile, pillarPlans);
+  for (const card of opportunityCards) used.add(card.id);
 
   const safetyGuidance = selectTriggeredSafetyGuidance(ranked, profile);
   for (const s of safetyGuidance) used.add(s.id);
@@ -162,8 +114,6 @@ export function selectActionPlan(
     ...new Set([
       ...opportunityCards.flatMap((c) => c.sourceIds),
       ...PILLARS.flatMap((p) => pillarPlans[p].sourceIds),
-      ...launchpad.map((l) => l.id),
-      ...coachSourceRows.map((c) => c.id),
       ...safetyGuidance.map((s) => s.id),
       ...piSeries.sourceIds,
     ]),
@@ -176,16 +126,10 @@ export function selectActionPlan(
     opportunityCards,
     piSeries,
     pillarPlans,
-    launchpad,
-    coachSourceRows,
+    launchpad: [],
+    coachSourceRows: [],
     safetyGuidance,
     allSourceIds,
     validationWarnings,
   };
 }
-
-export const LAUNCHPAD_GROUP_LABELS: Record<LaunchpadGroup, string> = {
-  start_here: "Start Here",
-  environment_setup: "Environment Setup",
-  recovery_rules: "Recovery Rules",
-};

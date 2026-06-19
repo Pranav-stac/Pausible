@@ -11,7 +11,7 @@ export const DEFAULT_SCORING_CONFIG: ScoringConfigDoc = {
   likertMin: 1,
   likertMax: 7,
   traitDeviationThreshold: 0.8,
-  fitTierBands: { classic: 75, core: 50, adaptive: 25, emerging: 0 },
+  fitTierBands: { classic: 75, core: 50, leaning: 25, exploring: 0 },
   blendRatioBands: { pure: 2.0, tendencies: 1.3 },
 };
 
@@ -34,25 +34,24 @@ export function buildDefaultPersonaCatalog(): PersonaCatalogDoc {
 }
 
 export const DEFAULT_REPORT_TEMPLATES: ReportTemplatesDoc = {
-  version: "1",
-  reportVersionLabel: "v2.0",
+  version: "2",
+  reportVersionLabel: "v4.0",
   slideLabels: {
     cover: "Cover",
-    introduction: "Introduction",
-    personality: "Your Wellness Personality",
+    understanding: "Understanding Your Wellness Personality",
+    patternMatch: "Your Pattern Match",
+    primaryPattern: "Your Primary Pattern",
+    secondaryPattern: "Your Secondary Pattern and Blend",
     blindSpots: "What You Don't See",
-    successBlueprint: "Your Success Blueprint",
-    whereYouStand: "Where You Stand",
-    opportunities: "High-Impact Wellness Opportunities",
-    actionPlan: "Your Personalized Action Plan",
-    launchpad: "Your Wellness Launchpad",
-    coaching: "Your Coaching Guide",
+    keyActions: "Your Key Actions",
+    priorities: "Your High-Impact Priorities",
+    whatComesNext: "What Comes Next",
   },
   geminiFitTierTone: {
     classic: "Assertive and confident — use 'You naturally...'",
     core: "Confident but softer — use 'You tend to...'",
-    adaptive: "Exploratory — use 'You may find...'",
-    emerging: "Tentative and invitational — use 'Some aspects suggest...'",
+    leaning: "Exploratory — use 'You may find...'",
+    exploring: "Tentative and invitational — use 'Some aspects suggest...'",
   },
   geminiBlendRules: {
     pure: "Never mention a secondary persona.",
@@ -95,7 +94,18 @@ export function mergeScoringConfig(partial: Partial<ScoringConfigDoc> | null): S
     likertMax: partial.likertMax ?? DEFAULT_SCORING_CONFIG.likertMax,
     traitDeviationThreshold:
       partial.traitDeviationThreshold ?? DEFAULT_SCORING_CONFIG.traitDeviationThreshold,
-    fitTierBands: { ...DEFAULT_SCORING_CONFIG.fitTierBands, ...partial.fitTierBands },
+    fitTierBands: {
+      classic: partial.fitTierBands?.classic ?? DEFAULT_SCORING_CONFIG.fitTierBands.classic,
+      core: partial.fitTierBands?.core ?? DEFAULT_SCORING_CONFIG.fitTierBands.core,
+      leaning:
+        partial.fitTierBands?.leaning ??
+        (partial.fitTierBands as { adaptive?: number } | undefined)?.adaptive ??
+        DEFAULT_SCORING_CONFIG.fitTierBands.leaning,
+      exploring:
+        partial.fitTierBands?.exploring ??
+        (partial.fitTierBands as { emerging?: number } | undefined)?.emerging ??
+        DEFAULT_SCORING_CONFIG.fitTierBands.exploring,
+    },
     blendRatioBands: { ...DEFAULT_SCORING_CONFIG.blendRatioBands, ...partial.blendRatioBands },
   };
 }

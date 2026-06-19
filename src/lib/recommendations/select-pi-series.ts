@@ -34,7 +34,7 @@ function pickPi(
 export function selectPiSeries(ranked: ScoredRecommendation[], profile: UserProfile): PiSeriesSelection {
   const primary = profile.primaryPersonaAlias;
   const secondary = profile.secondaryPersonaAlias;
-  const includeSecondary = profile.blendRatio < 1.5;
+  const includeSecondary = profile.blendStrength !== "pure";
 
   const blindSpot = pickPi(ranked, profile, "blind_spot", primary);
   const patternPrediction = pickPi(ranked, profile, "pattern_prediction", primary);
@@ -45,6 +45,12 @@ export function selectPiSeries(ranked: ScoredRecommendation[], profile: UserProf
   const secondarySuccessCondition = includeSecondary
     ? pickPi(ranked, profile, "success_condition", secondary)
     : null;
+  const secondaryStrengthInsight = includeSecondary
+    ? pickPi(ranked, profile, "strength_insight", secondary)
+    : null;
+  const secondaryPatternPrediction = includeSecondary
+    ? pickPi(ranked, profile, "pattern_prediction", secondary)
+    : null;
 
   const sourceIds = [
     blindSpot?.id,
@@ -53,6 +59,8 @@ export function selectPiSeries(ranked: ScoredRecommendation[], profile: UserProf
     strengthInsight?.id,
     secondaryBlindSpot?.id,
     secondarySuccessCondition?.id,
+    secondaryStrengthInsight?.id,
+    secondaryPatternPrediction?.id,
   ].filter((id): id is string => Boolean(id));
 
   return {
@@ -62,6 +70,8 @@ export function selectPiSeries(ranked: ScoredRecommendation[], profile: UserProf
     strengthInsight,
     secondaryBlindSpot,
     secondarySuccessCondition,
+    secondaryStrengthInsight,
+    secondaryPatternPrediction,
     blindSpotText: blindSpot ? resolvedText(blindSpot, profile) : "",
     patternPredictionText: patternPrediction ? resolvedText(patternPrediction, profile) : "",
     successConditionText: successCondition ? resolvedText(successCondition, profile) : "",
@@ -71,6 +81,12 @@ export function selectPiSeries(ranked: ScoredRecommendation[], profile: UserProf
       : "",
     secondarySuccessConditionText: secondarySuccessCondition
       ? resolvedTextForAlias(secondarySuccessCondition, secondary)
+      : "",
+    secondaryStrengthInsightText: secondaryStrengthInsight
+      ? resolvedTextForAlias(secondaryStrengthInsight, secondary)
+      : "",
+    secondaryPatternPredictionText: secondaryPatternPrediction
+      ? resolvedTextForAlias(secondaryPatternPrediction, secondary)
       : "",
     sourceIds,
     complete: PI_TYPES.every((t) => pickPi(ranked, profile, t, primary) != null),

@@ -166,7 +166,7 @@ export function ScoringConfigEditor({ api, onMessage, onError }: Props) {
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Fit tier bands (min score)</h3>
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {(["classic", "core", "adaptive", "emerging"] as const).map((tier) => (
+          {(["classic", "core", "leaning", "exploring"] as const).map((tier) => (
             <label key={tier} className="text-xs font-semibold capitalize text-slate-700">
               {tier}
               {num(config.fitTierBands[tier], (n) =>
@@ -175,7 +175,7 @@ export function ScoringConfigEditor({ api, onMessage, onError }: Props) {
             </label>
           ))}
         </div>
-        <p className="mt-3 text-[11px] text-slate-500">Must be descending: classic &gt; core &gt; adaptive &gt; emerging.</p>
+        <p className="mt-3 text-[11px] text-slate-500">Must be descending: classic &gt; core &gt; leaning &gt; exploring.</p>
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

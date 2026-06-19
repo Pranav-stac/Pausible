@@ -106,11 +106,37 @@ export type OpportunityCard = {
   pillar: PillarName;
   category: string;
   score: number;
+  clusterScore: number;
+  rank: number;
   impactLevel: "High" | "Very High";
   personaContextText: string;
   headline: string;
   whyItMatters: string;
+  startThisWeek: string;
   sourceIds: string[];
+};
+
+export type BehaviouralBox = {
+  title: string;
+  content: string;
+};
+
+export type TraitDeviationCard = {
+  trait: string;
+  direction: "higher" | "lower";
+  content: string;
+};
+
+export type PrimaryPatternSection = {
+  personaNarrative: string;
+  behaviouralBoxes: BehaviouralBox[];
+  traitDeviations: TraitDeviationCard[];
+};
+
+export type SecondaryPatternSection = {
+  secondaryNarrative: string;
+  behaviouralBoxes: BehaviouralBox[];
+  blendNarrative: string | null;
 };
 
 /** @deprecated Use OpportunityCard — kept for cluster fallback. */
@@ -139,12 +165,16 @@ export type PiSeriesSelection = {
   strengthInsight: ScoredRecommendation | null;
   secondaryBlindSpot: ScoredRecommendation | null;
   secondarySuccessCondition: ScoredRecommendation | null;
+  secondaryStrengthInsight: ScoredRecommendation | null;
+  secondaryPatternPrediction: ScoredRecommendation | null;
   blindSpotText: string;
   patternPredictionText: string;
   successConditionText: string;
   strengthInsightText: string;
   secondaryBlindSpotText: string;
   secondarySuccessConditionText: string;
+  secondaryStrengthInsightText: string;
+  secondaryPatternPredictionText: string;
   sourceIds: string[];
   complete: boolean;
 };
@@ -206,7 +236,10 @@ export type ActionPlanSynthesis = {
 };
 
 export type WellnessReportSections = {
-  personalityNarrative: string;
+  /** Page 4 — Primary Pattern (v2.0). */
+  primaryPattern?: PrimaryPatternSection;
+  /** Page 5 — Secondary Pattern and Blend (v2.0). */
+  secondaryPattern?: SecondaryPatternSection;
   quickProfile: {
     wellnessStyle: string;
     energyPattern: string;
@@ -216,24 +249,22 @@ export type WellnessReportSections = {
     personaPercentage: number;
   };
   blindSpots: {
-    /** The pattern you don't notice */
     patternBody: string;
-    /** What this means for your goals */
     goalsBody: string;
-    /** @deprecated legacy combined field */
     heading?: string;
     body?: string;
   };
-  successBlueprint: {
-    /** What works for you */
+  /** @deprecated Use primaryPattern — kept for cached reports. */
+  personalityNarrative?: string;
+  /** @deprecated Use primaryPattern — kept for cached reports. */
+  successBlueprint?: {
     worksBody: string;
-    /** Your natural advantage */
     advantageBody: string;
-    /** @deprecated legacy combined field */
     heading?: string;
     body?: string;
   };
-  traitDeviationNarratives: string[];
+  /** @deprecated Use primaryPattern.traitDeviations — kept for cached reports. */
+  traitDeviationNarratives?: string[];
   opportunities: OpportunityCard[];
 };
 
