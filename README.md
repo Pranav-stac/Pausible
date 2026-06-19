@@ -1,6 +1,6 @@
 # Pausible — Fitness behavioral assessment
 
-Next.js (App Router) + Firebase (Auth / Firestore) + Stripe, Razorpay, and PayPal checkouts.
+Next.js (App Router) + Firebase (Auth / Firestore) + Stripe, Razorpay, and PayPal checkouts
 
 ## Local developments
 
