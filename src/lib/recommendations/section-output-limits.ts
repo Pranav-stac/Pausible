@@ -5,5 +5,6 @@ export const SECTION_OUTPUT_TOKENS = {
   blindSpots: 800,
   pillar: 800,
   priorities: 1000,
+  integratedPlan: 800,
   default: 600,
 } as const;

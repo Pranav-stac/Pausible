@@ -37,6 +37,20 @@ export function resolvedText(row: ScoredRecommendation, profile: UserProfile): s
   return resolvePersonaContextText(row, profile.primaryPersonaAlias);
 }
 
+/** Plan page persona resolution — primary, then secondary when blend > 15%. */
+export function resolvedTextForPlan(
+  row: ScoredRecommendation,
+  profile: UserProfile,
+  secondaryBlendPct?: number,
+): string {
+  return resolvePersonaContextText(
+    row,
+    profile.primaryPersonaAlias,
+    profile.secondaryPersonaAlias,
+    secondaryBlendPct,
+  );
+}
+
 export function resolvedTextForAlias(row: ScoredRecommendation, alias: string): string {
   return resolvePersonaContextText(row, alias);
 }

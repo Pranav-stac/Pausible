@@ -436,11 +436,35 @@ export async function buildActionPlan(args: {
 }): Promise<ActionPlan> {
   const { loadReportTemplatesAdmin } = await import("@/lib/server/platform-config");
   const { loadReportLlmProviderAdmin } = await import("@/lib/server/report-llm-config");
+  const { generatePlanOutput } = await import("@/lib/recommendations/plan/plan-generator");
+  const { synthesizeIntegratedPlanPage } = await import("@/lib/recommendations/plan/synthesize-plan-page");
+
   const templates = args.reportTemplates ?? (await loadReportTemplatesAdmin());
   const llmProvider = args.llmProvider ?? (await loadReportLlmProviderAdmin());
   const ctx = buildGeminiSynthesisContext(args.input, args.config, args.selection);
-  const synthesis = await synthesizeActionPlanWithLlm(args.selection, ctx, args.input, templates, llmProvider);
-  return { ...args.selection, synthesis };
+
+  const secondaryBlendPct = args.input.scores?.persona?.personaPercentages?.[args.selection.profile.secondaryPersona];
+  const planOutput = generatePlanOutput({
+    ranked: args.selection.ranked,
+    profile: args.selection.profile,
+    planId: `plan_${args.selection.profile.primaryPersona}_${Date.now()}`,
+    secondaryBlendPct,
+  });
+
+  const [synthesis, integratedPlan] = await Promise.all([
+    synthesizeActionPlanWithLlm(args.selection, ctx, args.input, templates, llmProvider),
+    synthesizeIntegratedPlanPage(planOutput, args.selection.profile, args.input, llmProvider),
+  ]);
+
+  return {
+    ...args.selection,
+    planOutput,
+    synthesis: {
+      ...synthesis,
+      integratedPlan,
+      planOutput,
+    },
+  };
 }
 
 export const synthesizeActionPlanWithGemini = synthesizeActionPlanWithLlm;

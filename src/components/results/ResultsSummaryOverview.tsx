@@ -167,7 +167,8 @@ export function ResultsSummaryOverview({
               ))}
             </ul>
             <p className="mt-4 text-xs text-slate-500">
-              Your full 11-slide report includes personality narrative, blind spots, action plan, launchpad, and coaching
+              Your full 10-slide report includes personality narrative, blind spots, key actions, priorities, and your
+              personalised phased plan.
               guide.
             </p>
           </div>

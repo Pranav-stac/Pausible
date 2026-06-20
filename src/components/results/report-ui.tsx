@@ -9,7 +9,7 @@ import { PERSONA_KEYS } from "@/lib/scoring/persona-types";
 import { fitTierLabel, blendStrengthLabel } from "@/lib/scoring/persona-fit";
 import type { FitTier, BlendStrength, PersonaAnalysis } from "@/lib/scoring/persona-types";
 import { DEFAULT_PERSONA_CENTROIDS } from "@/lib/scoring/persona-defaults";
-import type { OpportunityCard, PillarName, PillarSynthesisDo, PillarSynthesisDont } from "@/lib/recommendations/types";
+import type { OpportunityCard, IntegratedPlanSynthesis, PillarName, PillarSynthesisDo, PillarSynthesisDont, PlanOutput } from "@/lib/recommendations/types";
 import { normalizePillarDo, normalizePillarDont } from "@/lib/recommendations/pillar-display";
 import type { WellnessReportSections } from "@/lib/recommendations/types";
 import type { DualSectionPart } from "@/lib/results/report-section-split";
@@ -535,6 +535,161 @@ export function PriorityCardsSlide({
             </article>
           ))}
         </div>
+        <ReportFooter page={page} total={totalPages} refId={refId} />
+      </div>
+    </section>
+  );
+}
+
+const PLAN_PILLAR_COLORS: Record<PillarName, string> = {
+  "Sleep & Recovery": "bg-teal-100 text-teal-800",
+  Nutrition: "bg-emerald-100 text-emerald-800",
+  "Physical Activity": "bg-sky-100 text-sky-800",
+  "Mental Wellness": "bg-amber-100 text-amber-800",
+};
+
+export function IntegratedPlanSlide({
+  planOutput,
+  integratedPlan,
+  page,
+  totalPages,
+  refId,
+}: {
+  planOutput: PlanOutput;
+  integratedPlan: IntegratedPlanSynthesis;
+  page: number;
+  totalPages: number;
+  refId: string;
+}) {
+  const phaseCopy = new Map(integratedPlan.phases.map((p) => [p.phase_number, p]));
+
+  return (
+    <section data-report-page className={REPORT_PAGE}>
+      <div className={REPORT_PAGE_BODY}>
+        <SlideLabel index="10" label="Your Personalised Plan" />
+        <SlideTitle title="Your Personalised Plan" subtitle={integratedPlan.plan_subtitle} />
+
+        <div className="mb-5 grid gap-2 rounded-lg border border-slate-200 bg-slate-50/80 p-4 text-sm text-slate-700 sm:grid-cols-2">
+          <p>
+            <span className="font-semibold text-slate-900">{planOutput.total_phases} phases</span> ·{" "}
+            {planOutput.total_duration_label}
+          </p>
+          <p>
+            Progression: <span className="font-semibold text-slate-900">{planOutput.progression_style}</span>
+          </p>
+          <p className="sm:col-span-2">{integratedPlan.goal_framing}</p>
+        </div>
+
+        <div className="mb-4 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+          {planOutput.phases.map((phase, index) => (
+            <span key={phase.phase_number} className="flex items-center gap-2">
+              {index > 0 ? <span className="text-slate-300">→</span> : null}
+              <span className={phase.phase_number === 1 ? "text-teal-700" : "text-slate-400"}>
+                Phase {phase.phase_number}
+              </span>
+            </span>
+          ))}
+        </div>
+
+        <div className="space-y-4">
+          {planOutput.phases.map((phase) => {
+            const copy = phaseCopy.get(phase.phase_number);
+            const isActive = phase.phase_number === 1;
+            return (
+              <article
+                key={phase.phase_number}
+                className={`overflow-hidden rounded-lg border ${isActive ? "border-teal-300 bg-white" : "border-slate-200 bg-slate-50/60 opacity-90"}`}
+              >
+                <div className="border-b border-inherit px-4 py-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className={`text-sm font-bold ${isActive ? "text-teal-900" : "text-slate-700"}`}>
+                      Phase {phase.phase_number}: {phase.name}
+                      {isActive ? (
+                        <span className="ml-2 rounded-full bg-teal-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-teal-800">
+                          Start here
+                        </span>
+                      ) : null}
+                    </p>
+                    <p className="text-xs text-slate-500">{phase.approx_duration_weeks}</p>
+                  </div>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-700">
+                    {copy?.phase_intent_user ?? phase.intent}
+                  </p>
+                </div>
+
+                <div className="space-y-4 p-4">
+                  <div className="rounded-md border border-teal-100 bg-teal-50/70 p-3">
+                    <p className="text-[10px] font-bold uppercase text-teal-800">Anchor habit</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-900">{phase.anchor_habit.text}</p>
+                  </div>
+
+                  {phase.daily_rhythm.length > 0 ? (
+                    <div>
+                      <p className="text-[10px] font-bold uppercase text-slate-600">Daily</p>
+                      <ul className="mt-2 space-y-1.5">
+                        {phase.daily_rhythm.map((item) => (
+                          <li key={item.id} className="text-sm text-slate-700">
+                            {item.text}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+
+                  {phase.weekly_rhythm.length > 0 ? (
+                    <div>
+                      <p className="text-[10px] font-bold uppercase text-slate-600">Weekly</p>
+                      <ul className="mt-2 space-y-1.5">
+                        {phase.weekly_rhythm.map((item) => (
+                          <li key={item.id} className="text-sm text-slate-700">
+                            {item.text}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+
+                  <div className="flex flex-wrap gap-1.5">
+                    {(Object.entries(phase.pillar_distribution) as [PillarName, number][])
+                      .filter(([, count]) => count > 0)
+                      .map(([pillar]) => (
+                        <span
+                          key={pillar}
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${PLAN_PILLAR_COLORS[pillar]}`}
+                        >
+                          {PILLAR_SHORT[pillar]}
+                        </span>
+                      ))}
+                  </div>
+
+                  <p className="rounded-md bg-slate-50 px-3 py-2 text-sm italic leading-relaxed text-slate-600">
+                    {copy?.readiness_signal_user ?? phase.readiness_signal.description}
+                  </p>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+
+        {integratedPlan.plan_notes.length > 0 ? (
+          <div className="mt-5 rounded-lg border border-slate-200 p-4">
+            <p className="text-[10px] font-bold uppercase text-slate-600">Plan notes</p>
+            <ul className="mt-2 space-y-2">
+              {integratedPlan.plan_notes.map((note) => (
+                <li key={note} className="text-sm leading-relaxed text-slate-700">
+                  {note}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        <p className="mt-5 text-xs leading-relaxed text-slate-500">
+          This plan is not a medical prescription or a fixed programme. It adapts to how you respond. The durations are
+          estimates — your readiness signals matter more than the calendar. If something isn&apos;t working, that&apos;s
+          useful information, not failure.
+        </p>
+
         <ReportFooter page={page} total={totalPages} refId={refId} />
       </div>
     </section>

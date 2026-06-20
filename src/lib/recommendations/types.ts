@@ -211,30 +211,6 @@ export type GeminiTokenUsage = {
 export type PillarSynthesisDo = { action: string; why: string };
 export type PillarSynthesisDont = { behavior: string; why: string };
 
-export type ActionPlanSynthesis = {
-  /** Legacy cluster summaries. */
-  opportunities?: WellnessOpportunity[];
-  opportunityCards: OpportunityCard[];
-  pillarPlans: Record<
-    PillarName,
-    {
-      focusArea: string;
-      focusReason: string;
-      dos: PillarSynthesisDo[];
-      donts: PillarSynthesisDont[];
-      sourceIds: string[];
-    }
-  >;
-  launchpad: Record<LaunchpadGroup, { action: string; context: string; id: string }[]>;
-  coachNotes: CoachNotesBlock;
-  reportSections?: WellnessReportSections;
-  safetyGuidance: { id: string; text: string }[];
-  synthesized: boolean;
-  synthesisError?: string | null;
-  llmProvider?: ReportLlmProvider;
-  tokenUsage?: GeminiTokenUsage | null;
-};
-
 export type WellnessReportSections = {
   /** Page 4 — Primary Pattern (v2.0). */
   primaryPattern?: PrimaryPatternSection;
@@ -268,6 +244,84 @@ export type WellnessReportSections = {
   opportunities: OpportunityCard[];
 };
 
+export type PlanRecommendationItem = {
+  id: string;
+  text: string;
+  pillar: PillarName;
+};
+
+export type PlanReadinessSignal = {
+  primary_type: string;
+  description: string;
+  secondary_type: string;
+};
+
+export type PlanPhaseOutput = {
+  phase_number: number;
+  name: string;
+  intent: string;
+  approx_duration_weeks: string;
+  anchor_habit: PlanRecommendationItem;
+  daily_rhythm: PlanRecommendationItem[];
+  weekly_rhythm: PlanRecommendationItem[];
+  readiness_signal: PlanReadinessSignal;
+  activation_energy_cap: number;
+  pillar_distribution: Record<PillarName, number>;
+};
+
+export type PlanOutput = {
+  plan_id: string;
+  persona: PersonaKey;
+  fit_tier: FitTier;
+  secondary_persona: PersonaKey | null;
+  total_phases: number;
+  total_duration_weeks: number;
+  total_duration_label: string;
+  progression_style: string;
+  phases: PlanPhaseOutput[];
+  generation_notes: string;
+};
+
+export type IntegratedPlanSynthesis = {
+  plan_subtitle: string;
+  goal_framing: string;
+  phases: {
+    phase_number: number;
+    phase_intent_user: string;
+    readiness_signal_user: string;
+  }[];
+  plan_notes: string[];
+  synthesized: boolean;
+  synthesisError?: string | null;
+};
+
+export type ActionPlanSynthesis = {
+  /** Legacy cluster summaries. */
+  opportunities?: WellnessOpportunity[];
+  opportunityCards: OpportunityCard[];
+  pillarPlans: Record<
+    PillarName,
+    {
+      focusArea: string;
+      focusReason: string;
+      dos: PillarSynthesisDo[];
+      donts: PillarSynthesisDont[];
+      sourceIds: string[];
+    }
+  >;
+  launchpad: Record<LaunchpadGroup, { action: string; context: string; id: string }[]>;
+  coachNotes: CoachNotesBlock;
+  reportSections?: WellnessReportSections;
+  safetyGuidance: { id: string; text: string }[];
+  synthesized: boolean;
+  synthesisError?: string | null;
+  llmProvider?: ReportLlmProvider;
+  tokenUsage?: GeminiTokenUsage | null;
+  integratedPlan?: IntegratedPlanSynthesis | null;
+  planOutput?: PlanOutput | null;
+};
+
 export type ActionPlan = ActionPlanSelection & {
+  planOutput: PlanOutput | null;
   synthesis: ActionPlanSynthesis;
 };

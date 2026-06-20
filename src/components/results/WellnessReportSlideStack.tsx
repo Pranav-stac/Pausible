@@ -8,6 +8,7 @@ import { resolveBlindSpotColumns } from "@/lib/results/resolve-report-sections";
 import {
   CoverSlide,
   DualColumnSection,
+  IntegratedPlanSlide,
   KeyActionsSlide,
   PatternMatchSlide,
   PrimaryPatternSlide,
@@ -22,7 +23,7 @@ import {
   WhatComesNextSlide,
 } from "@/components/results/report-ui";
 
-const TOTAL_PAGES = 9;
+const TOTAL_PAGES = 10;
 
 type Props = {
   model: ResultsReportModel;
@@ -45,6 +46,8 @@ export function WellnessReportSlideStack({
   const primaryPattern = sections?.primaryPattern;
   const secondaryPattern = sections?.secondaryPattern;
   const opportunityCards: OpportunityCard[] = synthesis.opportunityCards ?? [];
+  const planOutput = synthesis.planOutput ?? null;
+  const integratedPlan = synthesis.integratedPlan ?? null;
 
   return (
     <>
@@ -96,6 +99,16 @@ export function WellnessReportSlideStack({
       <PriorityCardsSlide cards={opportunityCards} page={8} totalPages={TOTAL_PAGES} refId={refId} />
 
       <WhatComesNextSlide page={9} totalPages={TOTAL_PAGES} refId={refId} />
+
+      {planOutput && integratedPlan ? (
+        <IntegratedPlanSlide
+          planOutput={planOutput}
+          integratedPlan={integratedPlan}
+          page={10}
+          totalPages={TOTAL_PAGES}
+          refId={refId}
+        />
+      ) : null}
     </>
   );
 }
