@@ -19,6 +19,7 @@ import {
   buildGeminiSynthesisContext,
   type GeminiSynthesisContext,
 } from "@/lib/recommendations/build-gemini-synthesis-context";
+import { normalizePillarDont, normalizePillarDo } from "@/lib/recommendations/pillar-display";
 import { callGeminiSection, mergeTokenUsage, parseSectionJson, type GeminiSectionResult } from "@/lib/recommendations/gemini-api-client";
 import { callOpenAiSection } from "@/lib/recommendations/openai-api-client";
 import { SECTION_OUTPUT_TOKENS } from "@/lib/recommendations/section-output-limits";
@@ -334,10 +335,11 @@ export async function synthesizeActionPlanWithLlm(
     {
       mindsetShift?: string;
       doItems?: PillarSynthesisDo[];
-      dontItems?: PillarSynthesisDont[];
+      dontItems?: (PillarSynthesisDont & { behaviour?: string })[];
+      dont_items?: (PillarSynthesisDont & { behaviour?: string })[];
       focusArea?: string;
       dos?: PillarSynthesisDo[];
-      donts?: PillarSynthesisDont[];
+      donts?: (PillarSynthesisDont & { behaviour?: string })[];
     } | null
   > = {
     Nutrition: parseSectionJson(nutritionRes.text),
@@ -375,12 +377,12 @@ export async function synthesizeActionPlanWithLlm(
     const base = selection.pillarPlans[pillar];
     const parsed = pillarJsonByName[pillar];
     const dos = parsed?.doItems ?? parsed?.dos;
-    const donts = parsed?.dontItems ?? parsed?.donts;
+    const rawDonts = parsed?.dontItems ?? parsed?.dont_items ?? parsed?.donts;
     pillarPlans[pillar] = {
       focusArea: parsed?.mindsetShift?.trim() || parsed?.focusArea?.trim() || base.focusArea,
       focusReason: parsed?.mindsetShift?.trim() || parsed?.focusArea?.trim() || base.focusReason,
-      dos: dos?.length ? dos : fallbackPillarDos(base),
-      donts: donts?.length ? donts : fallbackPillarDonts(base),
+      dos: dos?.length ? dos.map(normalizePillarDo) : fallbackPillarDos(base),
+      donts: rawDonts?.length ? rawDonts.map(normalizePillarDont) : fallbackPillarDonts(base),
       sourceIds: base.sourceIds,
     };
   }

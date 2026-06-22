@@ -1,5 +1,7 @@
 import type { PillarSynthesisDo, PillarSynthesisDont } from "@/lib/recommendations/types";
 
+type DontLike = PillarSynthesisDont & { behaviour?: string; action?: string };
+
 export function normalizePillarDo(item: PillarSynthesisDo | string): PillarSynthesisDo {
   if (typeof item === "string") return { action: item, why: "" };
   return item;
@@ -7,7 +9,13 @@ export function normalizePillarDo(item: PillarSynthesisDo | string): PillarSynth
 
 export function normalizePillarDont(item: PillarSynthesisDont | string): PillarSynthesisDont {
   if (typeof item === "string") return { behavior: item, why: "" };
-  return item;
+  const raw = item as DontLike;
+  const behavior =
+    raw.behavior?.trim() || raw.behaviour?.trim() || raw.action?.trim() || "";
+  return {
+    behavior,
+    why: raw.why?.trim() ?? "",
+  };
 }
 
 export function formatPillarDoLine(item: PillarSynthesisDo | string): string {
