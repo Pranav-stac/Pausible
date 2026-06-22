@@ -5,23 +5,30 @@ import {
   secondaryInteractionPattern,
 } from "@/lib/coach-guide/persona-content";
 import type { CoachGuideDocument, CoachGuideTraitRow } from "@/lib/coach-guide/types";
-import { PERSONA_DISPLAY } from "@/lib/scoring/persona-defaults";
+import { PERSONA_DISPLAY, DEFAULT_PERSONA_CENTROIDS } from "@/lib/scoring/persona-defaults";
 import { fitTierLabel } from "@/lib/scoring/persona-fit";
 import {
+  LAYER1_PSYCHOLOGICAL_CRITERIA,
+  LAYER3_ENVIRONMENTAL_QUESTION,
+  layer2CriterionForBarrier,
+} from "@/lib/coach-guide/coach-guide-validation-config";
+import {
   buildTraitProfileRows,
-  traitCentroidDescriptor,
+  coachGuideTraitLabel,
   formatTraitScore,
+  traitCentroidDescriptor,
 } from "@/lib/scoring/trait-level";
-import { DEFAULT_PERSONA_CENTROIDS } from "@/lib/scoring/persona-defaults";
 import type { PersonaAnalysis } from "@/lib/scoring/persona-types";
 import { personaLabel } from "@/lib/results/persona-display";
+import { resolveParticipantFirstName } from "@/lib/results/resolve-participant-name";
 
-function firstName(input?: BuildProfileInput, fallback = "Client"): string {
-  const fromAnswers =
-    typeof input?.answers?.participant_display_name === "string"
-      ? input.answers.participant_display_name.split(/\s+/)[0]
-      : null;
-  return fromAnswers?.trim() || fallback;
+function coachGuideClientName(input?: BuildProfileInput): string {
+  return resolveParticipantFirstName({
+    participantName: input?.participantName,
+    ownerEmail: null,
+    answers: input?.answers,
+    fallback: "Client",
+  });
 }
 
 function formatGoal(goals: string[]): string {
@@ -40,19 +47,14 @@ function buildTraitRows(persona: PersonaAnalysis, primaryKey: UserProfile["prima
 
   return rows.map((row) => {
     const descriptor = traitCentroidDescriptor(row.score, centroid[row.trait]);
-    const level =
-      descriptor === "Higher than typical"
-        ? "Higher than typical"
-        : descriptor === "Lower than typical"
-          ? "Lower than typical"
-          : row.bandLabel;
 
     return {
-      trait: row.label,
-      level,
+      trait: coachGuideTraitLabel(row.trait),
+      // Coach guide: always vs-pattern (Higher / Typical / Lower) — never Cay Low/Medium/High.
+      level: descriptor,
       deviation: row.isDeviation ? `${row.deviation >= 0 ? "+" : ""}${row.deviation.toFixed(1)}` : null,
       meaning: row.isDeviation
-        ? `${row.label} is ${descriptor.toLowerCase()} for this pattern (score ${formatTraitScore(row.score)} vs typical ${formatTraitScore(centroid[row.trait])}).`
+        ? `${coachGuideTraitLabel(row.trait)} is ${descriptor.toLowerCase()} for this pattern (score ${formatTraitScore(row.score)} vs typical ${formatTraitScore(centroid[row.trait])}).`
         : null,
     };
   });
@@ -106,14 +108,29 @@ function defaultDrains(profile: PersonaCoachProfile): string[] {
   ];
 }
 
-export function buildCoachGuideDocument(args: {
+function buildDeterministicValidationCheck(
+  name: string,
+  primaryKey: UserProfile["primaryPersona"],
+  barrierSlug: string,
+): [string, string, string] {
+  const layer1 = LAYER1_PSYCHOLOGICAL_CRITERIA[primaryKey];
+  const layer2 = layer2CriterionForBarrier(barrierSlug);
+  const layer3 = LAYER3_ENVIRONMENTAL_QUESTION.replace("{first_name}", name);
+  return [
+    `Psychologically Appropriate: Does this feel ${layer1.toLowerCase().replace(/\.$/, "")} for ${name}?`,
+    `Behaviorally Realistic: Can ${name} do this given ${layer2.charAt(0).toLowerCase()}${layer2.slice(1)}`,
+    `Environmentally Executable: ${layer3}`,
+  ];
+}
+
+export function buildCoachGuideDocumentDeterministic(args: {
   profile: UserProfile;
   persona: PersonaAnalysis;
   input?: BuildProfileInput;
   reportId: string;
 }): CoachGuideDocument {
   const { profile, persona, input, reportId } = args;
-  const name = firstName(input);
+  const name = coachGuideClientName(input);
   const primaryKey = profile.primaryPersona;
   const secondaryKey = profile.secondaryPersona;
   const coachProfile = PERSONA_COACH_PROFILE[primaryKey];
@@ -123,11 +140,11 @@ export function buildCoachGuideDocument(args: {
   const goal = formatGoal(profile.goals);
   const barrier = formatBarrier(profile.barriers);
 
-  const validationCheck: [string, string, string] = [
-    `Psychologically Appropriate: Does this feel private, clearly defined, and low-pressure for ${name}?`,
-    `Behaviorally Realistic: Can ${name} do this in under 20 minutes with no preparation needed?`,
-    `Environmentally Executable: Does ${name} have the space, time, and access to do this in their real life?`,
-  ];
+  const validationCheck = buildDeterministicValidationCheck(
+    name,
+    primaryKey,
+    profile.barriers[0] ?? barrier,
+  );
 
   const pivotTriggers = coachProfile.riskSignals.map((r) => {
     if (r.signal.includes("silence")) return `Check in privately and activate the pre-written restart protocol immediately.`;
@@ -178,6 +195,9 @@ export function buildCoachGuideDocument(args: {
     synthesized: false,
   };
 }
+
+/** Deterministic display-logic only — use synthesizeCoachGuideDocument for AI sections. */
+export const buildCoachGuideDocument = buildCoachGuideDocumentDeterministic;
 
 export function coachGuideCoverLine(doc: CoachGuideDocument): string {
   return `${fitTierLabel(doc.fitTier)} ${doc.primaryPersonaLabel} with ${doc.secondaryPersonaLabel} tendencies`;

@@ -102,6 +102,7 @@ export function PausibleResultsReport({
             attemptId: attempt.id,
             answers: attempt.answers,
             scores: attempt.scores ?? null,
+            participantName: model.participantName,
             forceRegenerate,
           }),
         });

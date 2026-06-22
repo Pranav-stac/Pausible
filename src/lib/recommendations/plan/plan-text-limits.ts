@@ -5,6 +5,7 @@ export const PLAN_TEXT_LIMITS = {
   goal_framing: 100,
   phase_intent_user: 200,
   readiness_signal_user: 150,
+  plan_built_narrative: 650,
   plan_note: 120,
 } as const;
 
@@ -34,6 +35,7 @@ export function enforceIntegratedPlanLimits(content: {
   plan_subtitle: string;
   goal_framing: string;
   phases: { phase_number: number; phase_intent_user: string; readiness_signal_user: string }[];
+  plan_built_narrative: string;
   plan_notes: string[];
 }): typeof content {
   return {
@@ -44,6 +46,7 @@ export function enforceIntegratedPlanLimits(content: {
       phase_intent_user: enforcePlanTextLimit("phase_intent_user", phase.phase_intent_user),
       readiness_signal_user: enforcePlanTextLimit("readiness_signal_user", phase.readiness_signal_user),
     })),
+    plan_built_narrative: enforcePlanTextLimit("plan_built_narrative", content.plan_built_narrative),
     plan_notes: content.plan_notes.map((note) => enforcePlanTextLimit("plan_note", note)),
   };
 }

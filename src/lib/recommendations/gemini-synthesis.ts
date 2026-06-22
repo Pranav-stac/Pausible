@@ -455,15 +455,22 @@ export async function buildActionPlan(args: {
 
   const [synthesis, integratedPlan, coachGuide] = await Promise.all([
     synthesizeActionPlanWithLlm(args.selection, ctx, args.input, templates, llmProvider),
-    synthesizeIntegratedPlanPage(planOutput, args.selection.profile, args.input, llmProvider),
+    synthesizeIntegratedPlanPage(
+      planOutput,
+      args.selection.profile,
+      args.input,
+      llmProvider,
+      args.selection.opportunityCards,
+    ),
     (async () => {
-      const { buildCoachGuideDocument } = await import("@/lib/coach-guide/build-coach-guide");
+      const { synthesizeCoachGuideDocument } = await import("@/lib/coach-guide/synthesize-coach-guide");
       if (!args.input.scores?.persona) return null;
-      return buildCoachGuideDocument({
+      return synthesizeCoachGuideDocument({
         profile: args.selection.profile,
         persona: args.input.scores.persona,
         input: args.input,
         reportId: `plan_${args.selection.profile.primaryPersona}_${Date.now()}`.slice(-8).toUpperCase(),
+        llmProvider,
       });
     })(),
   ]);

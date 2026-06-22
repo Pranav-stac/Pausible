@@ -37,8 +37,30 @@ export type IntegratedPlanSanitizeInput = {
   plan_subtitle: string;
   goal_framing: string;
   phases: { phase_number: number; phase_intent_user: string; readiness_signal_user: string }[];
+  plan_built_narrative: string;
   plan_notes: string[];
 };
+
+/** Lighter scrub for meta narrative — keeps persona animal names. */
+const NARRATIVE_REPLACEMENTS: [RegExp, string][] = [
+  [/\bconscientiousness\b/gi, "Discipline"],
+  [/\bneuroticism\b/gi, "Stress Sensitivity"],
+  [/\bextraversion\b/gi, "Social Energy"],
+  [/\bOCEAN\b/g, "your profile"],
+  [/\bactivation\s+energy\b/gi, ""],
+  [/\breadiness\s+signal\b/gi, "readiness cues"],
+];
+
+export function sanitizePlanBuiltNarrative(text: string): { text: string; violations: string[] } {
+  const violations: string[] = [];
+  for (const [pattern] of NARRATIVE_REPLACEMENTS) {
+    if (pattern.test(text)) violations.push(pattern.source);
+  }
+  return {
+    text: applyReplacements(text, NARRATIVE_REPLACEMENTS),
+    violations,
+  };
+}
 
 function applyReplacements(text: string, replacements: [RegExp, string][]): string {
   let out = text;
@@ -78,10 +100,19 @@ export function sanitizeIntegratedPlanFields(content: IntegratedPlanSanitizeInpu
     return text;
   };
 
+  const scrubNarrative = (value: string): string => {
+    const { text, violations: found } = sanitizePlanBuiltNarrative(value);
+    for (const term of found) {
+      violations.push({ term, field: "plan_built_narrative" });
+    }
+    return text;
+  };
+
   return {
     sanitized: {
       plan_subtitle: scrub(content.plan_subtitle, "plan_subtitle"),
       goal_framing: scrub(content.goal_framing, "goal_framing"),
+      plan_built_narrative: scrubNarrative(content.plan_built_narrative),
       plan_notes: content.plan_notes.map((note, i) => scrub(note, `plan_notes[${i}]`)),
       phases: content.phases.map((phase) => ({
         ...phase,

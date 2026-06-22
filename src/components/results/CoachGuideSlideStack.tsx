@@ -178,17 +178,28 @@ function CoachGuidePrinciplesSlide({ guide, page, refId }: { guide: CoachGuideDo
           </ol>
         </div>
 
+        <div className="mb-5 rounded-lg border border-slate-200 p-4">
+          <p className="text-[10px] font-bold uppercase text-slate-500">Signals to watch</p>
+          <ul className="mt-2 space-y-2 text-sm text-slate-700">
+            {gp.monitoringSignals.map((s) => <li key={s}>• {s}</li>)}
+          </ul>
+        </div>
+
         <div className="mb-5 grid gap-4 sm:grid-cols-2">
-          <div className="rounded-lg border border-slate-200 p-4">
-            <p className="text-[10px] font-bold uppercase text-slate-500">Signals to watch</p>
-            <ul className="mt-2 space-y-2 text-sm text-slate-700">
-              {gp.monitoringSignals.map((s) => <li key={s}>• {s}</li>)}
-            </ul>
-          </div>
           <div className="rounded-lg border border-slate-200 p-4">
             <p className="text-[10px] font-bold uppercase text-slate-500">Pivot triggers</p>
             <ul className="mt-2 space-y-2 text-sm text-slate-700">
               {gp.pivotTriggers.map((t) => <li key={t}>• {t}</li>)}
+            </ul>
+          </div>
+          <div className="rounded-lg border border-slate-200 p-4">
+            <p className="text-[10px] font-bold uppercase text-slate-500">Review cadence</p>
+            <ul className="mt-2 space-y-2 text-sm text-slate-700">
+              {gp.reviewCadence.map((row) => (
+                <li key={row.period}>
+                  <span className="font-semibold text-slate-900">{row.period}:</span> {row.action}
+                </li>
+              ))}
             </ul>
           </div>
         </div>

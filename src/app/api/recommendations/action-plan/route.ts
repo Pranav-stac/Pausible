@@ -25,6 +25,7 @@ export const runtime = "nodejs";
 const bodySchema = z.object({
   attemptId: z.string().min(1).optional(),
   forceRegenerate: z.boolean().optional(),
+  participantName: z.string().optional().nullable(),
   answers: z.record(z.string(), z.union([z.string(), z.number(), z.array(z.string())])),
   scores: z
     .object({
@@ -81,11 +82,23 @@ export async function POST(req: Request) {
     const db = attemptId ? getAdminFirestore() : null;
     let storedScores: AttemptScores | null | undefined;
     let attemptSnapExists = false;
+    let participantName = parsed.data.participantName?.trim() || null;
     if (attemptId && db) {
       const snap = await db.collection("attempts").doc(attemptId).get();
       attemptSnapExists = snap.exists;
       if (snap.exists) {
-        storedScores = snap.data()?.scores as AttemptScores | undefined;
+        const data = snap.data();
+        storedScores = data?.scores as AttemptScores | undefined;
+        if (!participantName) {
+          const ownerEmail = data?.ownerEmail != null ? String(data.ownerEmail) : null;
+          const { resolveParticipantName } = await import("@/lib/results/resolve-participant-name");
+          participantName = resolveParticipantName({
+            ownerEmail,
+            answers,
+            fallback: "",
+          });
+          if (!participantName) participantName = null;
+        }
       }
     }
 
@@ -101,7 +114,10 @@ export async function POST(req: Request) {
       if (cached) return jsonFromCache(cached);
     }
 
-    const plan = await runRecommendationEngine({ answers, scores }, { llmProvider });
+    const plan = await runRecommendationEngine(
+      { answers, scores, participantName },
+      { llmProvider },
+    );
     const apiPlan = toActionPlanApiPayload(plan);
     const cache = buildStoredActionPlanCache(inputHash, apiPlan, llmProvider);
 

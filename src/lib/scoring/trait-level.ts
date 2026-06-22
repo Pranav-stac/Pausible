@@ -1,6 +1,18 @@
 import type { TraitKey } from "@/lib/scoring/persona-types";
 import { friendlyTraitLabel } from "@/lib/results/quick-profile";
 
+/** Coach guide §3 labels (shorter than wellness report trait names). */
+export function coachGuideTraitLabel(trait: TraitKey): string {
+  const map: Record<TraitKey, string> = {
+    openness: "Curiosity",
+    conscientiousness: "Discipline",
+    extraversion: "Social Energy",
+    agreeableness: "Cooperation",
+    neuroticism: "Stress Sensitivity",
+  };
+  return map[trait];
+}
+
 /** Cay v1.0 bands: low 1–2.99, medium 3–4.99, high 5–7. */
 export type TraitScoreBand = "low" | "medium" | "high";
 

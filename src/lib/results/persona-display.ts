@@ -20,11 +20,19 @@ export function personaCopy(key?: string | null) {
 
 export function personaAnimal(key?: string | null) {
   if (!key) return null;
+  const k = key as PersonaKey;
+  const canonical = PERSONA_ANIMAL[k];
+  if (!canonical) return null;
   const cat = personaCatalogEntry(key);
   if (cat) {
-    return { name: cat.animalName, emoji: cat.emoji, imagePath: cat.imagePath };
+    // Labels/copy may be overridden in admin catalog; images must stay tied to persona key.
+    return {
+      name: cat.animalName?.trim() || canonical.name,
+      emoji: cat.emoji?.trim() || canonical.emoji,
+      imagePath: canonical.imagePath,
+    };
   }
-  return PERSONA_ANIMAL[key as PersonaKey] ?? null;
+  return canonical;
 }
 
 export function personaFromScores(scores?: AttemptScores | null): PersonaAnalysis | null {

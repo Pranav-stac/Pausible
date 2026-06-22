@@ -11,10 +11,12 @@ import { reportAttemptRef } from "@/lib/results/build-results-report";
 import { downloadReportAsPdf } from "@/lib/results/download-report-pdf";
 import { CoachGuideSlideStack } from "@/components/results/CoachGuideSlideStack";
 import { ReportPreparingScreen } from "@/components/results/ReportPreparingScreen";
+import { resolveParticipantFirstName } from "@/lib/results/resolve-participant-name";
 
 type Props = {
   attempt: SerializedAttempt;
   attemptId: string;
+  participantName?: string | null;
   onBack?: () => void;
   forceRegenerate?: boolean;
   reportLlmProvider: ReportLlmProvider;
@@ -23,6 +25,7 @@ type Props = {
 export function PausibleCoachGuideReport({
   attempt,
   attemptId,
+  participantName,
   onBack,
   forceRegenerate = false,
   reportLlmProvider,
@@ -38,7 +41,17 @@ export function PausibleCoachGuideReport({
   const [error, setError] = useState<string | null>(null);
   const [pdfBusy, setPdfBusy] = useState(false);
   const refId = reportAttemptRef(attemptId);
-  const coachGuide = planData?.plan.synthesis.coachGuide;
+  const coachGuideRaw = planData?.plan.synthesis.coachGuide;
+  const displayFirstName = resolveParticipantFirstName({
+    participantName,
+    ownerEmail: attempt.ownerEmail,
+    answers: attempt.answers,
+    fallback: "Client",
+  });
+  const coachGuide =
+    coachGuideRaw && displayFirstName !== "Client"
+      ? { ...coachGuideRaw, clientName: displayFirstName }
+      : coachGuideRaw;
 
   useEffect(() => {
     const validCache = isActionPlanClientCacheValid(attempt.actionPlanCache, reportLlmProvider, forceRegenerate);
@@ -60,6 +73,7 @@ export function PausibleCoachGuideReport({
             attemptId,
             answers: attempt.answers,
             scores: attempt.scores,
+            participantName,
             forceRegenerate,
             llmProvider: reportLlmProvider,
           }),
@@ -84,7 +98,7 @@ export function PausibleCoachGuideReport({
     return () => {
       cancelled = true;
     };
-  }, [attempt, attemptId, forceRegenerate, reportLlmProvider]);
+  }, [attempt, attemptId, forceRegenerate, reportLlmProvider, participantName]);
 
   if (loading) {
     return <ReportPreparingScreen title="Preparing coach guide…" onBack={onBack} />;

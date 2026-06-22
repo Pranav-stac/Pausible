@@ -141,6 +141,7 @@ function derivedExclusions(
 export type BuildProfileInput = {
   answers: AttemptAnswers;
   scores?: AttemptScores | null;
+  participantName?: string | null;
 };
 
 export function buildUserProfile(input: BuildProfileInput, config: RecommendationConfig): UserProfile {

@@ -180,6 +180,7 @@ export function ResultsClient() {
     if (!attempt || !assessment) return null;
     const name =
       user?.displayName?.trim() ||
+      attempt.ownerEmail?.split("@")[0]?.replace(/[._+-]+/g, " ") ||
       user?.email?.split("@")[0] ||
       "Your profile";
     return buildResultsReportModel({ attempt, assessment, participantName: name });
@@ -350,6 +351,7 @@ export function ResultsClient() {
           <PausibleCoachGuideReport
             attempt={attempt}
             attemptId={attemptId}
+            participantName={reportModel.participantName}
             onBack={() => setShowCoachGuide(false)}
             forceRegenerate={forceRegenerateReport}
             reportLlmProvider={reportLlmProvider}

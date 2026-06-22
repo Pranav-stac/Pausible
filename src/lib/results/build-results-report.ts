@@ -70,8 +70,15 @@ export function buildResultsReportModel(args: {
   participantName?: string | null;
 }): ResultsReportModel {
   const { attempt, assessment, participantName } = args;
-  const primaryKey = (attempt.scores?.archetypeKey as PersonaKey | undefined) ?? null;
-  const secondaryKey = (attempt.scores?.secondaryArchetypeKey as PersonaKey | undefined) ?? null;
+  const persona = attempt.scores?.persona;
+  const primaryKey =
+    (persona?.primaryPersona as PersonaKey | undefined) ??
+    (attempt.scores?.archetypeKey as PersonaKey | undefined) ??
+    null;
+  const secondaryKey =
+    (persona?.secondaryPersona as PersonaKey | undefined) ??
+    (attempt.scores?.secondaryArchetypeKey as PersonaKey | undefined) ??
+    null;
   const primaryCopy = primaryKey ? PERSONA_DISPLAY[primaryKey] : null;
   const animal = primaryKey ? PERSONA_ANIMAL[primaryKey] : null;
 
@@ -89,8 +96,6 @@ export function buildResultsReportModel(args: {
 
   const iso = attempt.paidAtIso ?? attempt.createdAtIso;
   const generatedAt = iso ? new Date(iso).toLocaleDateString(undefined, { dateStyle: "long" }) : new Date().toLocaleDateString();
-
-  const persona = attempt.scores?.persona;
 
   return {
     participantName: participantName?.trim() || "Your profile",

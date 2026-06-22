@@ -10,6 +10,7 @@ import { fitTierLabel, blendStrengthLabel } from "@/lib/scoring/persona-fit";
 import type { FitTier, BlendStrength, PersonaAnalysis } from "@/lib/scoring/persona-types";
 import { DEFAULT_PERSONA_CENTROIDS } from "@/lib/scoring/persona-defaults";
 import type { OpportunityCard, IntegratedPlanSynthesis, PillarName, PillarSynthesisDo, PillarSynthesisDont, PlanOutput } from "@/lib/recommendations/types";
+import { INTEGRATED_PLAN_GUIDING_PRINCIPLES } from "@/lib/recommendations/plan/plan-guiding-principles";
 import { normalizePillarDo, normalizePillarDont } from "@/lib/recommendations/pillar-display";
 import type { WellnessReportSections } from "@/lib/recommendations/types";
 import type { DualSectionPart } from "@/lib/results/report-section-split";
@@ -586,6 +587,20 @@ export function IntegratedPlanSlide({
           subtitle={integratedPlan.plan_subtitle}
         />
 
+        <div className="mb-5 rounded-xl border border-sky-200 bg-sky-50/70 p-5">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-sky-800">
+            Guiding principles behind this plan
+          </p>
+          <ul className="mt-3 space-y-2">
+            {INTEGRATED_PLAN_GUIDING_PRINCIPLES.map((principle) => (
+              <li key={principle} className="flex gap-2 text-sm leading-relaxed text-slate-700">
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-500" aria-hidden />
+                {principle}
+              </li>
+            ))}
+          </ul>
+        </div>
+
         <div className="mb-5 rounded-xl border border-sky-100 bg-gradient-to-br from-sky-50/90 to-white p-5 shadow-sm">
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-sky-700">Plan framing</p>
           <p className="mt-2 text-sm leading-relaxed text-slate-700">{integratedPlan.goal_framing}</p>
@@ -676,16 +691,14 @@ export function IntegratedPlanSlide({
           })}
         </div>
 
-        {integratedPlan.plan_notes.length > 0 ? (
+        {(integratedPlan.plan_built_narrative?.trim() ||
+          (integratedPlan.plan_notes?.length ?? 0) > 0) ? (
           <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50/50 p-5">
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">How this plan was built</p>
-            <ul className="mt-3 space-y-2">
-              {integratedPlan.plan_notes.map((note) => (
-                <li key={note} className="text-sm leading-relaxed text-slate-700">
-                  {note}
-                </li>
-              ))}
-            </ul>
+            <p className="mt-3 text-sm leading-relaxed text-slate-700">
+              {integratedPlan.plan_built_narrative?.trim() ||
+                integratedPlan.plan_notes.join(" ")}
+            </p>
           </div>
         ) : null}
 

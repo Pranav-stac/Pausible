@@ -291,6 +291,9 @@ export type IntegratedPlanSynthesis = {
     phase_intent_user: string;
     readiness_signal_user: string;
   }[];
+  /** Page 10 footer — single cohesive "How this plan was built" paragraph. */
+  plan_built_narrative: string;
+  /** @deprecated Legacy bullets — use plan_built_narrative */
   plan_notes: string[];
   synthesized: boolean;
   synthesisError?: string | null;
