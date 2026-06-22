@@ -9,7 +9,6 @@ import { PERSONA_KEYS } from "@/lib/scoring/persona-types";
 import { fitTierLabel, blendStrengthLabel } from "@/lib/scoring/persona-fit";
 import type { FitTier, BlendStrength, PersonaAnalysis } from "@/lib/scoring/persona-types";
 import { DEFAULT_PERSONA_CENTROIDS } from "@/lib/scoring/persona-defaults";
-import { buildTraitProfileRows } from "@/lib/scoring/trait-level";
 import type { OpportunityCard, IntegratedPlanSynthesis, PillarName, PillarSynthesisDo, PillarSynthesisDont, PlanOutput } from "@/lib/recommendations/types";
 import { normalizePillarDo, normalizePillarDont } from "@/lib/recommendations/pillar-display";
 import type { WellnessReportSections } from "@/lib/recommendations/types";
@@ -316,52 +315,6 @@ export function PatternMatchSlide({
                 </div>
               ))}
             </dl>
-          </ContentBlock>
-        ) : null}
-
-        {personaAnalysis && primaryKey ? (
-          <ContentBlock title="Trait profile">
-            <p className="mb-3 text-xs text-slate-600">
-              Scores use Cay v1.0 bands: Low (1–2.9), Medium (3–4.9), High (5–7). Pattern comparison uses ±0.8 from the{" "}
-              {model.animalName ?? model.primaryLabel} centroid.
-            </p>
-            <div className="overflow-hidden rounded-lg border border-slate-200">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                  <tr>
-                    <th className="px-3 py-2">Trait</th>
-                    <th className="px-3 py-2">Score</th>
-                    <th className="px-3 py-2">Level</th>
-                    <th className="px-3 py-2">vs pattern</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {buildTraitProfileRows(
-                    personaAnalysis.traitAverages,
-                    DEFAULT_PERSONA_CENTROIDS[primaryKey],
-                  ).map((row) => (
-                    <tr key={row.trait} className={row.isDeviation ? "bg-amber-50/60" : undefined}>
-                      <td className="px-3 py-2 font-semibold text-slate-800">{row.label}</td>
-                      <td className="px-3 py-2 tabular-nums text-slate-700">{row.scoreFormatted}</td>
-                      <td className="px-3 py-2">
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
-                            row.band === "high"
-                              ? "bg-emerald-100 text-emerald-800"
-                              : row.band === "medium"
-                                ? "bg-sky-100 text-sky-800"
-                                : "bg-slate-100 text-slate-600"
-                          }`}
-                        >
-                          {row.bandLabel}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 text-slate-600">{row.centroidDescriptor}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
           </ContentBlock>
         ) : null}
 
