@@ -61,9 +61,24 @@ function BentoCard({
   );
 }
 
-function TraitTile({ label, pct, index, compact }: { label: string; pct: number; index: number; compact?: boolean }) {
+function TraitTile({
+  label,
+  pct,
+  scoreFormatted,
+  bandLabel,
+  index,
+  compact,
+}: {
+  label: string;
+  pct: number;
+  scoreFormatted?: string;
+  bandLabel?: string;
+  index: number;
+  compact?: boolean;
+}) {
   const a = TRAIT_ACCENTS[index % TRAIT_ACCENTS.length];
   const short = label.split(" ")[0];
+  const displayScore = scoreFormatted ?? String(pct);
 
   if (compact) {
     return (
@@ -76,7 +91,12 @@ function TraitTile({ label, pct, index, compact }: { label: string; pct: number;
             >
               {short.slice(0, 2).toUpperCase()}
             </span>
-            <span className="text-3xl font-black tabular-nums text-slate-950">{pct}</span>
+            <div className="text-right">
+              <span className="text-2xl font-black tabular-nums text-slate-950">{displayScore}</span>
+              {bandLabel ? (
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{bandLabel}</p>
+              ) : null}
+            </div>
           </div>
           <div>
             <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">{label}</p>
@@ -96,7 +116,12 @@ function TraitTile({ label, pct, index, compact }: { label: string; pct: number;
     <BentoCard delay={3 + index} className="flex min-h-[8.5rem] flex-col justify-between p-4 md:min-h-[9rem] md:p-5">
       <div className="flex items-start justify-between gap-2">
         <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">{label}</span>
-        <span className="text-2xl font-black tabular-nums text-slate-950 md:text-3xl">{pct}</span>
+        <div className="text-right">
+          <span className="text-2xl font-black tabular-nums text-slate-950 md:text-3xl">{displayScore}</span>
+          {bandLabel ? (
+            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{bandLabel}</p>
+          ) : null}
+        </div>
       </div>
       <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-100">
         <div
@@ -365,7 +390,7 @@ export function ResultsBentoSummary({
               <h2 className="text-lg font-black text-slate-950 sm:text-xl">Trait meters</h2>
             </div>
             <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
-              0–100
+              Score 1–7 · Low / Medium / High
             </span>
           </div>
 
@@ -377,12 +402,27 @@ export function ResultsBentoSummary({
             <>
               <div className="results-bento-scroll-x -mx-1 flex gap-3 overflow-x-auto px-1 pb-2 md:hidden">
                 {dimensionRows.map((d, idx) => (
-                  <TraitTile key={d.key} label={d.label} pct={d.pct} index={idx} compact />
+                  <TraitTile
+                    key={d.key}
+                    label={d.label}
+                    pct={d.pct}
+                    scoreFormatted={d.scoreFormatted}
+                    bandLabel={d.bandLabel}
+                    index={idx}
+                    compact
+                  />
                 ))}
               </div>
               <div className="hidden gap-3 md:grid md:grid-cols-3 lg:grid-cols-5 lg:gap-4">
                 {dimensionRows.map((d, idx) => (
-                  <TraitTile key={d.key} label={d.label} pct={d.pct} index={idx} />
+                  <TraitTile
+                    key={d.key}
+                    label={d.label}
+                    pct={d.pct}
+                    scoreFormatted={d.scoreFormatted}
+                    bandLabel={d.bandLabel}
+                    index={idx}
+                  />
                 ))}
               </div>
             </>

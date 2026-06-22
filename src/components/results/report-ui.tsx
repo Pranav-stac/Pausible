@@ -9,6 +9,7 @@ import { PERSONA_KEYS } from "@/lib/scoring/persona-types";
 import { fitTierLabel, blendStrengthLabel } from "@/lib/scoring/persona-fit";
 import type { FitTier, BlendStrength, PersonaAnalysis } from "@/lib/scoring/persona-types";
 import { DEFAULT_PERSONA_CENTROIDS } from "@/lib/scoring/persona-defaults";
+import { buildTraitProfileRows } from "@/lib/scoring/trait-level";
 import type { OpportunityCard, IntegratedPlanSynthesis, PillarName, PillarSynthesisDo, PillarSynthesisDont, PlanOutput } from "@/lib/recommendations/types";
 import { normalizePillarDo, normalizePillarDont } from "@/lib/recommendations/pillar-display";
 import type { WellnessReportSections } from "@/lib/recommendations/types";
@@ -318,6 +319,52 @@ export function PatternMatchSlide({
           </ContentBlock>
         ) : null}
 
+        {personaAnalysis && primaryKey ? (
+          <ContentBlock title="Trait profile">
+            <p className="mb-3 text-xs text-slate-600">
+              Scores use Cay v1.0 bands: Low (1–2.9), Medium (3–4.9), High (5–7). Pattern comparison uses ±0.8 from the{" "}
+              {model.animalName ?? model.primaryLabel} centroid.
+            </p>
+            <div className="overflow-hidden rounded-lg border border-slate-200">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th className="px-3 py-2">Trait</th>
+                    <th className="px-3 py-2">Score</th>
+                    <th className="px-3 py-2">Level</th>
+                    <th className="px-3 py-2">vs pattern</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {buildTraitProfileRows(
+                    personaAnalysis.traitAverages,
+                    DEFAULT_PERSONA_CENTROIDS[primaryKey],
+                  ).map((row) => (
+                    <tr key={row.trait} className={row.isDeviation ? "bg-amber-50/60" : undefined}>
+                      <td className="px-3 py-2 font-semibold text-slate-800">{row.label}</td>
+                      <td className="px-3 py-2 tabular-nums text-slate-700">{row.scoreFormatted}</td>
+                      <td className="px-3 py-2">
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                            row.band === "high"
+                              ? "bg-emerald-100 text-emerald-800"
+                              : row.band === "medium"
+                                ? "bg-sky-100 text-sky-800"
+                                : "bg-slate-100 text-slate-600"
+                          }`}
+                        >
+                          {row.bandLabel}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-slate-600">{row.centroidDescriptor}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </ContentBlock>
+        ) : null}
+
         <ReportFooter page={page} total={totalPages} refId={refId} />
       </div>
     </section>
@@ -541,11 +588,25 @@ export function PriorityCardsSlide({
   );
 }
 
-const PLAN_PILLAR_COLORS: Record<PillarName, string> = {
-  "Sleep & Recovery": "bg-teal-100 text-teal-800",
-  Nutrition: "bg-emerald-100 text-emerald-800",
-  "Physical Activity": "bg-sky-100 text-sky-800",
-  "Mental Wellness": "bg-amber-100 text-amber-800",
+const PLAN_PHASE_STYLES: Record<number, { header: string; border: string; accent: string; pill: string }> = {
+  1: {
+    header: "bg-sky-600 text-white",
+    border: "border-sky-200",
+    accent: "bg-sky-50 border-sky-100",
+    pill: "bg-sky-100 text-sky-800",
+  },
+  2: {
+    header: "bg-emerald-600 text-white",
+    border: "border-emerald-200",
+    accent: "bg-emerald-50 border-emerald-100",
+    pill: "bg-emerald-100 text-emerald-800",
+  },
+  3: {
+    header: "bg-violet-600 text-white",
+    border: "border-violet-200",
+    accent: "bg-violet-50 border-violet-100",
+    pill: "bg-violet-100 text-violet-800",
+  },
 };
 
 export function IntegratedPlanSlide({
@@ -567,69 +628,59 @@ export function IntegratedPlanSlide({
     <section data-report-page className={REPORT_PAGE}>
       <div className={REPORT_PAGE_BODY}>
         <SlideLabel index="10" label="Your Personalised Plan" />
-        <SlideTitle title="Your Personalised Plan" subtitle={integratedPlan.plan_subtitle} />
+        <SlideTitle
+          title={`Your ${planOutput.total_duration_label} Integrated Plan`}
+          subtitle={integratedPlan.plan_subtitle}
+        />
 
-        <div className="mb-5 grid gap-2 rounded-lg border border-slate-200 bg-slate-50/80 p-4 text-sm text-slate-700 sm:grid-cols-2">
-          <p>
-            <span className="font-semibold text-slate-900">{planOutput.total_phases} phases</span> ·{" "}
-            {planOutput.total_duration_label}
-          </p>
-          <p>
-            Progression: <span className="font-semibold text-slate-900">{planOutput.progression_style}</span>
-          </p>
-          <p className="sm:col-span-2">{integratedPlan.goal_framing}</p>
-        </div>
-
-        <div className="mb-4 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-          {planOutput.phases.map((phase, index) => (
-            <span key={phase.phase_number} className="flex items-center gap-2">
-              {index > 0 ? <span className="text-slate-300">→</span> : null}
-              <span className={phase.phase_number === 1 ? "text-teal-700" : "text-slate-400"}>
-                Phase {phase.phase_number}
-              </span>
+        <div className="mb-5 rounded-xl border border-sky-100 bg-gradient-to-br from-sky-50/90 to-white p-5 shadow-sm">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-sky-700">Plan framing</p>
+          <p className="mt-2 text-sm leading-relaxed text-slate-700">{integratedPlan.goal_framing}</p>
+          <div className="mt-4 flex flex-wrap gap-3 text-xs text-slate-600">
+            <span className="rounded-full bg-white px-3 py-1 font-semibold text-slate-800 shadow-sm">
+              {planOutput.total_phases} phases
             </span>
-          ))}
+            <span className="rounded-full bg-white px-3 py-1 font-semibold text-slate-800 shadow-sm">
+              {planOutput.total_duration_label}
+            </span>
+            <span className="rounded-full bg-white px-3 py-1 font-semibold text-slate-800 shadow-sm">
+              {planOutput.progression_style}
+            </span>
+          </div>
         </div>
 
-        <div className="space-y-4">
+        <div className="grid gap-4 lg:grid-cols-3">
           {planOutput.phases.map((phase) => {
             const copy = phaseCopy.get(phase.phase_number);
-            const isActive = phase.phase_number === 1;
+            const styles = PLAN_PHASE_STYLES[phase.phase_number] ?? PLAN_PHASE_STYLES[3];
             return (
               <article
                 key={phase.phase_number}
-                className={`overflow-hidden rounded-lg border ${isActive ? "border-teal-300 bg-white" : "border-slate-200 bg-slate-50/60 opacity-90"}`}
+                className={`flex flex-col overflow-hidden rounded-xl border ${styles.border} bg-white shadow-sm`}
               >
-                <div className="border-b border-inherit px-4 py-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className={`text-sm font-bold ${isActive ? "text-teal-900" : "text-slate-700"}`}>
-                      Phase {phase.phase_number}: {phase.name}
-                      {isActive ? (
-                        <span className="ml-2 rounded-full bg-teal-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-teal-800">
-                          Start here
-                        </span>
-                      ) : null}
-                    </p>
-                    <p className="text-xs text-slate-500">{phase.approx_duration_weeks}</p>
-                  </div>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-700">
-                    {copy?.phase_intent_user ?? phase.intent}
-                  </p>
+                <div className={`px-4 py-3 ${styles.header}`}>
+                  <p className="text-[10px] font-bold uppercase tracking-wide opacity-90">Phase {phase.phase_number}</p>
+                  <p className="mt-0.5 text-sm font-bold leading-snug">{phase.name}</p>
+                  <p className="mt-1 text-[11px] opacity-90">{phase.approx_duration_weeks}</p>
                 </div>
 
-                <div className="space-y-4 p-4">
-                  <div className="rounded-md border border-teal-100 bg-teal-50/70 p-3">
-                    <p className="text-[10px] font-bold uppercase text-teal-800">Anchor habit</p>
-                    <p className="mt-1 text-sm font-semibold text-slate-900">{phase.anchor_habit.text}</p>
+                <div className="flex flex-1 flex-col gap-3 p-4">
+                  <p className="text-xs leading-relaxed text-slate-700">
+                    {copy?.phase_intent_user ?? phase.intent}
+                  </p>
+
+                  <div className={`rounded-lg border p-3 ${styles.accent}`}>
+                    <p className="text-[9px] font-bold uppercase tracking-wide text-slate-600">Anchor habit</p>
+                    <p className="mt-1 text-xs font-semibold leading-snug text-slate-900">{phase.anchor_habit.text}</p>
                   </div>
 
                   {phase.daily_rhythm.length > 0 ? (
                     <div>
-                      <p className="text-[10px] font-bold uppercase text-slate-600">Daily</p>
-                      <ul className="mt-2 space-y-1.5">
+                      <p className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Daily rhythm</p>
+                      <ul className="mt-1.5 space-y-1">
                         {phase.daily_rhythm.map((item) => (
-                          <li key={item.id} className="text-sm text-slate-700">
-                            {item.text}
+                          <li key={item.id} className="text-[11px] leading-snug text-slate-700">
+                            <span className="text-slate-400">→</span> {item.text}
                           </li>
                         ))}
                       </ul>
@@ -638,31 +689,32 @@ export function IntegratedPlanSlide({
 
                   {phase.weekly_rhythm.length > 0 ? (
                     <div>
-                      <p className="text-[10px] font-bold uppercase text-slate-600">Weekly</p>
-                      <ul className="mt-2 space-y-1.5">
+                      <p className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Weekly rhythm</p>
+                      <ul className="mt-1.5 space-y-1">
                         {phase.weekly_rhythm.map((item) => (
-                          <li key={item.id} className="text-sm text-slate-700">
-                            {item.text}
+                          <li key={item.id} className="text-[11px] leading-snug text-slate-700">
+                            <span className="text-slate-400">→</span> {item.text}
                           </li>
                         ))}
                       </ul>
                     </div>
                   ) : null}
 
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="mt-auto flex flex-wrap gap-1">
                     {(Object.entries(phase.pillar_distribution) as [PillarName, number][])
                       .filter(([, count]) => count > 0)
                       .map(([pillar]) => (
                         <span
                           key={pillar}
-                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${PLAN_PILLAR_COLORS[pillar]}`}
+                          className={`rounded-full px-2 py-0.5 text-[9px] font-semibold ${styles.pill}`}
                         >
                           {PILLAR_SHORT[pillar]}
                         </span>
                       ))}
                   </div>
 
-                  <p className="rounded-md bg-slate-50 px-3 py-2 text-sm italic leading-relaxed text-slate-600">
+                  <p className="rounded-lg bg-slate-50 px-3 py-2 text-[11px] italic leading-relaxed text-slate-600">
+                    <span className="not-italic font-semibold text-slate-700">Ready to advance when: </span>
                     {copy?.readiness_signal_user ?? phase.readiness_signal.description}
                   </p>
                 </div>
@@ -672,9 +724,9 @@ export function IntegratedPlanSlide({
         </div>
 
         {integratedPlan.plan_notes.length > 0 ? (
-          <div className="mt-5 rounded-lg border border-slate-200 p-4">
-            <p className="text-[10px] font-bold uppercase text-slate-600">Plan notes</p>
-            <ul className="mt-2 space-y-2">
+          <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50/50 p-5">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">How this plan was built</p>
+            <ul className="mt-3 space-y-2">
               {integratedPlan.plan_notes.map((note) => (
                 <li key={note} className="text-sm leading-relaxed text-slate-700">
                   {note}

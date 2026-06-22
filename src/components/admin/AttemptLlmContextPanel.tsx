@@ -99,11 +99,17 @@ function SectionCard({ section, defaultOpen = false }: { section: AttemptLlmSect
 type Props = {
   attemptId: string;
   api: (path: string, init?: RequestInit) => Promise<Response>;
+  /** When provided, skip the initial fetch and use this package (e.g. parent already loaded it). */
+  externalData?: AttemptLlmContextPackage | null;
+  /** Called after regenerate so the parent can reload shared context. */
+  onDataChange?: () => void;
+  /** Expand every report section card on load (admin detail view). */
+  expandAllSections?: boolean;
 };
 
-export function AttemptLlmContextPanel({ attemptId, api }: Props) {
-  const [data, setData] = useState<AttemptLlmContextPackage | null>(null);
-  const [loading, setLoading] = useState(true);
+export function AttemptLlmContextPanel({ attemptId, api, externalData, onDataChange, expandAllSections }: Props) {
+  const [data, setData] = useState<AttemptLlmContextPackage | null>(externalData ?? null);
+  const [loading, setLoading] = useState(externalData === undefined);
   const [error, setError] = useState<string | null>(null);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfErr, setPdfErr] = useState<string | null>(null);
@@ -128,6 +134,12 @@ export function AttemptLlmContextPanel({ attemptId, api }: Props) {
   };
 
   useEffect(() => {
+    if (externalData !== undefined && reloadKey === 0) {
+      setData(externalData);
+      setLoading(false);
+      setError(null);
+      return;
+    }
     let cancelled = false;
     void loadContext(() => cancelled);
     return () => {
@@ -135,12 +147,16 @@ export function AttemptLlmContextPanel({ attemptId, api }: Props) {
     };
   }, [attemptId, api, reloadKey]);
 
+  useEffect(() => {
+    if (externalData !== undefined && reloadKey === 0) setData(externalData);
+  }, [externalData, reloadKey]);
+
   if (loading) {
-    return <p className="mt-6 text-xs text-slate-500">Building LLM section context…</p>;
+    return <p className="text-xs text-slate-500">Building LLM section context…</p>;
   }
 
   if (error) {
-    return <p className="mt-6 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">{error}</p>;
+    return <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">{error}</p>;
   }
 
   if (!data) return null;
@@ -182,6 +198,7 @@ export function AttemptLlmContextPanel({ attemptId, api }: Props) {
           : `Ran ${providerLabel} but fell back to template copy.${json.synthesisError ? ` ${json.synthesisError}` : ""}`,
       );
       setReloadKey((k) => k + 1);
+      onDataChange?.();
     } catch (e) {
       setRegenMsg(e instanceof Error ? e.message : "Could not regenerate report.");
     } finally {
@@ -202,7 +219,7 @@ export function AttemptLlmContextPanel({ attemptId, api }: Props) {
   };
 
   return (
-    <div className="mt-6 space-y-4">
+    <div className="space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h4 className="text-sm font-semibold text-slate-900">LLM report context</h4>
@@ -311,7 +328,7 @@ export function AttemptLlmContextPanel({ attemptId, api }: Props) {
 
       <div className="space-y-3">
         {data.sections.map((section, i) => (
-          <SectionCard key={section.id} section={section} defaultOpen={i === 0} />
+          <SectionCard key={section.id} section={section} defaultOpen={expandAllSections ?? i === 0} />
         ))}
       </div>
     </div>

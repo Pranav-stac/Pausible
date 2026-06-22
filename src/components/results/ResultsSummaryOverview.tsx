@@ -20,6 +20,7 @@ type Props = {
   storyPoster: ResultsStoryPosterData;
   shareUrl?: string | null;
   onOpenReport: () => void;
+  onOpenCoachGuide?: () => void;
   onCopyShare?: () => void;
   hasGoogleIdentity?: boolean;
   user?: User | null;
@@ -33,6 +34,7 @@ export function ResultsSummaryOverview({
   storyPoster,
   shareUrl,
   onOpenReport,
+  onOpenCoachGuide,
   onCopyShare,
   hasGoogleIdentity,
   user,
@@ -143,7 +145,9 @@ export function ResultsSummaryOverview({
                 <div key={d.key}>
                   <div className="flex justify-between text-xs">
                     <span className="font-medium text-slate-600">{d.label}</span>
-                    <span className="font-bold tabular-nums text-slate-900">{d.pct}</span>
+                    <span className="font-bold tabular-nums text-slate-900">
+                      {d.scoreFormatted} <span className="text-slate-500">({d.bandLabel})</span>
+                    </span>
                   </div>
                   <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-100">
                     <div className="h-full rounded-full bg-slate-700" style={{ width: `${d.pct}%`, opacity: 0.35 + d.pct / 200 }} />
@@ -169,7 +173,6 @@ export function ResultsSummaryOverview({
             <p className="mt-4 text-xs text-slate-500">
               Your full 10-slide report includes personality narrative, blind spots, key actions, priorities, and your
               personalised phased plan.
-              guide.
             </p>
           </div>
         ) : null}
@@ -177,9 +180,9 @@ export function ResultsSummaryOverview({
         {/* Report preview cards */}
         <div className="mt-6 grid gap-3 sm:grid-cols-3">
           {[
-            { t: "Personality", d: "How you naturally approach wellness" },
-            { t: "Action plan", d: "4 pillars with do's and don'ts" },
-            { t: "Launchpad", d: "6 things to start this week" },
+            { t: "Wellness report", d: "10-page personalised intelligence report" },
+            { t: "Integrated plan", d: "Phased plan with daily and weekly rhythms" },
+            { t: "Coach guide", d: "Separate coaching brief for practitioners" },
           ].map((card) => (
             <div key={card.t} className="rounded-xl border border-slate-200 bg-white p-4">
               <p className="text-xs font-bold text-slate-900">{card.t}</p>
@@ -188,7 +191,7 @@ export function ResultsSummaryOverview({
           ))}
         </div>
 
-        <div className="mt-8 text-center">
+        <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
           <button
             type="button"
             onClick={onOpenReport}
@@ -196,8 +199,17 @@ export function ResultsSummaryOverview({
           >
             Open full wellness report
           </button>
-          <p className="mt-2 text-xs text-slate-500">11 sections · PDF download inside</p>
+          {onOpenCoachGuide ? (
+            <button
+              type="button"
+              onClick={onOpenCoachGuide}
+              className="w-full rounded-2xl border border-slate-300 bg-white py-4 text-sm font-bold text-slate-900 shadow-sm hover:bg-slate-50 sm:w-auto sm:px-10"
+            >
+              Open coach guide
+            </button>
+          ) : null}
         </div>
+        <p className="mt-2 text-center text-xs text-slate-500">10-page report · 4-page coach guide · PDF download inside</p>
 
         {/* Share */}
         <div className="mt-10">

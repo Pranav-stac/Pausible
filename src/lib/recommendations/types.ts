@@ -1,3 +1,4 @@
+import type { CoachGuideDocument } from "@/lib/coach-guide/types";
 import type { ReportLlmProvider } from "@/lib/recommendations/report-llm-types";
 import type { BlendStrength, FitTier, PersonaKey } from "@/lib/scoring/persona-types";
 
@@ -319,6 +320,7 @@ export type ActionPlanSynthesis = {
   tokenUsage?: GeminiTokenUsage | null;
   integratedPlan?: IntegratedPlanSynthesis | null;
   planOutput?: PlanOutput | null;
+  coachGuide?: CoachGuideDocument | null;
 };
 
 export type ActionPlan = ActionPlanSelection & {

@@ -1,1 +1,132 @@
-[{"trait":"Openness","traitCode":"o","bands":[{"min":1,"max":2.99,"tag":"openness_low"},{"min":3,"max":4.99,"tag":"openness_medium"},{"min":5,"max":7,"tag":"openness_high"}]},{"trait":"Conscientiousness","traitCode":"c","bands":[{"min":1,"max":2.99,"tag":"conscientiousness_low"},{"min":3,"max":4.99,"tag":"conscientiousness_medium"},{"min":5,"max":7,"tag":"conscientiousness_high"}]},{"trait":"Extraversion","traitCode":"e","bands":[{"min":1,"max":2.99,"tag":"extraversion_low"},{"min":3,"max":4.99,"tag":"extraversion_medium"},{"min":5,"max":7,"tag":"extraversion_high"}]},{"trait":"Agreeableness","traitCode":"a","bands":[{"min":1,"max":2.99,"tag":"agreeableness_low"},{"min":3,"max":4.99,"tag":"agreeableness_medium"},{"min":5,"max":7,"tag":"agreeableness_high"}]},{"trait":"Neuroticism","traitCode":"n","bands":[{"min":1,"max":2.99,"tag":"neuroticism_low"},{"min":3,"max":4.99,"tag":"neuroticism_medium"},{"min":5,"max":7,"tag":"neuroticism_high"}]}]
+[
+  {
+    "trait": "Openness",
+    "traitCode": "o",
+    "bands": [
+      {
+        "min": 1,
+        "max": 2.99,
+        "tag": "openness_low"
+      },
+      {
+        "min": 3,
+        "max": 4.99,
+        "tag": "openness_medium"
+      },
+      {
+        "min": 5,
+        "max": 7,
+        "tag": "openness_high"
+      }
+    ],
+    "meanings": {
+      "low": "Low wellness curiosity, lower interest in experimentation, learning, or trying new approaches.",
+      "medium": "Moderate openness to wellness ideas; may try new approaches selectively.",
+      "high": "High curiosity, exploration, learning orientation, and openness to wellness change."
+    }
+  },
+  {
+    "trait": "Conscientiousness",
+    "traitCode": "c",
+    "bands": [
+      {
+        "min": 1,
+        "max": 2.99,
+        "tag": "conscientiousness_low"
+      },
+      {
+        "min": 3,
+        "max": 4.99,
+        "tag": "conscientiousness_medium"
+      },
+      {
+        "min": 5,
+        "max": 7,
+        "tag": "conscientiousness_high"
+      }
+    ],
+    "meanings": {
+      "low": "Lower planning, structure, follow-through, and self-regulation in wellness contexts.",
+      "medium": "Moderate planning and consistency; may follow routines when conditions are supportive.",
+      "high": "High structure, planning, follow-through, consistency, and self-regulation in wellness."
+    }
+  },
+  {
+    "trait": "Extraversion",
+    "traitCode": "e",
+    "bands": [
+      {
+        "min": 1,
+        "max": 2.99,
+        "tag": "extraversion_low"
+      },
+      {
+        "min": 3,
+        "max": 4.99,
+        "tag": "extraversion_medium"
+      },
+      {
+        "min": 5,
+        "max": 7,
+        "tag": "extraversion_high"
+      }
+    ],
+    "meanings": {
+      "low": "Lower social energy and lower preference for social or externally stimulating wellness activities.",
+      "medium": "Moderate social wellness preference; may enjoy some shared activities but not depend on them.",
+      "high": "High social energy, activity drive, expression, accountability, and group-based motivation."
+    }
+  },
+  {
+    "trait": "Agreeableness",
+    "traitCode": "a",
+    "bands": [
+      {
+        "min": 1,
+        "max": 2.99,
+        "tag": "agreeableness_low"
+      },
+      {
+        "min": 3,
+        "max": 4.99,
+        "tag": "agreeableness_medium"
+      },
+      {
+        "min": 5,
+        "max": 7,
+        "tag": "agreeableness_high"
+      }
+    ],
+    "meanings": {
+      "low": "Lower tendency toward cooperation, accommodation, feedback receptiveness, and support in wellness settings.",
+      "medium": "Moderate cooperation and supportiveness; may adapt when context or people matter.",
+      "high": "High cooperation, empathy, harmony, supportiveness, and receptiveness in wellness contexts."
+    }
+  },
+  {
+    "trait": "Neuroticism",
+    "traitCode": "n",
+    "bands": [
+      {
+        "min": 1,
+        "max": 2.99,
+        "tag": "neuroticism_low"
+      },
+      {
+        "min": 3,
+        "max": 4.99,
+        "tag": "neuroticism_medium"
+      },
+      {
+        "min": 5,
+        "max": 7,
+        "tag": "neuroticism_high"
+      }
+    ],
+    "meanings": {
+      "low": "Low emotional reactivity, worry, stress disruption, and setback sensitivity in wellness contexts.",
+      "medium": "Moderate emotional reactivity; stress or setbacks may affect wellness behaviour sometimes.",
+      "high": "High emotional reactivity, worry, stress sensitivity, and vulnerability to wellness disruption."
+    }
+  }
+]

@@ -14,6 +14,7 @@ import type { StoredActionPlanCache } from "@/lib/recommendations/action-plan-ca
 import type { SerializedAttempt } from "@/lib/local/attempts";
 import { personaAnimal, personaLabel } from "@/lib/results/persona-display";
 import { dimensionRowsForAttempt } from "@/lib/results/dimension-rows";
+import { PausibleCoachGuideReport } from "@/components/results/PausibleCoachGuideReport";
 import { PausibleResultsReport } from "@/components/results/PausibleResultsReport";
 import { ResultsSummaryOverview } from "@/components/results/ResultsSummaryOverview";
 import { buildResultsReportModel } from "@/lib/results/build-results-report";
@@ -59,6 +60,7 @@ export function ResultsClient() {
   const [error, setError] = useState<string | null>(null);
   const [fetching, setFetching] = useState(true);
   const [showFullReport, setShowFullReport] = useState(false);
+  const [showCoachGuide, setShowCoachGuide] = useState(false);
   const forceRegenerateReport = useMemo(() => shouldForceRegenerateReport(), []);
   const { provider: reportLlmProvider, model: reportLlmModel, ready: reportLlmReady } = useReportLlmProvider();
 
@@ -343,7 +345,19 @@ export function ResultsClient() {
   return (
     <div className="min-h-screen scheme-light text-slate-900">
       <ResultsTopBar />
-      {showFullReport ? (
+      {showCoachGuide ? (
+        reportLlmReady ? (
+          <PausibleCoachGuideReport
+            attempt={attempt}
+            attemptId={attemptId}
+            onBack={() => setShowCoachGuide(false)}
+            forceRegenerate={forceRegenerateReport}
+            reportLlmProvider={reportLlmProvider}
+          />
+        ) : (
+          <div className="p-10 text-center text-sm text-slate-600">Loading report configuration…</div>
+        )
+      ) : showFullReport ? (
         reportLlmReady ? (
           <PausibleResultsReport
             model={reportModel}
@@ -369,6 +383,7 @@ export function ResultsClient() {
           storyPoster={storyPoster}
           shareUrl={shareUrl}
           onOpenReport={() => setShowFullReport(true)}
+          onOpenCoachGuide={() => setShowCoachGuide(true)}
           onCopyShare={() => void copyShare()}
           hasGoogleIdentity={hasGoogleIdentity}
           user={user}

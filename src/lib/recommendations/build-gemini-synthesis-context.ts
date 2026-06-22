@@ -10,7 +10,8 @@ import type {
 import { resolvedText } from "@/lib/recommendations/action-pool";
 import { PERSONA_DISPLAY } from "@/lib/scoring/persona-defaults";
 import { PERSONA_KEYS, type PersonaKey } from "@/lib/scoring/persona-types";
-import { personaLabel, traitMeterPercent } from "@/lib/results/persona-display";
+import { personaLabel } from "@/lib/results/persona-display";
+import { traitScoreBand, traitScoreBandLabel } from "@/lib/scoring/trait-level";
 import type { AttemptAnswers } from "@/types/models";
 
 export type GeminiSynthesisContext = {
@@ -29,7 +30,7 @@ export type GeminiSynthesisContext = {
     blendStrength: string;
     primarySummary: string;
     personaMix: { persona: string; pct: number }[];
-    oceanTraits: { trait: string; pct: number; band: string }[];
+    oceanTraits: { trait: string; score: number; band: string }[];
   };
   matchedProfile: {
     goals: { tag: string; label: string }[];
@@ -144,10 +145,8 @@ function collectWellnessResponses(
   return rows;
 }
 
-function traitBand(pct: number): string {
-  if (pct >= 67) return "high";
-  if (pct >= 34) return "moderate";
-  return "lower";
+function traitBandForScore(score: number): string {
+  return traitScoreBandLabel(traitScoreBand(score)).toLowerCase();
 }
 
 function matchReasons(
@@ -277,8 +276,12 @@ export function buildGeminiSynthesisContext(
   const traitAvgs = scores?.persona?.traitAverages;
   const oceanTraits = traitAvgs
     ? (["openness", "conscientiousness", "extraversion", "agreeableness", "neuroticism"] as const).map((k) => {
-        const pct = traitMeterPercent(traitAvgs[k] ?? 0);
-        return { trait: k.replace(/_/g, " "), pct, band: traitBand(pct) };
+        const score = traitAvgs[k] ?? 0;
+        return {
+          trait: k.replace(/_/g, " "),
+          score,
+          band: traitBandForScore(score),
+        };
       })
     : [];
 

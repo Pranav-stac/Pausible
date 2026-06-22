@@ -6,17 +6,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import type { AssessmentDefinition } from "@/types/models";
 import { AssessmentUiEditor } from "@/components/admin/AssessmentUiEditor";
+import { AdminAttemptDetailPanel } from "@/components/admin/AdminAttemptDetailPanel";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
-import { AttemptLlmContextPanel } from "@/components/admin/AttemptLlmContextPanel";
-import { AttemptPersonaDetail } from "@/components/admin/AttemptPersonaDetail";
-import { AdminAttemptReportDownloader } from "@/components/admin/AdminAttemptReportDownloader";
 import { PersonaCentroidsEditor } from "@/components/admin/PersonaCentroidsEditor";
 import { PersonaCatalogEditor } from "@/components/admin/PersonaCatalogEditor";
 import { ScoringConfigEditor } from "@/components/admin/ScoringConfigEditor";
 import { RecommendationsConfigEditor } from "@/components/admin/RecommendationsConfigEditor";
 import { ReportTemplatesEditor } from "@/components/admin/ReportTemplatesEditor";
 import { personaLabel } from "@/lib/results/persona-display";
-import type { PersonaAnalysis } from "@/lib/scoring/persona-types";
 import { getFirebaseAuth, getFirebaseDb } from "@/lib/firebase/client";
 import { isFirebaseConfigured } from "@/lib/firebase/config";
 import { useFirebaseAuth } from "@/lib/firebase/auth-context";
@@ -146,7 +143,6 @@ export function AdminDashboard() {
   const [uiDraft, setUiDraft] = useState<AssessmentDefinition | null>(null);
 
   const [attemptDrawerId, setAttemptDrawerId] = useState<string | null>(null);
-  const [attemptDrawer, setAttemptDrawer] = useState<Record<string, unknown> | null>(null);
 
   const handleAdminLogout = useCallback(async () => {
     await signOut();
@@ -310,32 +306,6 @@ export function AdminDashboard() {
     if (tab !== "analytics" || !canLoadAdminData) return;
     queueMicrotask(() => void refreshAnalytics());
   }, [tab, canLoadAdminData, refreshAnalytics]);
-
-  useEffect(() => {
-    if (!attemptDrawerId || !canLoadAdminData) return;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const token = await getBearer();
-        const res = await fetch(`/api/admin/attempts/${encodeURIComponent(attemptDrawerId)}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-        if (!cancelled && res.ok) setAttemptDrawer(j);
-        else if (!cancelled) setAttemptDrawer(null);
-      } catch {
-        if (!cancelled) setAttemptDrawer(null);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [attemptDrawerId, canLoadAdminData]);
-
-  useEffect(() => {
-    if (attemptDrawerId) return;
-    queueMicrotask(() => setAttemptDrawer(null));
-  }, [attemptDrawerId]);
 
   const downloadExport = useCallback(async () => {    setMsg(null);
     setErr(null);
@@ -1467,57 +1437,8 @@ export function AdminDashboard() {
         </main>
       </div>
 
-      {attemptDrawerId && attemptDrawer ? (
-        <>
-          <button
-            type="button"
-            className="fixed inset-0 z-40 bg-slate-900/40"
-            aria-label="Close panel"
-            onClick={() => setAttemptDrawerId(null)}
-          />
-          <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-2xl flex-col border-l border-slate-200 bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b px-4 py-3">
-              <h3 className="text-sm font-semibold">Attempt detail</h3>
-              <button type="button" className="text-sm font-semibold text-slate-500" onClick={() => setAttemptDrawerId(null)}>
-                Close
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 text-xs">
-              <AttemptPersonaDetail
-                analysis={
-                  (attemptDrawer.personaAnalysis as PersonaAnalysis | undefined) ??
-                  ((attemptDrawer.scores as { persona?: PersonaAnalysis } | null)?.persona ?? null)
-                }
-              />
-              <AttemptLlmContextPanel attemptId={attemptDrawerId} api={api} />
-              <details className="mt-6">
-                <summary className="cursor-pointer font-semibold text-slate-600">Raw attempt metadata</summary>
-                <dl className="mt-2 space-y-2">
-                  {Object.entries(attemptDrawer)
-                    .filter(([k]) => !["personaAnalysis", "answersPreview", "scores"].includes(k))
-                    .map(([k, v]) => (
-                      <div key={k}>
-                        <dt className="font-semibold capitalize text-slate-500">{k}</dt>
-                        <dd className="mt-0.5 overflow-x-auto font-mono text-[11px] text-slate-800">
-                          {typeof v === "object" ? JSON.stringify(v).slice(0, 1200) : String(v)}
-                        </dd>
-                      </div>
-                    ))}
-                </dl>
-              </details>
-              <div className="mt-6 flex flex-wrap items-center gap-2">
-                <AdminAttemptReportDownloader attemptId={attemptDrawerId} api={api} />
-                <Link
-                  href={(attemptDrawer.resultsUrl as string) ?? `#`}
-                  target="_blank"
-                  className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white"
-                >
-                  Open results route
-                </Link>
-              </div>
-            </div>
-          </aside>
-        </>
+      {attemptDrawerId ? (
+        <AdminAttemptDetailPanel attemptId={attemptDrawerId} api={api} onClose={() => setAttemptDrawerId(null)} />
       ) : null}
     </div>
   );
