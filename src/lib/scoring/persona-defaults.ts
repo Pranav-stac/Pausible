@@ -2,16 +2,21 @@ import type { PersonaCentroidTable, PersonaKey, TraitKey } from "@/lib/scoring/p
 
 export const DEFAULT_PERSONA_ALPHA = 1;
 
+/** Portrait filename is the persona key — never derived from display labels like "Watchful Deer". */
+export function personaImagePath(key: PersonaKey): string {
+  return `/Personas/${key}.jpeg`;
+}
+
 export const PERSONA_ANIMAL: Record<
   PersonaKey,
   { name: string; emoji: string; imagePath: string }
 > = {
-  self_regulated_planner: { name: "Steady Elephant", emoji: "🐘", imagePath: "/Personas/Elephant.jpeg" },
-  social_motivator: { name: "Pack Wolf", emoji: "🐺", imagePath: "/Personas/Wolf.jpeg" },
-  stress_sensitive: { name: "Watchful Deer", emoji: "🦌", imagePath: "/Personas/Deer.jpeg" },
-  curious_explorer: { name: "Curious Fox", emoji: "🦊", imagePath: "/Personas/Fox.jpeg" },
-  resilient_performer: { name: "Steadfast Bear", emoji: "🐻", imagePath: "/Personas/Bear.jpeg" },
-  brittle_avoidant: { name: "Shielded Turtle", emoji: "🐢", imagePath: "/Personas/Turtle.jpeg" },
+  self_regulated_planner: { name: "Steady Elephant", emoji: "🐘", imagePath: personaImagePath("self_regulated_planner") },
+  social_motivator: { name: "Pack Wolf", emoji: "🐺", imagePath: personaImagePath("social_motivator") },
+  stress_sensitive: { name: "Watchful Deer", emoji: "🦌", imagePath: personaImagePath("stress_sensitive") },
+  curious_explorer: { name: "Curious Fox", emoji: "🦊", imagePath: personaImagePath("curious_explorer") },
+  resilient_performer: { name: "Steadfast Bear", emoji: "🐻", imagePath: personaImagePath("resilient_performer") },
+  brittle_avoidant: { name: "Shielded Turtle", emoji: "🐢", imagePath: personaImagePath("brittle_avoidant") },
 };
 
 export const PERSONA_DISPLAY: Record<

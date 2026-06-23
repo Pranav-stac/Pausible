@@ -4,6 +4,10 @@ import type { CoachGuideDocument } from "@/lib/coach-guide/types";
 import { coachGuideCoverLine } from "@/lib/coach-guide/build-coach-guide";
 import { fitTierLabel } from "@/lib/scoring/persona-fit";
 import {
+  IntegratedPlanGuidingPrinciples,
+  IntegratedPlanTable,
+} from "@/components/results/integrated-plan-table";
+import {
   REPORT_PAGE,
   REPORT_PAGE_BODY,
   ReportFooter,
@@ -11,7 +15,6 @@ import {
   SlideTitle,
 } from "@/components/results/report-ui";
 
-const COACH_PAGE = 4;
 const PILLARS = ["Physical Activity", "Nutrition", "Sleep & Recovery", "Mental Wellness"] as const;
 const MATRIX_ROWS = [
   { key: "structure", label: "Structure" },
@@ -20,18 +23,42 @@ const MATRIX_ROWS = [
   { key: "recoveryProtocol", label: "Recovery Protocol" },
 ] as const;
 
+function coachGuidePageCount(guide: CoachGuideDocument): number {
+  return guide.clientIntegratedPlan ? 5 : 4;
+}
+
 export function CoachGuideSlideStack({ guide, refId }: { guide: CoachGuideDocument; refId: string }) {
+  const totalPages = coachGuidePageCount(guide);
+
   return (
     <>
-      <CoachGuideCoverSlide guide={guide} page={1} refId={refId} />
-      <CoachGuideIntroductionSlide guide={guide} page={2} refId={refId} />
-      <CoachGuidePrinciplesSlide guide={guide} page={3} refId={refId} />
-      <CoachGuideClosingSlide guide={guide} page={4} refId={refId} />
+      <CoachGuideCoverSlide guide={guide} page={1} totalPages={totalPages} refId={refId} />
+      <CoachGuideIntroductionSlide guide={guide} page={2} totalPages={totalPages} refId={refId} />
+      <CoachGuidePrinciplesSlide guide={guide} page={3} totalPages={totalPages} refId={refId} />
+      {guide.clientIntegratedPlan ? (
+        <CoachGuideIntegratedPlanSlide guide={guide} page={4} totalPages={totalPages} refId={refId} />
+      ) : null}
+      <CoachGuideClosingSlide
+        guide={guide}
+        page={guide.clientIntegratedPlan ? 5 : 4}
+        totalPages={totalPages}
+        refId={refId}
+      />
     </>
   );
 }
 
-function CoachGuideCoverSlide({ guide, page, refId }: { guide: CoachGuideDocument; page: number; refId: string }) {
+function CoachGuideCoverSlide({
+  guide,
+  page,
+  totalPages,
+  refId,
+}: {
+  guide: CoachGuideDocument;
+  page: number;
+  totalPages: number;
+  refId: string;
+}) {
   return (
     <section data-report-page className={REPORT_PAGE}>
       <div className={`${REPORT_PAGE_BODY} bg-gradient-to-br from-slate-900 via-slate-800 to-teal-900 text-white`}>
@@ -50,13 +77,23 @@ function CoachGuideCoverSlide({ guide, page, refId }: { guide: CoachGuideDocumen
           </p>
           <p className="mt-4 text-sm font-semibold text-teal-200">pausibl.com</p>
         </div>
-        <ReportFooter page={page} total={COACH_PAGE} refId={refId} />
+        <ReportFooter page={page} total={totalPages} refId={refId} />
       </div>
     </section>
   );
 }
 
-function CoachGuideIntroductionSlide({ guide, page, refId }: { guide: CoachGuideDocument; page: number; refId: string }) {
+function CoachGuideIntroductionSlide({
+  guide,
+  page,
+  totalPages,
+  refId,
+}: {
+  guide: CoachGuideDocument;
+  page: number;
+  totalPages: number;
+  refId: string;
+}) {
   const intro = guide.introduction;
   return (
     <section data-report-page className={REPORT_PAGE}>
@@ -128,13 +165,23 @@ function CoachGuideIntroductionSlide({ guide, page, refId }: { guide: CoachGuide
           <p className="mt-3 text-sm font-medium text-slate-900">Coach response: {intro.blindSpotCoachResponse}</p>
         </div>
 
-        <ReportFooter page={page} total={COACH_PAGE} refId={refId} />
+        <ReportFooter page={page} total={totalPages} refId={refId} />
       </div>
     </section>
   );
 }
 
-function CoachGuidePrinciplesSlide({ guide, page, refId }: { guide: CoachGuideDocument; page: number; refId: string }) {
+function CoachGuidePrinciplesSlide({
+  guide,
+  page,
+  totalPages,
+  refId,
+}: {
+  guide: CoachGuideDocument;
+  page: number;
+  totalPages: number;
+  refId: string;
+}) {
   const gp = guide.guidingPrinciples;
   const matrix = gp.pillarMatrix;
 
@@ -204,17 +251,78 @@ function CoachGuidePrinciplesSlide({ guide, page, refId }: { guide: CoachGuideDo
           </div>
         </div>
 
-        <ReportFooter page={page} total={COACH_PAGE} refId={refId} />
+        {guide.clientIntegratedPlan ? (
+          <p className="text-xs leading-relaxed text-slate-600">
+            The next page shows {guide.clientName}&apos;s integrated phased plan — the same plan on their wellness report.
+            Use this pillar matrix when coaching each phase so your guidance stays aligned with what they see.
+          </p>
+        ) : null}
+
+        <ReportFooter page={page} total={totalPages} refId={refId} />
       </div>
     </section>
   );
 }
 
-function CoachGuideClosingSlide({ guide, page, refId }: { guide: CoachGuideDocument; page: number; refId: string }) {
+function CoachGuideIntegratedPlanSlide({
+  guide,
+  page,
+  totalPages,
+  refId,
+}: {
+  guide: CoachGuideDocument;
+  page: number;
+  totalPages: number;
+  refId: string;
+}) {
+  const plan = guide.clientIntegratedPlan;
+  if (!plan) return null;
+
+  const { planOutput, synthesis } = plan;
+
   return (
     <section data-report-page className={REPORT_PAGE}>
       <div className={REPORT_PAGE_BODY}>
-        <SlideLabel index="04" label="Core Philosophy" />
+        <SlideLabel index="04" label="Client Integrated Plan" />
+        <SlideTitle
+          title={`${guide.clientName}'s ${planOutput.total_duration_label} Integrated Plan`}
+          subtitle={synthesis.plan_subtitle}
+        />
+
+        <p className="mb-3 text-xs leading-relaxed text-slate-600">
+          Identical to wellness report slide 9. Phases, habits, and rhythms come from the same engine output — coach
+          using the pillar matrix on the previous page when reviewing adherence.
+        </p>
+
+        <IntegratedPlanGuidingPrinciples className="mb-3" />
+
+        <IntegratedPlanTable planOutput={planOutput} integratedPlan={synthesis} />
+
+        {synthesis.plan_built_narrative?.trim() ? (
+          <p className="mt-3 text-[10px] leading-relaxed text-slate-500">{synthesis.plan_built_narrative.trim()}</p>
+        ) : null}
+
+        <ReportFooter page={page} total={totalPages} refId={refId} />
+      </div>
+    </section>
+  );
+}
+
+function CoachGuideClosingSlide({
+  guide,
+  page,
+  totalPages,
+  refId,
+}: {
+  guide: CoachGuideDocument;
+  page: number;
+  totalPages: number;
+  refId: string;
+}) {
+  return (
+    <section data-report-page className={REPORT_PAGE}>
+      <div className={REPORT_PAGE_BODY}>
+        <SlideLabel index={guide.clientIntegratedPlan ? "05" : "04"} label="Core Philosophy" />
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <p className="text-lg font-medium text-slate-600">What is most likely to work for THIS person?</p>
           <p className="mt-6 text-2xl font-black tracking-wide text-teal-800">{guide.closing.fiveWordSummary}</p>
@@ -224,7 +332,7 @@ function CoachGuideClosingSlide({ guide, page, refId }: { guide: CoachGuideDocum
             This guide is for coaching use only. It is not a substitute for professional medical, nutritional, or psychological advice.
           </p>
         </div>
-        <ReportFooter page={page} total={COACH_PAGE} refId={refId} />
+        <ReportFooter page={page} total={totalPages} refId={refId} />
       </div>
     </section>
   );

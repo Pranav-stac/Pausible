@@ -5,15 +5,19 @@ import Image from "next/image";
 import { OceanRadarChart } from "@/components/results/OceanRadarChart";
 import type { ResultsReportModel } from "@/lib/results/build-results-report";
 import { PERSONA_ANIMAL, PERSONA_DISPLAY } from "@/lib/scoring/persona-defaults";
+import { personaAnimal } from "@/lib/results/persona-display";
 import { PERSONA_KEYS } from "@/lib/scoring/persona-types";
 import { fitTierLabel, blendStrengthLabel } from "@/lib/scoring/persona-fit";
 import type { FitTier, BlendStrength, PersonaAnalysis } from "@/lib/scoring/persona-types";
 import { DEFAULT_PERSONA_CENTROIDS } from "@/lib/scoring/persona-defaults";
 import type { OpportunityCard, IntegratedPlanSynthesis, PillarName, PillarSynthesisDo, PillarSynthesisDont, PlanOutput } from "@/lib/recommendations/types";
-import { INTEGRATED_PLAN_GUIDING_PRINCIPLES } from "@/lib/recommendations/plan/plan-guiding-principles";
 import { normalizePillarDo, normalizePillarDont } from "@/lib/recommendations/pillar-display";
 import type { WellnessReportSections } from "@/lib/recommendations/types";
 import type { DualSectionPart } from "@/lib/results/report-section-split";
+import {
+  IntegratedPlanGuidingPrinciples,
+  IntegratedPlanTable,
+} from "@/components/results/integrated-plan-table";
 
 export const REPORT_PAGE =
   "report-page mx-auto box-border w-full max-w-[49.625rem] overflow-hidden bg-white shadow-[0_4px_24px_-8px_rgba(15,23,42,0.1)] print:shadow-none";
@@ -542,27 +546,6 @@ export function PriorityCardsSlide({
   );
 }
 
-const PLAN_PHASE_STYLES: Record<number, { header: string; border: string; accent: string; pill: string }> = {
-  1: {
-    header: "bg-sky-600 text-white",
-    border: "border-sky-200",
-    accent: "bg-sky-50 border-sky-100",
-    pill: "bg-sky-100 text-sky-800",
-  },
-  2: {
-    header: "bg-emerald-600 text-white",
-    border: "border-emerald-200",
-    accent: "bg-emerald-50 border-emerald-100",
-    pill: "bg-emerald-100 text-emerald-800",
-  },
-  3: {
-    header: "bg-violet-600 text-white",
-    border: "border-violet-200",
-    accent: "bg-violet-50 border-violet-100",
-    pill: "bg-violet-100 text-violet-800",
-  },
-};
-
 export function IntegratedPlanSlide({
   planOutput,
   integratedPlan,
@@ -576,137 +559,24 @@ export function IntegratedPlanSlide({
   totalPages: number;
   refId: string;
 }) {
-  const phaseCopy = new Map(integratedPlan.phases.map((p) => [p.phase_number, p]));
-
   return (
     <section data-report-page className={REPORT_PAGE}>
       <div className={REPORT_PAGE_BODY}>
-        <SlideLabel index="10" label="Your Personalised Plan" />
+        <SlideLabel index="09" label="Your Integrated Plan" />
         <SlideTitle
           title={`Your ${planOutput.total_duration_label} Integrated Plan`}
           subtitle={integratedPlan.plan_subtitle}
         />
 
-        <div className="mb-5 rounded-xl border border-sky-200 bg-sky-50/70 p-5">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-sky-800">
-            Guiding principles behind this plan
+        <IntegratedPlanGuidingPrinciples />
+
+        <IntegratedPlanTable planOutput={planOutput} integratedPlan={integratedPlan} />
+
+        {integratedPlan.plan_built_narrative?.trim() ? (
+          <p className="mt-3 text-[10px] leading-relaxed text-slate-500">
+            {integratedPlan.plan_built_narrative.trim()}
           </p>
-          <ul className="mt-3 space-y-2">
-            {INTEGRATED_PLAN_GUIDING_PRINCIPLES.map((principle) => (
-              <li key={principle} className="flex gap-2 text-sm leading-relaxed text-slate-700">
-                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-500" aria-hidden />
-                {principle}
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="mb-5 rounded-xl border border-sky-100 bg-gradient-to-br from-sky-50/90 to-white p-5 shadow-sm">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-sky-700">Plan framing</p>
-          <p className="mt-2 text-sm leading-relaxed text-slate-700">{integratedPlan.goal_framing}</p>
-          <div className="mt-4 flex flex-wrap gap-3 text-xs text-slate-600">
-            <span className="rounded-full bg-white px-3 py-1 font-semibold text-slate-800 shadow-sm">
-              {planOutput.total_phases} phases
-            </span>
-            <span className="rounded-full bg-white px-3 py-1 font-semibold text-slate-800 shadow-sm">
-              {planOutput.total_duration_label}
-            </span>
-            <span className="rounded-full bg-white px-3 py-1 font-semibold text-slate-800 shadow-sm">
-              {planOutput.progression_style}
-            </span>
-          </div>
-        </div>
-
-        <div className="grid gap-4 lg:grid-cols-3">
-          {planOutput.phases.map((phase) => {
-            const copy = phaseCopy.get(phase.phase_number);
-            const styles = PLAN_PHASE_STYLES[phase.phase_number] ?? PLAN_PHASE_STYLES[3];
-            return (
-              <article
-                key={phase.phase_number}
-                className={`flex flex-col overflow-hidden rounded-xl border ${styles.border} bg-white shadow-sm`}
-              >
-                <div className={`px-4 py-3 ${styles.header}`}>
-                  <p className="text-[10px] font-bold uppercase tracking-wide opacity-90">Phase {phase.phase_number}</p>
-                  <p className="mt-0.5 text-sm font-bold leading-snug">{phase.name}</p>
-                  <p className="mt-1 text-[11px] opacity-90">{phase.approx_duration_weeks}</p>
-                </div>
-
-                <div className="flex flex-1 flex-col gap-3 p-4">
-                  <p className="text-xs leading-relaxed text-slate-700">
-                    {copy?.phase_intent_user ?? phase.intent}
-                  </p>
-
-                  <div className={`rounded-lg border p-3 ${styles.accent}`}>
-                    <p className="text-[9px] font-bold uppercase tracking-wide text-slate-600">Anchor habit</p>
-                    <p className="mt-1 text-xs font-semibold leading-snug text-slate-900">{phase.anchor_habit.text}</p>
-                  </div>
-
-                  {phase.daily_rhythm.length > 0 ? (
-                    <div>
-                      <p className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Daily rhythm</p>
-                      <ul className="mt-1.5 space-y-1">
-                        {phase.daily_rhythm.map((item) => (
-                          <li key={item.id} className="text-[11px] leading-snug text-slate-700">
-                            <span className="text-slate-400">→</span> {item.text}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-
-                  {phase.weekly_rhythm.length > 0 ? (
-                    <div>
-                      <p className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Weekly rhythm</p>
-                      <ul className="mt-1.5 space-y-1">
-                        {phase.weekly_rhythm.map((item) => (
-                          <li key={item.id} className="text-[11px] leading-snug text-slate-700">
-                            <span className="text-slate-400">→</span> {item.text}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-
-                  <div className="mt-auto flex flex-wrap gap-1">
-                    {(Object.entries(phase.pillar_distribution) as [PillarName, number][])
-                      .filter(([, count]) => count > 0)
-                      .map(([pillar]) => (
-                        <span
-                          key={pillar}
-                          className={`rounded-full px-2 py-0.5 text-[9px] font-semibold ${styles.pill}`}
-                        >
-                          {PILLAR_SHORT[pillar]}
-                        </span>
-                      ))}
-                  </div>
-
-                  <p className="rounded-lg bg-slate-50 px-3 py-2 text-[11px] italic leading-relaxed text-slate-600">
-                    <span className="not-italic font-semibold text-slate-700">Ready to advance when: </span>
-                    {copy?.readiness_signal_user ?? phase.readiness_signal.description}
-                  </p>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-
-        {(integratedPlan.plan_built_narrative?.trim() ||
-          (integratedPlan.plan_notes?.length ?? 0) > 0) ? (
-          <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50/50 p-5">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">How this plan was built</p>
-            <p className="mt-3 text-sm leading-relaxed text-slate-700">
-              {integratedPlan.plan_built_narrative?.trim() ||
-                integratedPlan.plan_notes.join(" ")}
-            </p>
-          </div>
         ) : null}
-
-        <p className="mt-5 text-xs leading-relaxed text-slate-500">
-          This plan is not a medical prescription or a fixed programme. It adapts to how you respond. The durations are
-          estimates — your readiness signals matter more than the calendar. If something isn&apos;t working, that&apos;s
-          useful information, not failure.
-        </p>
 
         <ReportFooter page={page} total={totalPages} refId={refId} />
       </div>
@@ -732,7 +602,7 @@ export function WhatComesNextSlide({
   return (
     <section data-report-page className={REPORT_PAGE}>
       <div className={REPORT_PAGE_BODY}>
-        <SlideLabel index="09" label="What Comes Next" />
+        <SlideLabel index="10" label="What Comes Next" />
         <SlideTitle title="What Comes Next" />
         <p className="mb-5 text-sm leading-relaxed text-slate-700">
           This report is your starting point. The recommendations inside are designed to work with your personality, not against it.
@@ -774,7 +644,7 @@ export function WellnessPersonalitySlide({
   totalPages: number;
   refId: string;
 }) {
-  const secondaryAnimal = model.secondaryKey ? PERSONA_ANIMAL[model.secondaryKey] : null;
+  const secondaryAnimal = model.secondaryKey ? personaAnimal(model.secondaryKey) : null;
 
   return (
     <section data-report-page className={REPORT_PAGE}>

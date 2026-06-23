@@ -2,9 +2,9 @@ import {
   getWellnessContextQuestionnaire,
   isWellnessContextAnswerKey,
 } from "@/data/wellness-context-questionnaire";
-import { PERSONA_ANIMAL, PERSONA_DISPLAY } from "@/lib/scoring/persona-defaults";
+import { PERSONA_DISPLAY } from "@/lib/scoring/persona-defaults";
 import { PERSONA_KEYS, type PersonaKey } from "@/lib/scoring/persona-types";
-import { personaLabel } from "@/lib/results/persona-display";
+import { personaAnimal, personaLabel } from "@/lib/results/persona-display";
 import { dimensionRowsForAttempt, type DimensionRow } from "@/lib/results/dimension-rows";
 import type { AssessmentDefinition } from "@/types/models";
 import type { SerializedAttempt } from "@/lib/local/attempts";
@@ -80,7 +80,7 @@ export function buildResultsReportModel(args: {
     (attempt.scores?.secondaryArchetypeKey as PersonaKey | undefined) ??
     null;
   const primaryCopy = primaryKey ? PERSONA_DISPLAY[primaryKey] : null;
-  const animal = primaryKey ? PERSONA_ANIMAL[primaryKey] : null;
+  const animal = primaryKey ? personaAnimal(primaryKey) : null;
 
   const pcts = attempt.scores?.persona?.personaPercentages;
   const personaMix: PersonaMixRow[] = pcts

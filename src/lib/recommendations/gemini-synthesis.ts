@@ -453,7 +453,7 @@ export async function buildActionPlan(args: {
     secondaryBlendPct,
   });
 
-  const [synthesis, integratedPlan, coachGuide] = await Promise.all([
+  const [synthesis, integratedPlan, coachGuideRaw] = await Promise.all([
     synthesizeActionPlanWithLlm(args.selection, ctx, args.input, templates, llmProvider),
     synthesizeIntegratedPlanPage(
       planOutput,
@@ -474,6 +474,17 @@ export async function buildActionPlan(args: {
       });
     })(),
   ]);
+
+  const coachGuide =
+    coachGuideRaw && planOutput && integratedPlan
+      ? {
+          ...coachGuideRaw,
+          clientIntegratedPlan: {
+            planOutput,
+            synthesis: integratedPlan,
+          },
+        }
+      : coachGuideRaw;
 
   return {
     ...args.selection,

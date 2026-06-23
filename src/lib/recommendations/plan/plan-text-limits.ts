@@ -3,8 +3,10 @@
 export const PLAN_TEXT_LIMITS = {
   plan_subtitle: 120,
   goal_framing: 100,
-  phase_intent_user: 200,
-  readiness_signal_user: 150,
+  phase_intent_user: 320,
+  readiness_signal_user: 240,
+  anchor_habit_user: 120,
+  rhythm_line: 100,
   plan_built_narrative: 650,
   plan_note: 120,
 } as const;
@@ -31,10 +33,24 @@ export function enforcePlanTextLimit(field: keyof typeof PLAN_TEXT_LIMITS, text:
   return truncateAtSentence(text, PLAN_TEXT_LIMITS[field]);
 }
 
+function enforceRhythmLines(lines: string[]): string[] {
+  return lines
+    .map((line) => enforcePlanTextLimit("rhythm_line", line))
+    .filter(Boolean)
+    .slice(0, 3);
+}
+
 export function enforceIntegratedPlanLimits(content: {
   plan_subtitle: string;
   goal_framing: string;
-  phases: { phase_number: number; phase_intent_user: string; readiness_signal_user: string }[];
+  phases: {
+    phase_number: number;
+    phase_intent_user: string;
+    readiness_signal_user: string;
+    anchor_habit_user: string;
+    daily_rhythm_user: string[];
+    weekly_rhythm_user: string[];
+  }[];
   plan_built_narrative: string;
   plan_notes: string[];
 }): typeof content {
@@ -45,6 +61,9 @@ export function enforceIntegratedPlanLimits(content: {
       ...phase,
       phase_intent_user: enforcePlanTextLimit("phase_intent_user", phase.phase_intent_user),
       readiness_signal_user: enforcePlanTextLimit("readiness_signal_user", phase.readiness_signal_user),
+      anchor_habit_user: enforcePlanTextLimit("anchor_habit_user", phase.anchor_habit_user),
+      daily_rhythm_user: enforceRhythmLines(phase.daily_rhythm_user),
+      weekly_rhythm_user: enforceRhythmLines(phase.weekly_rhythm_user),
     })),
     plan_built_narrative: enforcePlanTextLimit("plan_built_narrative", content.plan_built_narrative),
     plan_notes: content.plan_notes.map((note) => enforcePlanTextLimit("plan_note", note)),

@@ -13,7 +13,10 @@ Rules:
 - Write in second person ("you", "your").
 - Keep plan_subtitle, goal_framing, and phase sections to 1–2 sentences maximum.
 - plan_built_narrative must be one flowing paragraph (4–6 sentences), not bullets.
-- If the user's stated goals imply intensity or timelines misaligned with their behavioural pattern, acknowledge the goal positively and frame the plan as building toward it in stages. Never reject or label a goal as unrealistic.
+- Rhythm items (anchor, daily, weekly) must be SHORT imperative actions — not psychology essays.
+- Daily rhythm = things done most days. Weekly rhythm = things done a few times per week or as weekly setup.
+- Do NOT invent new advice. Only rewrite/distill the engine items provided for each phase.
+- If an engine item belongs in the wrong bucket, move it to the correct bucket when rewriting.
 
 Return valid JSON only.`;
 
@@ -25,6 +28,11 @@ function formatGoalsList(goals: string[]): string {
 function formatBarriersList(barriers: string[]): string {
   if (!barriers.length) return "None specified";
   return barriers.map((b) => b.replace(/^barrier_/, "").replace(/_/g, " ")).join(", ");
+}
+
+function formatRhythmList(items: { text: string }[]): string {
+  if (!items.length) return "  (none)";
+  return items.map((item) => `  - ${item.text}`).join("\n");
 }
 
 export function buildIntegratedPlanPrompt(
@@ -52,7 +60,11 @@ export function buildIntegratedPlanPrompt(
       (phase) => `Phase ${phase.phase_number}: ${phase.name}
 Duration: ${phase.approx_duration_weeks}
 Intent (engine): ${phase.intent}
-Anchor habit: ${phase.anchor_habit.text}
+Anchor habit (engine): ${phase.anchor_habit.text}
+Daily rhythm (engine):
+${formatRhythmList(phase.daily_rhythm)}
+Weekly rhythm (engine):
+${formatRhythmList(phase.weekly_rhythm)}
 Readiness signal (engine): ${phase.readiness_signal.description}`,
     )
     .join("\n\n");
@@ -79,23 +91,33 @@ Generate:
 3. For each phase:
    a. phase_intent_user: 1–2 sentence user-facing description (rewrite the engine intent in warm, clear language).
    b. readiness_signal_user: 1 sentence translating the readiness signal into what the user will feel/experience.
+   c. anchor_habit_user: ONE short imperative sentence (max 100 chars). Distill the engine anchor into the clearest single action.
+   d. daily_rhythm_user: 2–3 short imperative lines (max 90 chars each). Daily/each-day actions only. Rewrite from engine daily + misclassified weekly items if needed.
+   e. weekly_rhythm_user: 2–3 short imperative lines (max 90 chars each). Weekly/few-times-per-week actions. Rewrite from engine weekly items.
 4. plan_built_narrative: ONE cohesive paragraph (4–6 sentences, max 550 characters). Explain how this plan was built. Must include:
    - Generated from Wellness Intelligence assessment
    - Primary pattern name + fit score/tier
    - Secondary pattern influence if blend > 0
-   - 1–2 behavioural observations (no OCEAN jargon; e.g. self-awareness, sensitivity to overwhelm)
+   - 1–2 behavioural observations (no OCEAN jargon)
    - How top barrier and goals shaped phasing
-   - Gradual phasing philosophy (what their pattern can absorb)
+   - Gradual phasing philosophy
    - Name 2–3 specific priority actions from the High-impact priorities input
    Write as flowing prose — NOT bullet points. Persona animal names allowed here only.
 
-Return as JSON with keys: plan_subtitle, goal_framing, phases (array with phase_number, phase_intent_user, readiness_signal_user), plan_built_narrative.`;
+Return as JSON with keys: plan_subtitle, goal_framing, phases (array with phase_number, phase_intent_user, readiness_signal_user, anchor_habit_user, daily_rhythm_user, weekly_rhythm_user), plan_built_narrative.`;
 }
 
 export type IntegratedPlanPromptJson = {
   plan_subtitle?: string;
   goal_framing?: string;
-  phases?: { phase_number: number; phase_intent_user?: string; readiness_signal_user?: string }[];
+  phases?: {
+    phase_number: number;
+    phase_intent_user?: string;
+    readiness_signal_user?: string;
+    anchor_habit_user?: string;
+    daily_rhythm_user?: string[];
+    weekly_rhythm_user?: string[];
+  }[];
   plan_built_narrative?: string;
   /** @deprecated */
   plan_notes?: string[];

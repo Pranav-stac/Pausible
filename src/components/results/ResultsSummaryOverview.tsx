@@ -6,45 +6,28 @@ import { PERSONA_DISPLAY } from "@/lib/scoring/persona-defaults";
 import { fitTierLabel } from "@/lib/scoring/persona-fit";
 import type { FitTier } from "@/lib/scoring/persona-types";
 import type { ResultsReportModel } from "@/lib/results/build-results-report";
-import type { DimensionRow } from "@/lib/results/dimension-rows";
 import { personaAnimal } from "@/lib/results/persona-display";
-import { ResultsStoryPosterSection } from "@/components/results/ResultsStoryPosterSection";
-import type { ResultsStoryPosterData } from "@/components/results/ResultsStoryPosterChrome";
-import type { User } from "firebase/auth";
 import type { SerializedAttempt } from "@/lib/local/attempts";
 
 type Props = {
   model: ResultsReportModel;
   attemptId: string;
-  dimensionRows: DimensionRow[];
-  storyPoster: ResultsStoryPosterData;
-  shareUrl?: string | null;
   onOpenReport: () => void;
   onOpenCoachGuide?: () => void;
-  onCopyShare?: () => void;
-  hasGoogleIdentity?: boolean;
-  user?: User | null;
   history?: SerializedAttempt[];
 };
 
 export function ResultsSummaryOverview({
   model,
   attemptId,
-  dimensionRows,
-  storyPoster,
-  shareUrl,
   onOpenReport,
   onOpenCoachGuide,
-  onCopyShare,
-  hasGoogleIdentity,
-  user,
   history = [],
 }: Props) {
   const primaryAnimal = personaAnimal(model.primaryKey ?? undefined);
   const secondaryAnimal = model.secondaryKey ? personaAnimal(model.secondaryKey) : null;
   const summary = model.primaryKey ? PERSONA_DISPLAY[model.primaryKey].summary : model.primarySummary;
   const bullets = model.primaryKey ? PERSONA_DISPLAY[model.primaryKey].bullets : model.primaryBullets;
-  const topTraits = dimensionRows.slice(0, 5);
 
   return (
     <div className="scheme-light min-h-screen bg-linear-to-b from-slate-50 via-white to-slate-100 pb-16 text-slate-900">
@@ -83,13 +66,13 @@ export function ResultsSummaryOverview({
                 >
                   Open full report →
                 </button>
-                {shareUrl && onCopyShare ? (
+                {onOpenCoachGuide ? (
                   <button
                     type="button"
-                    onClick={onCopyShare}
+                    onClick={onOpenCoachGuide}
                     className="rounded-full border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-800 hover:bg-slate-50"
                   >
-                    Copy share link
+                    Coach guide
                   </button>
                 ) : null}
               </div>
@@ -136,29 +119,6 @@ export function ResultsSummaryOverview({
           </div>
         </div>
 
-        {/* Trait footprint */}
-        {topTraits.length > 0 ? (
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
-            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">Behavioral footprint</p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {topTraits.map((d) => (
-                <div key={d.key}>
-                  <div className="flex justify-between text-xs">
-                    <span className="font-medium text-slate-600">{d.label}</span>
-                    <span className="font-bold tabular-nums text-slate-900">
-                      {d.scoreFormatted} <span className="text-slate-500">({d.bandLabel})</span>
-                    </span>
-                  </div>
-                  <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-100">
-                    <div className="h-full rounded-full bg-slate-700" style={{ width: `${d.pct}%`, opacity: 0.35 + d.pct / 200 }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        {/* Quick highlights */}
         {bullets.length > 0 ? (
           <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
             <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">Start here</p>
@@ -171,66 +131,14 @@ export function ResultsSummaryOverview({
               ))}
             </ul>
             <p className="mt-4 text-xs text-slate-500">
-              Your full 10-slide report includes personality narrative, blind spots, key actions, priorities, and your
-              personalised phased plan.
+              Your full report includes personality narrative, blind spots, key actions, priorities, and a personalised
+              phased plan. PDF download available inside.
             </p>
           </div>
         ) : null}
 
-        {/* Report preview cards */}
-        <div className="mt-6 grid gap-3 sm:grid-cols-3">
-          {[
-            { t: "Wellness report", d: "10-page personalised intelligence report" },
-            { t: "Integrated plan", d: "Phased plan with daily and weekly rhythms" },
-            { t: "Coach guide", d: "Separate coaching brief for practitioners" },
-          ].map((card) => (
-            <div key={card.t} className="rounded-xl border border-slate-200 bg-white p-4">
-              <p className="text-xs font-bold text-slate-900">{card.t}</p>
-              <p className="mt-1 text-[11px] leading-relaxed text-slate-500">{card.d}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-          <button
-            type="button"
-            onClick={onOpenReport}
-            className="w-full rounded-2xl bg-slate-900 py-4 text-sm font-bold text-white shadow-md hover:bg-slate-800 sm:w-auto sm:px-10"
-          >
-            Open full wellness report
-          </button>
-          {onOpenCoachGuide ? (
-            <button
-              type="button"
-              onClick={onOpenCoachGuide}
-              className="w-full rounded-2xl border border-slate-300 bg-white py-4 text-sm font-bold text-slate-900 shadow-sm hover:bg-slate-50 sm:w-auto sm:px-10"
-            >
-              Open coach guide
-            </button>
-          ) : null}
-        </div>
-        <p className="mt-2 text-center text-xs text-slate-500">10-page report · 4-page coach guide · PDF download inside</p>
-
-        {/* Share */}
-        <div className="mt-10">
-          <ResultsStoryPosterSection
-            variant="light"
-            poster={storyPoster}
-            filenameSlug={`results-${attemptId}`}
-            shareSnippetUrl={shareUrl}
-            participant={
-              hasGoogleIdentity && user
-                ? {
-                    displayName: user.displayName?.trim() || user.email?.split("@")[0] || "Member",
-                    googlePhotoUrl: user.photoURL ?? null,
-                  }
-                : null
-            }
-          />
-        </div>
-
         {history.length > 1 ? (
-          <div className="mt-8">
+          <div className="mt-6">
             <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Past assessments</p>
             <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white">
               {history.map((row) => (

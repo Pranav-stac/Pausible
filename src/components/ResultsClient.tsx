@@ -12,8 +12,6 @@ import { fetchAssessment } from "@/lib/data/assessment-service";
 import type { AssessmentDefinition } from "@/types/models";
 import type { StoredActionPlanCache } from "@/lib/recommendations/action-plan-cache";
 import type { SerializedAttempt } from "@/lib/local/attempts";
-import { personaAnimal, personaLabel } from "@/lib/results/persona-display";
-import { dimensionRowsForAttempt } from "@/lib/results/dimension-rows";
 import { PausibleCoachGuideReport } from "@/components/results/PausibleCoachGuideReport";
 import { PausibleResultsReport } from "@/components/results/PausibleResultsReport";
 import { ResultsSummaryOverview } from "@/components/results/ResultsSummaryOverview";
@@ -156,25 +154,9 @@ export function ResultsClient() {
     };
   }, [attemptId, effectiveUid, forceRegenerateReport, hasGoogleIdentity, mustUseGoogle, ready, requirePayment, router, settingsLoading]);
 
-  const dimensionRows = useMemo(
-    () => (assessment && attempt ? dimensionRowsForAttempt(assessment, attempt) : []),
-    [assessment, attempt],
-  );
-
   const handleActionPlanCached = useCallback((cache: StoredActionPlanCache) => {
     setAttempt((row) => (row ? { ...row, actionPlanCache: cache } : row));
   }, []);
-
-  const posterHostSlug = useMemo(() => {
-    const raw = (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/^https?:\/\//i, "").split("/")[0];
-    return raw || "pausible.com";
-  }, []);
-
-  function archetypeHashtagSlug(label?: string | null) {
-    if (!label?.trim()) return "ProfileGlow";
-    const fused = label.replace(/[^\p{L}\p{N}]+/gu, "").slice(0, 22);
-    return fused || "ProfileGlow";
-  }
 
   const reportModel = useMemo(() => {
     if (!attempt || !assessment) return null;
@@ -185,31 +167,6 @@ export function ResultsClient() {
       "Your profile";
     return buildResultsReportModel({ attempt, assessment, participantName: name });
   }, [attempt, assessment, user?.displayName, user?.email]);
-
-  const storyPoster = useMemo(() => {
-    const personaTitle = attempt?.scores?.persona?.personaTitle;
-    const fitScore = attempt?.scores?.persona?.fitScore;
-    const primaryKey = attempt?.scores?.archetypeKey;
-    const animal = personaAnimal(primaryKey);
-    const label = personaLabel(primaryKey);
-
-    const tagline =
-      fitScore != null
-        ? `${Math.round(fitScore)}% persona fit · wellness intelligence`
-        : "Wellness intelligence snapshot";
-
-    return {
-      archetypeLabel: personaTitle ?? label,
-      personaTitle: personaTitle ?? null,
-      fitScore: fitScore ?? null,
-      animalEmoji: animal?.emoji ?? null,
-      animalImagePath: animal?.imagePath ?? null,
-      line: tagline,
-      dimensions: dimensionRows.slice(0, 5).map((d) => ({ label: d.label, pct: d.pct })),
-      hashtags: ["Pausible", `Paus${archetypeHashtagSlug(label)}`, "WellnessReport"],
-      siteSlug: posterHostSlug,
-    };
-  }, [attempt, dimensionRows, posterHostSlug]);
 
   const shareUrl = useMemo(() => {
     if (!attempt?.shareToken || !attempt.isLatestShareEligible || attempt.paymentStatus !== "paid") return null;
@@ -381,14 +338,8 @@ export function ResultsClient() {
         <ResultsSummaryOverview
           model={reportModel}
           attemptId={attemptId}
-          dimensionRows={dimensionRows}
-          storyPoster={storyPoster}
-          shareUrl={shareUrl}
           onOpenReport={() => setShowFullReport(true)}
           onOpenCoachGuide={() => setShowCoachGuide(true)}
-          onCopyShare={() => void copyShare()}
-          hasGoogleIdentity={hasGoogleIdentity}
-          user={user}
           history={history}
         />
       )}

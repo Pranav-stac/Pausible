@@ -1,4 +1,4 @@
-import { PERSONA_ANIMAL, PERSONA_DISPLAY } from "@/lib/scoring/persona-defaults";
+import { PERSONA_ANIMAL, PERSONA_DISPLAY, personaImagePath } from "@/lib/scoring/persona-defaults";
 import { PERSONA_KEYS, type PersonaKey } from "@/lib/scoring/persona-types";
 import type {
   PersonaCatalogDoc,
@@ -80,7 +80,7 @@ export function mergePersonaCatalog(partial: Partial<PersonaCatalogDoc> | null):
       bullets: Array.isArray(row.bullets) && row.bullets.length ? row.bullets : personas[key as PersonaKey].bullets,
       animalName: row.animalName?.trim() || personas[key as PersonaKey].animalName,
       emoji: row.emoji?.trim() || personas[key as PersonaKey].emoji,
-      imagePath: row.imagePath?.trim() || personas[key as PersonaKey].imagePath,
+      imagePath: personaImagePath(key as PersonaKey),
     };
   }
   return { version: partial.version ?? defaults.version, personas };

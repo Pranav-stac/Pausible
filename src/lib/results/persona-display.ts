@@ -1,4 +1,4 @@
-import { PERSONA_ANIMAL, PERSONA_DISPLAY } from "@/lib/scoring/persona-defaults";
+import { PERSONA_ANIMAL, PERSONA_DISPLAY, personaImagePath } from "@/lib/scoring/persona-defaults";
 import type { PersonaAnalysis, PersonaKey } from "@/lib/scoring/persona-types";
 import type { AttemptScores } from "@/types/models";
 import { personaCatalogEntry } from "@/lib/data/persona-catalog-client";
@@ -29,7 +29,7 @@ export function personaAnimal(key?: string | null) {
     return {
       name: cat.animalName?.trim() || canonical.name,
       emoji: cat.emoji?.trim() || canonical.emoji,
-      imagePath: canonical.imagePath,
+      imagePath: personaImagePath(k),
     };
   }
   return canonical;

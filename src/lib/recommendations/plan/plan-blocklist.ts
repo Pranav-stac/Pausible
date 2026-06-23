@@ -36,7 +36,14 @@ export type BlocklistViolation = {
 export type IntegratedPlanSanitizeInput = {
   plan_subtitle: string;
   goal_framing: string;
-  phases: { phase_number: number; phase_intent_user: string; readiness_signal_user: string }[];
+  phases: {
+    phase_number: number;
+    phase_intent_user: string;
+    readiness_signal_user: string;
+    anchor_habit_user: string;
+    daily_rhythm_user: string[];
+    weekly_rhythm_user: string[];
+  }[];
   plan_built_narrative: string;
   plan_notes: string[];
 };
@@ -120,6 +127,16 @@ export function sanitizeIntegratedPlanFields(content: IntegratedPlanSanitizeInpu
         readiness_signal_user: scrub(
           phase.readiness_signal_user,
           `phases[${phase.phase_number}].readiness_signal_user`,
+        ),
+        anchor_habit_user: scrub(
+          phase.anchor_habit_user,
+          `phases[${phase.phase_number}].anchor_habit_user`,
+        ),
+        daily_rhythm_user: phase.daily_rhythm_user.map((line, i) =>
+          scrub(line, `phases[${phase.phase_number}].daily_rhythm_user[${i}]`),
+        ),
+        weekly_rhythm_user: phase.weekly_rhythm_user.map((line, i) =>
+          scrub(line, `phases[${phase.phase_number}].weekly_rhythm_user[${i}]`),
         ),
       })),
     },

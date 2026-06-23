@@ -283,14 +283,22 @@ export type PlanOutput = {
   generation_notes: string;
 };
 
+export type IntegratedPlanPhaseSynthesis = {
+  phase_number: number;
+  phase_intent_user: string;
+  readiness_signal_user: string;
+  /** AI-polished anchor — fallback: engine anchor_habit.text */
+  anchor_habit_user: string;
+  /** AI-polished daily actions — fallback: engine daily_rhythm texts */
+  daily_rhythm_user: string[];
+  /** AI-polished weekly actions — fallback: engine weekly_rhythm texts */
+  weekly_rhythm_user: string[];
+};
+
 export type IntegratedPlanSynthesis = {
   plan_subtitle: string;
   goal_framing: string;
-  phases: {
-    phase_number: number;
-    phase_intent_user: string;
-    readiness_signal_user: string;
-  }[];
+  phases: IntegratedPlanPhaseSynthesis[];
   /** Page 10 footer — single cohesive "How this plan was built" paragraph. */
   plan_built_narrative: string;
   /** @deprecated Legacy bullets — use plan_built_narrative */

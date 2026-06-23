@@ -1,4 +1,5 @@
 import type { FitTier, PersonaKey } from "@/lib/scoring/persona-types";
+import type { IntegratedPlanSynthesis, PlanOutput } from "@/lib/recommendations/types";
 
 export type CoachGuideTraitRow = {
   trait: string;
@@ -48,6 +49,11 @@ export type CoachGuideDocument = {
   closing: {
     fiveWordSummary: string;
   };
+  /** Same phased plan as wellness report slide 9 — keeps coach guide aligned with client plan. */
+  clientIntegratedPlan?: {
+    planOutput: PlanOutput;
+    synthesis: IntegratedPlanSynthesis;
+  } | null;
   synthesized: boolean;
   synthesisError?: string | null;
 };

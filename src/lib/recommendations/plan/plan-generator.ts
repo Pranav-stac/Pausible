@@ -1,4 +1,4 @@
-import { isActionPlanPoolRow, resolvedTextForPlan } from "@/lib/recommendations/action-pool";
+import { isActionPlanPoolRow } from "@/lib/recommendations/action-pool";
 import { classifyActivationEnergy } from "@/lib/recommendations/plan/activation-energy";
 import {
   formatTotalDurationWeeks,
@@ -15,6 +15,7 @@ import type {
   PlanPhaseOutput,
   PlanRecommendationItem,
   RecommendationStrength,
+  RecommendationType,
   ScoredRecommendation,
   UserProfile,
 } from "@/lib/recommendations/types";
@@ -45,10 +46,33 @@ function strengthRank(row: ScoredRecommendation): number {
   return STRENGTH_ORDER[row.strength] ?? 9;
 }
 
+const PLAN_RHYTHM_TYPES = new Set<RecommendationType>([
+  "do",
+  "first_action",
+  "environment_change",
+  "recovery_rule",
+  "dont",
+]);
+
+function planRhythmTypeRank(type: RecommendationType): number {
+  if (type === "first_action") return 0;
+  if (type === "do") return 1;
+  if (type === "environment_change") return 2;
+  if (type === "recovery_rule") return 3;
+  if (type === "dont") return 4;
+  return 20;
+}
+
 function compareCandidates(a: ScoredRecommendation, b: ScoredRecommendation): number {
   const sr = strengthRank(a) - strengthRank(b);
   if (sr !== 0) return sr;
   return b.score.total - a.score.total;
+}
+
+function comparePlanRhythmCandidates(a: ScoredRecommendation, b: ScoredRecommendation): number {
+  const tr = planRhythmTypeRank(a.type) - planRhythmTypeRank(b.type);
+  if (tr !== 0) return tr;
+  return compareCandidates(a, b);
 }
 
 function hasHighNeuroticismPersona(persona: PersonaKey): boolean {
@@ -216,14 +240,11 @@ function pillarDensityForPhase(
   };
 }
 
-function toPlanItem(
-  row: ScoredRecommendation,
-  profile: UserProfile,
-  secondaryBlendPct?: number,
-): PlanRecommendationItem {
+function toPlanItem(row: ScoredRecommendation): PlanRecommendationItem {
   return {
     id: row.id,
-    text: resolvedTextForPlan(row, profile, secondaryBlendPct),
+    // Rhythm slots need imperative actions — not personaContext essays used on narrative pages.
+    text: row.text.trim(),
     pillar: row.pillar,
   };
 }
@@ -278,7 +299,8 @@ function pickAnchor(
 ): ScoredRecommendation | null {
   const candidates = pool
     .filter((r) => !used.has(r.id) && isEligibleForPhase(r, capacity, phaseNumber, profile))
-    .sort(compareCandidates);
+    .filter((r) => PLAN_RHYTHM_TYPES.has(r.type))
+    .sort(comparePlanRhythmCandidates);
 
   if (profile.barriers.includes("barrier_poor_sleep") && phaseNumber === 1) {
     const sleepHit = candidates.find((r) => r.pillar === "Sleep & Recovery");
@@ -326,7 +348,8 @@ function assignPhaseItems(
 
   const candidates = pool
     .filter((r) => !used.has(r.id) && isEligibleForPhase(r, capacity, phaseNumber, profile))
-    .sort(compareCandidates);
+    .filter((r) => PLAN_RHYTHM_TYPES.has(r.type))
+    .sort(comparePlanRhythmCandidates);
 
   const strengthPhaseCutoff = phaseNumber === 1 ? 1 : phaseNumber === 2 ? 2 : 3;
 
@@ -344,7 +367,7 @@ function assignPhaseItems(
     pillarCounts[row.pillar] += 1;
     assigned += 1;
 
-    const item = toPlanItem(row, profile, secondaryBlendPct);
+    const item = toPlanItem(row);
     if (daily.length < counts.daily) {
       daily.push(item);
     } else if (weekly.length < counts.weekly) {
@@ -355,7 +378,7 @@ function assignPhaseItems(
   // R3 — at least one item per pillar where possible
   for (const pillar of PILLARS) {
     if (pillarCounts[pillar] > 0) continue;
-    const filler = candidates.find((r) => !used.has(r.id) && r.pillar === pillar && isEligibleForPhase(r, capacity, phaseNumber, profile));
+    const filler = candidates.find((r) => !used.has(r.id) && r.pillar === pillar);
     if (!filler) continue;
 
     if (assigned >= targetTotal && !extendedOnce) {
@@ -367,7 +390,7 @@ function assignPhaseItems(
     used.add(filler.id);
     pillarCounts[pillar] += 1;
     assigned += 1;
-    const item = toPlanItem(filler, profile, secondaryBlendPct);
+    const item = toPlanItem(filler);
     if (daily.length < counts.daily) daily.push(item);
     else weekly.push(item);
   }
@@ -375,11 +398,11 @@ function assignPhaseItems(
   // R8 — extend once if high-priority items remain
   if (!extendedOnce && assigned >= targetTotal) {
     const leftover = candidates.find(
-      (r) => !used.has(r.id) && (r.strength === "core" || r.strength === "supporting") && isEligibleForPhase(r, capacity, phaseNumber, profile),
+      (r) => !used.has(r.id) && (r.strength === "core" || r.strength === "supporting"),
     );
     if (leftover) {
       used.add(leftover.id);
-      const item = toPlanItem(leftover, profile, secondaryBlendPct);
+      const item = toPlanItem(leftover);
       if (daily.length < counts.daily + 1) daily.push(item);
       else weekly.push(item);
     }
@@ -507,7 +530,7 @@ export function generatePlanOutput(args: {
       intent: phase.intent,
       approx_duration_weeks: phase.durationWeeks,
       anchor_habit: anchor
-        ? toPlanItem(anchor, profile, args.secondaryBlendPct)
+        ? toPlanItem(anchor)
         : assigned.daily[0] ??
           assigned.weekly[0] ?? {
             id: "fallback",

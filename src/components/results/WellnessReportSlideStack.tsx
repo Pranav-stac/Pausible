@@ -98,17 +98,17 @@ export function WellnessReportSlideStack({
 
       <PriorityCardsSlide cards={opportunityCards} page={8} totalPages={TOTAL_PAGES} refId={refId} />
 
-      <WhatComesNextSlide page={9} totalPages={TOTAL_PAGES} refId={refId} />
-
       {planOutput && integratedPlan ? (
         <IntegratedPlanSlide
           planOutput={planOutput}
           integratedPlan={integratedPlan}
-          page={10}
+          page={9}
           totalPages={TOTAL_PAGES}
           refId={refId}
         />
       ) : null}
+
+      <WhatComesNextSlide page={10} totalPages={TOTAL_PAGES} refId={refId} />
     </>
   );
 }
