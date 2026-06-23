@@ -1,5 +1,5 @@
 import type { BuildProfileInput } from "@/lib/recommendations/build-user-profile";
-import type { UserProfile } from "@/lib/recommendations/types";
+import type { IntegratedPlanSynthesis, PlanOutput, UserProfile } from "@/lib/recommendations/types";
 import {
   LAYER1_PSYCHOLOGICAL_CRITERIA,
   LAYER3_ENVIRONMENTAL_QUESTION,
@@ -143,13 +143,30 @@ OUTPUT JSON:
 }`;
 }
 
+function formatPlanSummaryForCoach(
+  planOutput: PlanOutput,
+  integratedPlan: IntegratedPlanSynthesis,
+): string {
+  return planOutput.phases
+    .map((phase) => {
+      const copy = integratedPlan.phases.find((p) => p.phase_number === phase.phase_number);
+      const anchor = copy?.anchor_habit_user ?? phase.anchor_habit.text;
+      const daily = (copy?.daily_rhythm_user ?? phase.daily_rhythm.map((d) => d.text)).join("; ");
+      const weekly = (copy?.weekly_rhythm_user ?? phase.weekly_rhythm.map((w) => w.text)).join("; ");
+      return `Phase ${phase.phase_number} (${phase.name}): anchor [${phase.anchor_habit.pillar}] ${anchor}; daily: ${daily || "—"}; weekly: ${weekly || "—"}`;
+    })
+    .join("\n");
+}
+
 export function buildCoachGuidePage3Prompt(args: {
   profile: UserProfile;
   persona: PersonaAnalysis;
   firstName: string;
   input?: BuildProfileInput;
+  planOutput?: PlanOutput | null;
+  integratedPlan?: IntegratedPlanSynthesis | null;
 }): string {
-  const { profile, persona, firstName } = args;
+  const { profile, persona, firstName, planOutput, integratedPlan } = args;
   const primaryKey = profile.primaryPersona;
   const coachProfile = PERSONA_COACH_PROFILE[primaryKey];
   const primaryLabel = PERSONA_DISPLAY[primaryKey]?.label ?? personaLabel(primaryKey);
@@ -159,6 +176,10 @@ export function buildCoachGuidePage3Prompt(args: {
   const layer2 = layer2CriterionForBarrier(profile.barriers[0] ?? barrier);
   const layer3 = LAYER3_ENVIRONMENTAL_QUESTION.replace("{first_name}", firstName);
   const signals = coachProfile.riskSignals.map((r) => r.signal).join("; ");
+  const planBlock =
+    planOutput && integratedPlan
+      ? `\nCLIENT INTEGRATED PLAN (coaching matrix is derived from this — pivot triggers must reference these actions, not generic advice):\n${formatPlanSummaryForCoach(planOutput, integratedPlan)}\n`
+      : "";
 
   return `Generate Page 3 validation and pivot sections for ${firstName}.
 
@@ -171,7 +192,7 @@ CONTEXT:
 - Layer 3 universal: ${layer3}
 - Blind spot coach response: ${coachProfile.blindSpotCoachResponse}
 - Warning signals: ${signals}
-
+${planBlock}
 TASKS:
 
 1. validationCheck — Exactly 3 strings (one per layer):
@@ -180,7 +201,7 @@ TASKS:
    - "Environmentally Executable: ${layer3}"
 
 2. pivotTriggers — Exactly 4 directive sentences:
-   - One actionable trigger per warning signal (3 total), informed by coach response
+   - One actionable trigger per warning signal (3 total), tied to the client's actual plan actions when plan is provided
    - 4th universal: "If 2+ plan elements are missed for 1+ week: simplify the plan before adding anything."
 
 OUTPUT JSON:

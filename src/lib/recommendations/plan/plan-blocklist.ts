@@ -48,7 +48,7 @@ export type IntegratedPlanSanitizeInput = {
   plan_notes: string[];
 };
 
-/** Lighter scrub for meta narrative — keeps persona animal names. */
+/** Lighter scrub for subtitle + meta narrative — keeps persona pattern names. */
 const NARRATIVE_REPLACEMENTS: [RegExp, string][] = [
   [/\bconscientiousness\b/gi, "Discipline"],
   [/\bneuroticism\b/gi, "Stress Sensitivity"],
@@ -56,9 +56,11 @@ const NARRATIVE_REPLACEMENTS: [RegExp, string][] = [
   [/\bOCEAN\b/g, "your profile"],
   [/\bactivation\s+energy\b/gi, ""],
   [/\breadiness\s+signal\b/gi, "readiness cues"],
+  [/\bfits?\s+score\b/gi, "pattern match"],
+  [/\bblend\s+ratio\b/gi, "pattern blend"],
 ];
 
-export function sanitizePlanBuiltNarrative(text: string): { text: string; violations: string[] } {
+export function sanitizePlanMetaText(text: string): { text: string; violations: string[] } {
   const violations: string[] = [];
   for (const [pattern] of NARRATIVE_REPLACEMENTS) {
     if (pattern.test(text)) violations.push(pattern.source);
@@ -67,6 +69,10 @@ export function sanitizePlanBuiltNarrative(text: string): { text: string; violat
     text: applyReplacements(text, NARRATIVE_REPLACEMENTS),
     violations,
   };
+}
+
+export function sanitizePlanBuiltNarrative(text: string): { text: string; violations: string[] } {
+  return sanitizePlanMetaText(text);
 }
 
 function applyReplacements(text: string, replacements: [RegExp, string][]): string {
@@ -107,6 +113,14 @@ export function sanitizeIntegratedPlanFields(content: IntegratedPlanSanitizeInpu
     return text;
   };
 
+  const scrubMeta = (value: string, field: string): string => {
+    const { text, violations: found } = sanitizePlanMetaText(value);
+    for (const term of found) {
+      violations.push({ term, field });
+    }
+    return text;
+  };
+
   const scrubNarrative = (value: string): string => {
     const { text, violations: found } = sanitizePlanBuiltNarrative(value);
     for (const term of found) {
@@ -117,7 +131,7 @@ export function sanitizeIntegratedPlanFields(content: IntegratedPlanSanitizeInpu
 
   return {
     sanitized: {
-      plan_subtitle: scrub(content.plan_subtitle, "plan_subtitle"),
+      plan_subtitle: scrubMeta(content.plan_subtitle, "plan_subtitle"),
       goal_framing: scrub(content.goal_framing, "goal_framing"),
       plan_built_narrative: scrubNarrative(content.plan_built_narrative),
       plan_notes: content.plan_notes.map((note, i) => scrub(note, `plan_notes[${i}]`)),

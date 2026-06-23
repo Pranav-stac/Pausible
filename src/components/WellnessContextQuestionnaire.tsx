@@ -10,7 +10,7 @@ import { fetchAttempt, upsertAttempt } from "@/lib/data/attempt-service";
 import { claimStorageKey } from "@/lib/data/attempt-claim-client";
 import { fetchPersonaScoringConfig } from "@/lib/data/persona-scoring-config-client";
 import { computeAttemptScores } from "@/lib/scoring/compute-attempt-scores";
-import { coerceAnswer } from "@/lib/scoring/engine";
+import { coerceAnswer, normalizeAnswersForQuestionnaire } from "@/lib/scoring/engine";
 import { useFirebaseAuth } from "@/lib/firebase/auth-context";
 import { isFirebaseConfigured } from "@/lib/firebase/config";
 import { useAppSettings } from "@/lib/hooks/useAppSettings";
@@ -305,7 +305,10 @@ export function WellnessContextQuestionnaire({
     try {
       const attempt = await fetchAttempt(attemptId);
       if (!attempt) throw new Error("Session not found.");
-      const merged: AttemptAnswers = { ...attempt.answers, ...answers };
+      const merged: AttemptAnswers = normalizeAnswersForQuestionnaire(questionnaire, {
+        ...attempt.answers,
+        ...answers,
+      });
 
       for (const q of Object.values(questionnaire.questions)) {
         if (coerceAnswer(q, merged[q.id]) === null) {
@@ -360,7 +363,7 @@ export function WellnessContextQuestionnaire({
       const afterNext = requirePayment ? "checkout" : "results";
       const afterPath = `/after-assessment/${encodeURIComponent(attemptId)}?next=${afterNext}`;
       router.push(
-        `/report-building/${encodeURIComponent(attemptId)}?next=${encodeURIComponent(afterPath)}`,
+        `/submission-confirmed/${encodeURIComponent(attemptId)}?next=${encodeURIComponent(afterPath)}`,
       );
     } catch (e) {
       setSubmitError(e instanceof Error ? e.message : "Could not submit. Please try again.");
@@ -648,11 +651,7 @@ export function WellnessContextQuestionnaire({
               onClick={() => void handleSubmit()}
               className="rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-lg disabled:opacity-40"
             >
-              {submitting
-                ? "Running your results…"
-                : requirePayment
-                  ? "Submit & continue to checkout"
-                  : "Submit & unlock results"}
+              {submitting ? "Saving your responses…" : "Submit responses"}
             </button>
           </div>
         </div>

@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import type { AssessmentDefinition } from "@/types/models";
 import { AssessmentUiEditor } from "@/components/admin/AssessmentUiEditor";
-import { AdminAttemptDetailPanel } from "@/components/admin/AdminAttemptDetailPanel";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { PersonaCentroidsEditor } from "@/components/admin/PersonaCentroidsEditor";
 import { PersonaCatalogEditor } from "@/components/admin/PersonaCatalogEditor";
@@ -109,13 +108,34 @@ function firestoreJsonReplacer(_key: string, value: unknown) {
   return value;
 }
 
+const ADMIN_TABS = new Set<Tab>([
+  "overview",
+  "attempts",
+  "assessments",
+  "users",
+  "analytics",
+  "scoring",
+  "persona-centroids",
+  "persona-catalog",
+  "recommendations",
+  "reports",
+  "settings",
+]);
+
+function tabFromSearchParams(params: { get: (key: string) => string | null }): Tab {
+  const requestedTab = params.get("tab");
+  if (requestedTab && ADMIN_TABS.has(requestedTab as Tab)) return requestedTab as Tab;
+  return "overview";
+}
+
 export function AdminDashboard() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, ready: authReady, hasGoogleIdentity, signInWithGoogle, linkGoogle, signOut } = useFirebaseAuth();
   const firebaseOn = isFirebaseConfigured();
   const canLoadAdminData = firebaseOn && authReady && hasGoogleIdentity;
 
-  const [tab, setTab] = useState<Tab>("overview");
+  const [tab, setTab] = useState<Tab>(() => tabFromSearchParams(searchParams));
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -141,8 +161,6 @@ export function AdminDashboard() {
   const [editorJson, setEditorJson] = useState("");
   const [editorMode, setEditorMode] = useState<"json" | "ui">("ui");
   const [uiDraft, setUiDraft] = useState<AssessmentDefinition | null>(null);
-
-  const [attemptDrawerId, setAttemptDrawerId] = useState<string | null>(null);
 
   const handleAdminLogout = useCallback(async () => {
     await signOut();
@@ -893,9 +911,11 @@ export function AdminDashboard() {
                             key={row.id}
                             role="button"
                             tabIndex={0}
-                            onClick={() => setAttemptDrawerId(row.id)}
+                            onClick={() => router.push(`/admin/attempts/${encodeURIComponent(row.id)}`)}
                             onKeyDown={(e) =>
-                              e.key === "Enter" || e.key === " " ? (e.preventDefault(), setAttemptDrawerId(row.id)) : null
+                              e.key === "Enter" || e.key === " "
+                                ? (e.preventDefault(), router.push(`/admin/attempts/${encodeURIComponent(row.id)}`))
+                                : null
                             }
                             className="cursor-pointer border-t border-slate-100 hover:bg-sky-50/60"
                           >
@@ -1437,9 +1457,6 @@ export function AdminDashboard() {
         </main>
       </div>
 
-      {attemptDrawerId ? (
-        <AdminAttemptDetailPanel attemptId={attemptDrawerId} api={api} onClose={() => setAttemptDrawerId(null)} />
-      ) : null}
     </div>
   );
 }

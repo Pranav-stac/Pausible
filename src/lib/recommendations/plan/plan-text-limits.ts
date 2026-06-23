@@ -1,13 +1,13 @@
 /** Character limits for Page 10 AI synthesis (Section 8.2). */
 
 export const PLAN_TEXT_LIMITS = {
-  plan_subtitle: 120,
+  plan_subtitle: 140,
   goal_framing: 100,
-  phase_intent_user: 320,
-  readiness_signal_user: 240,
-  anchor_habit_user: 120,
-  rhythm_line: 100,
-  plan_built_narrative: 650,
+  phase_intent_user: 220,
+  readiness_signal_user: 150,
+  anchor_habit_user: 90,
+  rhythm_line: 85,
+  plan_built_narrative: 600,
   plan_note: 120,
 } as const;
 

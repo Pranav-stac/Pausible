@@ -3,7 +3,9 @@
 import type { CoachGuideDocument } from "@/lib/coach-guide/types";
 import { coachGuideCoverLine } from "@/lib/coach-guide/build-coach-guide";
 import { fitTierLabel } from "@/lib/scoring/persona-fit";
+import { formatPlanDurationTitle } from "@/lib/recommendations/plan/plan-phase-display";
 import {
+  IntegratedPlanBuiltNarrative,
   IntegratedPlanGuidingPrinciples,
   IntegratedPlanTable,
 } from "@/components/results/integrated-plan-table";
@@ -184,14 +186,35 @@ function CoachGuidePrinciplesSlide({
 }) {
   const gp = guide.guidingPrinciples;
   const matrix = gp.pillarMatrix;
+  const synced = guide.matrixSyncedFromPlan && guide.clientIntegratedPlan;
 
   return (
     <section data-report-page className={REPORT_PAGE}>
       <div className={REPORT_PAGE_BODY}>
         <SlideLabel index="03" label="Guiding Principles" />
-        <SlideTitle title="Guiding Principles for Coach" subtitle="Coaching matrix and monitoring signals" />
+        <SlideTitle
+          title="Guiding Principles for Coach"
+          subtitle={
+            synced
+              ? `Coaching matrix derived from ${guide.clientName}'s integrated plan — same actions, organised by pillar and coaching dimension.`
+              : "Coaching matrix and monitoring signals"
+          }
+        />
+
+        <div className="mb-4 rounded-lg border border-teal-100 bg-teal-50/50 px-3 py-2.5 text-[10px] leading-relaxed text-slate-700">
+          <p className="font-bold uppercase tracking-wide text-teal-800">How matrix maps to the plan</p>
+          <p className="mt-1">
+            <span className="font-semibold">Structure</span> = anchor habits + daily rhythm ·{" "}
+            <span className="font-semibold">Environment</span> = setup/context actions ·{" "}
+            <span className="font-semibold">Progression</span> = weekly rhythm + later-phase anchors ·{" "}
+            <span className="font-semibold">Recovery</span> = backup/restart actions + readiness cues
+          </p>
+        </div>
 
         <div className="mb-5 overflow-hidden rounded-xl border border-slate-200 text-xs">
+          <p className="border-b border-slate-200 bg-slate-900 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-white">
+            Coaching matrix
+          </p>
           <table className="w-full">
             <thead>
               <tr className="bg-slate-900 text-[10px] font-bold uppercase tracking-wide text-white">
@@ -215,6 +238,7 @@ function CoachGuidePrinciplesSlide({
             </tbody>
           </table>
         </div>
+
 
         <div className="mb-5 rounded-lg border border-slate-200 p-4">
           <p className="text-[10px] font-bold uppercase text-slate-500">Validation check</p>
@@ -253,8 +277,9 @@ function CoachGuidePrinciplesSlide({
 
         {guide.clientIntegratedPlan ? (
           <p className="text-xs leading-relaxed text-slate-600">
-            The next page shows {guide.clientName}&apos;s integrated phased plan — the same plan on their wellness report.
-            Use this pillar matrix when coaching each phase so your guidance stays aligned with what they see.
+            The next page shows {guide.clientName}&apos;s integrated phased plan — the client sees the same actions
+            on their wellness report. Use this matrix when reviewing each phase: Structure and Environment for setup,
+            Progression for weekly load, Recovery when adherence slips.
           </p>
         ) : null}
 
@@ -285,22 +310,16 @@ function CoachGuideIntegratedPlanSlide({
       <div className={REPORT_PAGE_BODY}>
         <SlideLabel index="04" label="Client Integrated Plan" />
         <SlideTitle
-          title={`${guide.clientName}'s ${planOutput.total_duration_label} Integrated Plan`}
+          title={`${guide.clientName}'s ${formatPlanDurationTitle(planOutput.total_duration_weeks)} Integrated Plan`}
           subtitle={synthesis.plan_subtitle}
         />
 
-        <p className="mb-3 text-xs leading-relaxed text-slate-600">
-          Identical to wellness report slide 9. Phases, habits, and rhythms come from the same engine output — coach
-          using the pillar matrix on the previous page when reviewing adherence.
-        </p>
-
-        <IntegratedPlanGuidingPrinciples className="mb-3" />
+  
+        {/* <IntegratedPlanGuidingPrinciples className="mb-3" /> */}
 
         <IntegratedPlanTable planOutput={planOutput} integratedPlan={synthesis} />
 
-        {synthesis.plan_built_narrative?.trim() ? (
-          <p className="mt-3 text-[10px] leading-relaxed text-slate-500">{synthesis.plan_built_narrative.trim()}</p>
-        ) : null}
+        <IntegratedPlanBuiltNarrative narrative={synthesis.plan_built_narrative} />
 
         <ReportFooter page={page} total={totalPages} refId={refId} />
       </div>

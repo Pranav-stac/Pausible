@@ -21,11 +21,19 @@ function answerString(answers: AttemptAnswers, key: string): string | null {
   return null;
 }
 
+const WELLNESS_MULTI_LIMITS: Record<string, number> = {
+  wc_wellness_goals: 2,
+  wc_six_month_progress: 3,
+};
+
 function answerStrings(answers: AttemptAnswers, key: string): string[] {
   const v = answers[key];
-  if (Array.isArray(v)) return v.map(String);
-  if (typeof v === "string") return [v];
-  return [];
+  let list: string[] = [];
+  if (Array.isArray(v)) list = v.map(String).filter(Boolean);
+  else if (typeof v === "string" && v.trim()) list = [v];
+  const cap = WELLNESS_MULTI_LIMITS[key];
+  if (cap != null && list.length > cap) list = list.slice(0, cap);
+  return list;
 }
 
 function answerNumber(answers: AttemptAnswers, key: string): number | null {

@@ -14,7 +14,9 @@ import type { OpportunityCard, IntegratedPlanSynthesis, PillarName, PillarSynthe
 import { normalizePillarDo, normalizePillarDont } from "@/lib/recommendations/pillar-display";
 import type { WellnessReportSections } from "@/lib/recommendations/types";
 import type { DualSectionPart } from "@/lib/results/report-section-split";
+import { formatPlanDurationTitle } from "@/lib/recommendations/plan/plan-phase-display";
 import {
+  IntegratedPlanBuiltNarrative,
   IntegratedPlanGuidingPrinciples,
   IntegratedPlanTable,
 } from "@/components/results/integrated-plan-table";
@@ -152,6 +154,7 @@ export function CoverSlide({
   totalPages: number;
 }) {
   const oneLiner = model.primaryKey ? PERSONA_DISPLAY[model.primaryKey].summary : model.primarySummary;
+  const primaryAnimal = model.primaryKey ? personaAnimal(model.primaryKey) : null;
 
   return (
     <section data-report-page className={REPORT_PAGE}>
@@ -184,7 +187,11 @@ export function CoverSlide({
           </div>
 
           <ContentBlock title="Persona illustration" className="flex min-h-[280px] items-center justify-center">
-            <PersonaCircle imagePath={model.animalImagePath} emoji={model.animalEmoji} size="lg" />
+            <PersonaCircle
+              imagePath={primaryAnimal?.imagePath ?? model.animalImagePath}
+              emoji={primaryAnimal?.emoji ?? model.animalEmoji}
+              size="lg"
+            />
           </ContentBlock>
         </div>
 
@@ -564,7 +571,7 @@ export function IntegratedPlanSlide({
       <div className={REPORT_PAGE_BODY}>
         <SlideLabel index="09" label="Your Integrated Plan" />
         <SlideTitle
-          title={`Your ${planOutput.total_duration_label} Integrated Plan`}
+          title={`Your ${formatPlanDurationTitle(planOutput.total_duration_weeks)} Integrated Plan`}
           subtitle={integratedPlan.plan_subtitle}
         />
 
@@ -572,11 +579,7 @@ export function IntegratedPlanSlide({
 
         <IntegratedPlanTable planOutput={planOutput} integratedPlan={integratedPlan} />
 
-        {integratedPlan.plan_built_narrative?.trim() ? (
-          <p className="mt-3 text-[10px] leading-relaxed text-slate-500">
-            {integratedPlan.plan_built_narrative.trim()}
-          </p>
-        ) : null}
+        <IntegratedPlanBuiltNarrative narrative={integratedPlan.plan_built_narrative} />
 
         <ReportFooter page={page} total={totalPages} refId={refId} />
       </div>
@@ -644,6 +647,7 @@ export function WellnessPersonalitySlide({
   totalPages: number;
   refId: string;
 }) {
+  const primaryAnimal = model.primaryKey ? personaAnimal(model.primaryKey) : null;
   const secondaryAnimal = model.secondaryKey ? personaAnimal(model.secondaryKey) : null;
 
   return (
@@ -654,7 +658,12 @@ export function WellnessPersonalitySlide({
 
         <div className="grid gap-5 lg:grid-cols-[auto_1fr_11.5rem]">
           <div className="flex flex-row items-start gap-4 lg:flex-col lg:items-center">
-            <PersonaCircle imagePath={model.animalImagePath} emoji={model.animalEmoji} label="Primary" size="lg" />
+            <PersonaCircle
+              imagePath={primaryAnimal?.imagePath ?? model.animalImagePath}
+              emoji={primaryAnimal?.emoji ?? model.animalEmoji}
+              label="Primary"
+              size="lg"
+            />
             {secondaryAnimal ? (
               <PersonaCircle
                 imagePath={secondaryAnimal.imagePath}

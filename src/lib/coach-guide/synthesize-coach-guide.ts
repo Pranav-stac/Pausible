@@ -3,7 +3,7 @@ import { callGeminiSection, parseSectionJson } from "@/lib/recommendations/gemin
 import { callOpenAiSection } from "@/lib/recommendations/openai-api-client";
 import type { ReportLlmProvider } from "@/lib/recommendations/report-llm-types";
 import { SECTION_OUTPUT_TOKENS } from "@/lib/recommendations/section-output-limits";
-import type { UserProfile } from "@/lib/recommendations/types";
+import type { IntegratedPlanSynthesis, PlanOutput, UserProfile } from "@/lib/recommendations/types";
 import { buildCoachGuideDocumentDeterministic } from "@/lib/coach-guide/build-coach-guide";
 import {
   buildCoachGuidePage2Prompt,
@@ -122,6 +122,8 @@ export async function synthesizeCoachGuideDocument(args: {
   input?: BuildProfileInput;
   reportId: string;
   llmProvider: ReportLlmProvider;
+  planOutput?: PlanOutput | null;
+  integratedPlan?: IntegratedPlanSynthesis | null;
 }): Promise<CoachGuideDocument> {
   const base = buildCoachGuideDocumentDeterministic(args);
   const firstName = base.clientName;
@@ -136,6 +138,8 @@ export async function synthesizeCoachGuideDocument(args: {
     persona: args.persona,
     firstName,
     input: args.input,
+    planOutput: args.planOutput,
+    integratedPlan: args.integratedPlan,
   });
 
   const [page2Result, page3Result] = await Promise.all([

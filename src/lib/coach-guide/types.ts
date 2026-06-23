@@ -1,5 +1,5 @@
 import type { FitTier, PersonaKey } from "@/lib/scoring/persona-types";
-import type { IntegratedPlanSynthesis, PlanOutput } from "@/lib/recommendations/types";
+import type { IntegratedPlanSynthesis, PillarName, PlanOutput } from "@/lib/recommendations/types";
 
 export type CoachGuideTraitRow = {
   trait: string;
@@ -54,6 +54,15 @@ export type CoachGuideDocument = {
     planOutput: PlanOutput;
     synthesis: IntegratedPlanSynthesis;
   } | null;
+  /** Phases → pillars covered (for matrix ↔ plan cross-reference). */
+  planPhaseSummary?: {
+    phase_number: number;
+    name: string;
+    anchorPillar: PillarName;
+    pillars: PillarName[];
+  }[];
+  /** True when pillar matrix was derived from clientIntegratedPlan, not persona template only. */
+  matrixSyncedFromPlan?: boolean;
   synthesized: boolean;
   synthesisError?: string | null;
 };

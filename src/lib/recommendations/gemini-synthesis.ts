@@ -453,7 +453,7 @@ export async function buildActionPlan(args: {
     secondaryBlendPct,
   });
 
-  const [synthesis, integratedPlan, coachGuideRaw] = await Promise.all([
+  const [synthesis, integratedPlan] = await Promise.all([
     synthesizeActionPlanWithLlm(args.selection, ctx, args.input, templates, llmProvider),
     synthesizeIntegratedPlanPage(
       planOutput,
@@ -462,29 +462,22 @@ export async function buildActionPlan(args: {
       llmProvider,
       args.selection.opportunityCards,
     ),
-    (async () => {
-      const { synthesizeCoachGuideDocument } = await import("@/lib/coach-guide/synthesize-coach-guide");
-      if (!args.input.scores?.persona) return null;
-      return synthesizeCoachGuideDocument({
-        profile: args.selection.profile,
-        persona: args.input.scores.persona,
-        input: args.input,
-        reportId: `plan_${args.selection.profile.primaryPersona}_${Date.now()}`.slice(-8).toUpperCase(),
-        llmProvider,
-      });
-    })(),
   ]);
 
-  const coachGuide =
-    coachGuideRaw && planOutput && integratedPlan
-      ? {
-          ...coachGuideRaw,
-          clientIntegratedPlan: {
-            planOutput,
-            synthesis: integratedPlan,
-          },
-        }
-      : coachGuideRaw;
+  const reportId = (planOutput?.plan_id ?? `plan_${Date.now()}`).slice(-8).toUpperCase();
+  let coachGuide = null;
+  if (args.input.scores?.persona && planOutput && integratedPlan) {
+    const { synthesizeCoachGuideDocument } = await import("@/lib/coach-guide/synthesize-coach-guide");
+    coachGuide = await synthesizeCoachGuideDocument({
+      profile: args.selection.profile,
+      persona: args.input.scores.persona,
+      input: args.input,
+      reportId,
+      llmProvider,
+      planOutput,
+      integratedPlan,
+    });
+  }
 
   return {
     ...args.selection,

@@ -2,23 +2,63 @@
 
 import type { ReactNode } from "react";
 import type { IntegratedPlanSynthesis, PlanOutput } from "@/lib/recommendations/types";
-import { INTEGRATED_PLAN_GUIDING_PRINCIPLES } from "@/lib/recommendations/plan/plan-guiding-principles";
-import { splitPlanLine } from "@/lib/results/plan-line-format";
+import { formatPhaseWeekLabel } from "@/lib/recommendations/plan/plan-phase-display";
+import {
+  INTEGRATED_PLAN_BUILT_NARRATIVE_TITLE,
+  INTEGRATED_PLAN_GUIDING_PRINCIPLES,
+  INTEGRATED_PLAN_GUIDING_PRINCIPLES_TITLE,
+} from "@/lib/recommendations/plan/plan-guiding-principles";
 
-const PLAN_PHASE_STYLES: Record<number, { header: string }> = {
-  1: { header: "bg-sky-600 text-white" },
-  2: { header: "bg-emerald-600 text-white" },
-  3: { header: "bg-violet-600 text-white" },
+type PhaseTheme = {
+  accent: string;
+  bg: string;
+  rhythmLabel: string;
 };
+
+const PHASE_THEMES: Record<number, PhaseTheme> = {
+  1: {
+    accent: "#3474B4",
+    bg: "rgba(52, 116, 180, 0.07)",
+    rhythmLabel: "rgba(52, 116, 180, 0.65)",
+  },
+  2: {
+    accent: "#4CAF50",
+    bg: "rgba(76, 175, 80, 0.07)",
+    rhythmLabel: "rgba(76, 175, 80, 0.65)",
+  },
+  3: {
+    accent: "#9C27B0",
+    bg: "rgba(156, 39, 176, 0.07)",
+    rhythmLabel: "rgba(156, 39, 176, 0.65)",
+  },
+  4: {
+    accent: "#5E35B1",
+    bg: "rgba(94, 53, 177, 0.07)",
+    rhythmLabel: "rgba(94, 53, 177, 0.65)",
+  },
+};
+
+const DEFAULT_THEME = PHASE_THEMES[3]!;
+
+const PLAN_SECTION_ROWS = [
+  { key: "anchor", label: "Anchor Habit" },
+  { key: "daily", label: "Daily Rhythm" },
+  { key: "weekly", label: "Weekly Rhythm" },
+  { key: "advance", label: "Ready to Advance When" },
+] as const;
+
+function phaseTheme(phaseNumber: number): PhaseTheme {
+  return PHASE_THEMES[phaseNumber] ?? DEFAULT_THEME;
+}
 
 function PlanVerticalRail({ label }: { label: string }) {
   return (
     <div
-      className="flex w-8 shrink-0 items-center justify-center border-r border-slate-200 bg-slate-50 py-3"
+      className="flex w-[4.5rem] shrink-0 items-center justify-center border-r border-slate-200/80 bg-slate-50 px-1 py-4"
       aria-label={label}
     >
       <span
-        className="text-[8px] font-bold uppercase tracking-[0.12em] text-slate-500"
+        className="text-[7px] font-bold uppercase leading-tight tracking-[0.08em] text-slate-500"
         style={{ writingMode: "vertical-rl", textOrientation: "mixed" }}
       >
         {label}
@@ -27,40 +67,106 @@ function PlanVerticalRail({ label }: { label: string }) {
   );
 }
 
-function PlanTableSectionRow({ label, children }: { label: string; children: ReactNode }) {
+function PlanPhaseHeader({
+  phaseNumber,
+  weekLabel,
+  name,
+  intent,
+}: {
+  phaseNumber: number;
+  weekLabel: string;
+  name: string;
+  intent: string;
+}) {
+  const theme = phaseTheme(phaseNumber);
+
   return (
-    <div className="flex border-b border-slate-200 last:border-b-0">
-      <PlanVerticalRail label={label} />
-      <div className="grid min-w-0 flex-1 grid-cols-3 divide-x divide-slate-200">{children}</div>
+    <div
+      className="min-w-0 px-4 py-5"
+      style={{
+        backgroundColor: theme.bg,
+        borderTop: `3px solid ${theme.accent}`,
+      }}
+    >
+      <p
+        className="text-[11px] font-bold uppercase tracking-[0.06em]"
+        style={{ color: theme.accent }}
+      >
+        Phase {phaseNumber} · {weekLabel}
+      </p>
+      <h3 className="mt-2 text-lg font-bold leading-tight text-slate-900">{name}</h3>
+      <p className="mt-2 text-sm italic leading-relaxed text-slate-600">{intent}</p>
     </div>
   );
 }
 
-function PlanPhaseCell({ children }: { children: ReactNode }) {
-  return <div className="p-2.5">{children}</div>;
+function PlanColumnSectionLabel({
+  children,
+  color,
+}: {
+  children: string;
+  color: string;
+}) {
+  return (
+    <p
+      className="text-[11px] font-bold uppercase tracking-[0.06em]"
+      style={{ color }}
+    >
+      {children}
+    </p>
+  );
 }
 
-function PlanRhythmBullet({ text }: { text: string }) {
-  const { headline, subheadline } = splitPlanLine(text);
-  if (!headline) return null;
+function PlanPhaseCell({
+  phaseNumber,
+  sectionLabel,
+  labelColor,
+  children,
+}: {
+  phaseNumber: number;
+  sectionLabel: string;
+  labelColor: string;
+  children: ReactNode;
+}) {
+  const theme = phaseTheme(phaseNumber);
   return (
-    <li className="space-y-0.5">
-      <p className="text-[10px] leading-snug text-slate-800">
-        <span className="text-slate-400">→ </span>
-        <span className="font-bold">{headline}</span>
-      </p>
-      {subheadline ? (
-        <p className="pl-3 text-[9px] leading-snug text-slate-500">{subheadline}</p>
-      ) : null}
-    </li>
+    <div className="min-w-0 px-4 py-4" style={{ backgroundColor: theme.bg }}>
+      <PlanColumnSectionLabel color={labelColor}>{sectionLabel}</PlanColumnSectionLabel>
+      <div className="mt-2">{children}</div>
+    </div>
+  );
+}
+
+function PlanRhythmList({ lines }: { lines: string[] }) {
+  if (!lines.length) {
+    return <p className="text-sm text-slate-400">—</p>;
+  }
+  return (
+    <ul className="space-y-2">
+      {lines.map((text, i) => {
+        const line = text.trim();
+        if (!line) return null;
+        return (
+          <li key={i} className="flex gap-1.5 text-sm leading-snug text-slate-600">
+            <span className="shrink-0 text-slate-400" aria-hidden>
+              →
+            </span>
+            <span>{line}</span>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
 export function IntegratedPlanGuidingPrinciples({ className = "mb-4" }: { className?: string }) {
   return (
-    <div className={`rounded-xl border border-sky-200 bg-sky-50/70 p-3.5 ${className}`}>
-      <ul className="space-y-1">
-        {INTEGRATED_PLAN_GUIDING_PRINCIPLES.slice(0, 4).map((principle) => (
+    <div className={`rounded-xl border border-sky-200 bg-sky-50/70 px-3.5 py-3 ${className}`}>
+      <p className="text-[10px] font-bold uppercase tracking-wide text-sky-800">
+        {INTEGRATED_PLAN_GUIDING_PRINCIPLES_TITLE}
+      </p>
+      <ul className="mt-2 space-y-1">
+        {INTEGRATED_PLAN_GUIDING_PRINCIPLES.map((principle) => (
           <li key={principle} className="flex gap-2 text-[11px] leading-snug text-slate-700">
             <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-sky-500" aria-hidden />
             {principle}
@@ -71,7 +177,26 @@ export function IntegratedPlanGuidingPrinciples({ className = "mb-4" }: { classN
   );
 }
 
-/** Shared phased plan table — same data on wellness report slide 9 and coach guide. */
+export function IntegratedPlanBuiltNarrative({
+  narrative,
+  className = "mt-4",
+}: {
+  narrative: string;
+  className?: string;
+}) {
+  const text = narrative.trim();
+  if (!text) return null;
+  return (
+    <div className={className}>
+      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-600">
+        {INTEGRATED_PLAN_BUILT_NARRATIVE_TITLE}
+      </p>
+      <p className="mt-1.5 text-[10px] leading-relaxed text-slate-600">{text}</p>
+    </div>
+  );
+}
+
+/** Phased integrated plan — vertical section rails + colored phase columns (report + coach guide). */
 export function IntegratedPlanTable({
   planOutput,
   integratedPlan,
@@ -80,114 +205,81 @@ export function IntegratedPlanTable({
   integratedPlan: IntegratedPlanSynthesis;
 }) {
   const phaseCopy = new Map(integratedPlan.phases.map((p) => [p.phase_number, p]));
+  const phaseCount = planOutput.phases.length;
+  const phaseGridStyle = { gridTemplateColumns: `repeat(${phaseCount}, minmax(0, 1fr))` };
+
+  const phaseRows = planOutput.phases.map((phase, index) => {
+    const copy = phaseCopy.get(phase.phase_number);
+    const weekLabel = formatPhaseWeekLabel(planOutput.phases, index);
+    const dailyLines =
+      copy?.daily_rhythm_user?.length
+        ? copy.daily_rhythm_user
+        : phase.daily_rhythm.slice(0, 3).map((item) => item.text);
+    const weeklyLines =
+      copy?.weekly_rhythm_user?.length
+        ? copy.weekly_rhythm_user
+        : phase.weekly_rhythm.slice(0, 3).map((item) => item.text);
+
+    return {
+      phase,
+      weekLabel,
+      intent: copy?.phase_intent_user ?? phase.intent,
+      anchorText: copy?.anchor_habit_user ?? phase.anchor_habit.text,
+      dailyLines,
+      weeklyLines,
+      readiness: copy?.readiness_signal_user ?? phase.readiness_signal.description,
+    };
+  });
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex border-b border-slate-200">
-        <div className="w-8 shrink-0 border-r border-slate-200 bg-slate-50" aria-hidden />
-        <div className="grid min-w-0 flex-1 grid-cols-3 divide-x divide-slate-200">
-          {planOutput.phases.map((phase) => {
-            const styles = PLAN_PHASE_STYLES[phase.phase_number] ?? PLAN_PHASE_STYLES[3];
-            return (
-              <div key={phase.phase_number} className={`px-2.5 py-2 ${styles.header}`}>
-                <p className="text-[9px] font-bold uppercase tracking-wide">
-                  Phase {phase.phase_number} · {phase.approx_duration_weeks}
-                </p>
-              </div>
-            );
-          })}
+      <div className="flex border-b border-slate-200/80">
+        <div className="w-[4.5rem] shrink-0 border-r border-slate-200/80 bg-slate-50" aria-hidden />
+        <div className="grid min-w-0 flex-1 divide-x divide-slate-200/80" style={phaseGridStyle}>
+          {phaseRows.map((row) => (
+            <PlanPhaseHeader
+              key={row.phase.phase_number}
+              phaseNumber={row.phase.phase_number}
+              weekLabel={row.weekLabel}
+              name={row.phase.name}
+              intent={row.intent}
+            />
+          ))}
         </div>
       </div>
 
-      <div className="flex border-b border-slate-200">
-        <div className="w-8 shrink-0 border-r border-slate-200 bg-slate-50" aria-hidden />
-        <div className="grid min-w-0 flex-1 grid-cols-3 divide-x divide-slate-200">
-          {planOutput.phases.map((phase) => {
-            const copy = phaseCopy.get(phase.phase_number);
-            const intent = copy?.phase_intent_user ?? phase.intent;
-            return (
-              <PlanPhaseCell key={phase.phase_number}>
-                <p className="text-xs font-bold leading-snug text-slate-900">{phase.name}</p>
-                <p className="mt-1 text-[10px] italic leading-snug text-slate-600">{intent}</p>
-              </PlanPhaseCell>
-            );
-          })}
+      {PLAN_SECTION_ROWS.map((section) => (
+        <div key={section.key} className="flex border-b border-slate-200/80 last:border-b-0">
+          <PlanVerticalRail label={section.label} />
+          <div className="grid min-w-0 flex-1 divide-x divide-slate-200/80" style={phaseGridStyle}>
+            {phaseRows.map((row) => {
+              const theme = phaseTheme(row.phase.phase_number);
+              const labelColor =
+                section.key === "daily" || section.key === "weekly"
+                  ? theme.rhythmLabel
+                  : theme.accent;
+
+              return (
+                <PlanPhaseCell
+                  key={`${row.phase.phase_number}-${section.key}`}
+                  phaseNumber={row.phase.phase_number}
+                  sectionLabel={section.label}
+                  labelColor={labelColor}
+                >
+                  {section.key === "anchor" ? (
+                    <p className="text-sm font-bold leading-snug text-slate-900">{row.anchorText.trim()}</p>
+                  ) : null}
+                  {section.key === "daily" ? <PlanRhythmList lines={row.dailyLines} /> : null}
+                  {section.key === "weekly" ? <PlanRhythmList lines={row.weeklyLines} /> : null}
+                  {section.key === "advance" ? (
+                    <p className="text-sm italic leading-relaxed text-slate-600">{row.readiness}</p>
+                  ) : null}
+                </PlanPhaseCell>
+              );
+            })}
+          </div>
         </div>
-      </div>
-
-      <PlanTableSectionRow label="Anchor">
-        {planOutput.phases.map((phase) => {
-          const copy = phaseCopy.get(phase.phase_number);
-          const anchorText = copy?.anchor_habit_user ?? phase.anchor_habit.text;
-          const anchor = splitPlanLine(anchorText);
-          return (
-            <PlanPhaseCell key={phase.phase_number}>
-              <p className="text-[10px] font-bold leading-snug text-slate-900">{anchor.headline}</p>
-              {anchor.subheadline ? (
-                <p className="mt-0.5 text-[10px] leading-snug text-slate-600">{anchor.subheadline}</p>
-              ) : null}
-            </PlanPhaseCell>
-          );
-        })}
-      </PlanTableSectionRow>
-
-      <PlanTableSectionRow label="Daily">
-        {planOutput.phases.map((phase) => {
-          const copy = phaseCopy.get(phase.phase_number);
-          const dailyLines =
-            copy?.daily_rhythm_user?.length
-              ? copy.daily_rhythm_user
-              : phase.daily_rhythm.slice(0, 3).map((item) => item.text);
-          return (
-            <PlanPhaseCell key={phase.phase_number}>
-              {dailyLines.length > 0 ? (
-                <ul className="space-y-1.5">
-                  {dailyLines.map((text, i) => (
-                    <PlanRhythmBullet key={`${phase.phase_number}-daily-${i}`} text={text} />
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-[10px] text-slate-400">—</p>
-              )}
-            </PlanPhaseCell>
-          );
-        })}
-      </PlanTableSectionRow>
-
-      <PlanTableSectionRow label="Weekly">
-        {planOutput.phases.map((phase) => {
-          const copy = phaseCopy.get(phase.phase_number);
-          const weeklyLines =
-            copy?.weekly_rhythm_user?.length
-              ? copy.weekly_rhythm_user
-              : phase.weekly_rhythm.slice(0, 3).map((item) => item.text);
-          return (
-            <PlanPhaseCell key={phase.phase_number}>
-              {weeklyLines.length > 0 ? (
-                <ul className="space-y-1.5">
-                  {weeklyLines.map((text, i) => (
-                    <PlanRhythmBullet key={`${phase.phase_number}-weekly-${i}`} text={text} />
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-[10px] text-slate-400">—</p>
-              )}
-            </PlanPhaseCell>
-          );
-        })}
-      </PlanTableSectionRow>
-
-      <PlanTableSectionRow label="Advance">
-        {planOutput.phases.map((phase) => {
-          const copy = phaseCopy.get(phase.phase_number);
-          const readiness = copy?.readiness_signal_user ?? phase.readiness_signal.description;
-          return (
-            <PlanPhaseCell key={phase.phase_number}>
-              <p className="text-[10px] italic leading-snug text-slate-600">{readiness}</p>
-            </PlanPhaseCell>
-          );
-        })}
-      </PlanTableSectionRow>
+      ))}
     </div>
   );
 }

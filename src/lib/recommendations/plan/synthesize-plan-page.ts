@@ -1,8 +1,16 @@
 import type { BuildProfileInput } from "@/lib/recommendations/build-user-profile";
 import { callGeminiSection, parseSectionJson } from "@/lib/recommendations/gemini-api-client";
 import { callOpenAiSection } from "@/lib/recommendations/openai-api-client";
-import { buildDeterministicPlanBuiltNarrative } from "@/lib/recommendations/plan/build-plan-built-narrative";
+import {
+  buildDeterministicGoalFraming,
+  buildDeterministicPlanBuiltNarrative,
+  buildDeterministicPlanSubtitle,
+} from "@/lib/recommendations/plan/build-plan-built-narrative";
 import { sanitizeIntegratedPlanFields } from "@/lib/recommendations/plan/plan-blocklist";
+import {
+  formatReadinessLine,
+  toPlanActionLine,
+} from "@/lib/recommendations/plan/plan-phase-display";
 import {
   buildIntegratedPlanPrompt,
   PLAN_PAGE_SYSTEM_PROMPT,
@@ -11,7 +19,13 @@ import {
 import { enforceIntegratedPlanLimits } from "@/lib/recommendations/plan/plan-text-limits";
 import type { ReportLlmProvider } from "@/lib/recommendations/report-llm-types";
 import { SECTION_OUTPUT_TOKENS } from "@/lib/recommendations/section-output-limits";
-import type { IntegratedPlanSynthesis, OpportunityCard, PlanOutput, PlanRecommendationItem, UserProfile } from "@/lib/recommendations/types";
+import type {
+  IntegratedPlanSynthesis,
+  OpportunityCard,
+  PlanOutput,
+  PlanRecommendationItem,
+  UserProfile,
+} from "@/lib/recommendations/types";
 
 const PLAN_PAGE_OPENAI_MODEL = process.env.OPENAI_PLAN_MODEL?.trim() || "gpt-5.4-mini";
 
@@ -20,9 +34,9 @@ function mergeRhythmLines(
   engineItems: PlanRecommendationItem[],
   max: number,
 ): string[] {
-  const cleaned = (aiLines ?? []).map((line) => line.trim()).filter(Boolean).slice(0, max);
+  const cleaned = (aiLines ?? []).map((line) => toPlanActionLine(line, 85)).filter(Boolean).slice(0, max);
   if (cleaned.length > 0) return cleaned;
-  return engineItems.slice(0, max).map((item) => item.text);
+  return engineItems.slice(0, max).map((item) => toPlanActionLine(item.text, 85));
 }
 
 function mergePhaseRhythm(
@@ -30,20 +44,22 @@ function mergePhaseRhythm(
   hit: IntegratedPlanPromptJson["phases"] extends (infer P)[] | undefined ? P | undefined : undefined,
   synthesized: boolean,
 ) {
-  const engineAnchor = phase.anchor_habit.text;
+  const engineAnchor = toPlanActionLine(phase.anchor_habit.text, 90);
   const engineDaily = phase.daily_rhythm;
   const engineWeekly = phase.weekly_rhythm;
 
   if (!synthesized) {
     return {
       anchor_habit_user: engineAnchor,
-      daily_rhythm_user: engineDaily.slice(0, 3).map((item) => item.text),
-      weekly_rhythm_user: engineWeekly.slice(0, 3).map((item) => item.text),
+      daily_rhythm_user: engineDaily.slice(0, 3).map((item) => toPlanActionLine(item.text, 85)),
+      weekly_rhythm_user: engineWeekly.slice(0, 3).map((item) => toPlanActionLine(item.text, 85)),
     };
   }
 
   return {
-    anchor_habit_user: hit?.anchor_habit_user?.trim() || engineAnchor,
+    anchor_habit_user: hit?.anchor_habit_user?.trim()
+      ? toPlanActionLine(hit.anchor_habit_user, 90)
+      : engineAnchor,
     daily_rhythm_user: mergeRhythmLines(hit?.daily_rhythm_user, engineDaily, 3),
     weekly_rhythm_user: mergeRhythmLines(hit?.weekly_rhythm_user, engineWeekly, 3),
   };
@@ -78,15 +94,15 @@ function deterministicIntegratedPlan(
   });
 
   return {
-    plan_subtitle: `A ${planOutput.total_duration_weeks}-week plan designed for your pattern — ${planOutput.progression_style.toLowerCase()}, built for consistency.`,
-    goal_framing: "Built around your wellness goals, one phase at a time.",
+    plan_subtitle: buildDeterministicPlanSubtitle(profile),
+    goal_framing: buildDeterministicGoalFraming(profile),
     phases: planOutput.phases.map((phase) => ({
       phase_number: phase.phase_number,
       phase_intent_user: phase.intent,
-      readiness_signal_user: phase.readiness_signal.description,
-      anchor_habit_user: phase.anchor_habit.text,
-      daily_rhythm_user: phase.daily_rhythm.slice(0, 3).map((item) => item.text),
-      weekly_rhythm_user: phase.weekly_rhythm.slice(0, 3).map((item) => item.text),
+      readiness_signal_user: formatReadinessLine(phase.readiness_signal.description),
+      anchor_habit_user: toPlanActionLine(phase.anchor_habit.text, 90),
+      daily_rhythm_user: phase.daily_rhythm.slice(0, 3).map((item) => toPlanActionLine(item.text, 85)),
+      weekly_rhythm_user: phase.weekly_rhythm.slice(0, 3).map((item) => toPlanActionLine(item.text, 85)),
     })),
     plan_built_narrative,
     plan_notes: [],
@@ -109,11 +125,11 @@ function mergeParsedPlan(
   const phases = planOutput.phases.map((phase) => {
     const hit = parsed?.phases?.find((p) => p.phase_number === phase.phase_number);
     const rhythm = mergePhaseRhythm(phase, hit, synthesized);
+    const readinessRaw = hit?.readiness_signal_user?.trim() || phase.readiness_signal.description;
     return {
       phase_number: phase.phase_number,
       phase_intent_user: hit?.phase_intent_user?.trim() || phase.intent,
-      readiness_signal_user:
-        hit?.readiness_signal_user?.trim() || phase.readiness_signal.description,
+      readiness_signal_user: formatReadinessLine(readinessRaw),
       ...rhythm,
     };
   });

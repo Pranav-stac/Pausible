@@ -8,7 +8,10 @@ import type {
 export function coerceAnswer(question: AssessmentQuestion, raw: unknown): number | string | string[] | null {
   if (question.type === "multi") {
     if (!Array.isArray(raw)) return null;
-    return raw.filter((x) => typeof x === "string");
+    const selected = raw.filter((x) => typeof x === "string");
+    if (!selected.length) return null;
+    const cap = question.maxSelections ?? selected.length;
+    return selected.slice(0, Math.max(1, cap));
   }
   if (question.type === "single") {
     if (typeof raw !== "string") return null;
@@ -22,6 +25,21 @@ export function coerceAnswer(question: AssessmentQuestion, raw: unknown): number
     return Math.min(max, Math.max(min, Math.round(n)));
   }
   return null;
+}
+
+/** Coerce every question in a definition — use before persisting attempt answers. */
+export function normalizeAnswersForQuestionnaire(
+  def: AssessmentDefinition,
+  answers: AttemptAnswers,
+): AttemptAnswers {
+  const normalized: AttemptAnswers = { ...answers };
+  for (const q of Object.values(def.questions)) {
+    if (!q) continue;
+    const coerced = coerceAnswer(q, answers[q.id]);
+    if (coerced === null) delete normalized[q.id];
+    else normalized[q.id] = coerced;
+  }
+  return normalized;
 }
 
 /** Normalized trait contribution 0–1 inside the inclusive scale endpoints. */

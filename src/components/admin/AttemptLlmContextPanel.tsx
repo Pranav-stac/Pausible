@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { downloadLlmContextAsPdf } from "@/lib/admin/download-llm-context-pdf";
+import { LlmSectionTabs, LlmSharedContextView } from "@/components/admin/llm-context-display";
 import type { AttemptLlmContextPackage, AttemptLlmSectionContext } from "@/lib/recommendations/build-attempt-llm-context";
 import { reportLlmProviderLabel } from "@/lib/recommendations/report-llm-types";
 
@@ -35,6 +36,7 @@ function JsonBlock({ value }: { value: unknown }) {
 
 function SectionCard({ section, defaultOpen = false }: { section: AttemptLlmSectionContext; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
+  const hasOutput = section.output != null;
 
   return (
     <details
@@ -50,47 +52,54 @@ function SectionCard({ section, defaultOpen = false }: { section: AttemptLlmSect
             </p>
             <p className="mt-1 text-sm font-semibold text-slate-900">{section.label}</p>
           </div>
-          <span
-            className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-              section.skipped ? "bg-amber-100 text-amber-900" : "bg-emerald-100 text-emerald-900"
-            }`}
-          >
-            {section.skipped ? "Skipped" : "Active"}
-          </span>
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                section.skipped ? "bg-amber-100 text-amber-900" : "bg-emerald-100 text-emerald-900"
+              }`}
+            >
+              {section.skipped ? "Skipped" : "Active"}
+            </span>
+            {!section.skipped ? (
+              <span
+                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                  hasOutput ? "bg-sky-100 text-sky-900" : "bg-slate-100 text-slate-600"
+                }`}
+              >
+                {hasOutput ? "Has response" : "No response yet"}
+              </span>
+            ) : null}
+          </div>
         </div>
       </summary>
-      <div className="space-y-4 border-t border-slate-100 px-4 py-4">
+      <div className="border-t border-slate-100 px-4 py-4">
         {section.skipped && section.skipReason ? (
-          <p className="text-xs text-amber-800">{section.skipReason}</p>
+          <p className="mb-4 text-xs text-amber-800">{section.skipReason}</p>
         ) : null}
 
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Structured input data</p>
-          <JsonBlock value={section.inputData} />
-        </div>
+        {section.skipped ? (
+          <p className="text-[11px] text-slate-500">This section was skipped — no prompt or response was generated.</p>
+        ) : (
+          <LlmSectionTabs section={section} />
+        )}
 
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Expected JSON output</p>
-          <JsonBlock value={section.outputSchema} />
-        </div>
-
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Actual LLM output</p>
-          {section.output != null ? (
-            <JsonBlock value={section.output} />
-          ) : (
-            <p className="mt-2 rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-500">
-              No stored output for this section (report not generated yet or section was skipped).
-            </p>
-          )}
-        </div>
-
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">User prompt sent to LLM</p>
-          <pre className="mt-2 max-h-80 overflow-auto whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50 p-3 font-mono text-[10px] leading-relaxed text-slate-800">
-            {section.userPrompt || "(empty)"}
-          </pre>
-        </div>
+        <details className="mt-4 rounded-lg border border-slate-200 bg-slate-50">
+          <summary className="cursor-pointer px-3 py-2 text-[11px] font-semibold text-slate-600">Raw debug JSON</summary>
+          <div className="space-y-3 border-t border-slate-200 px-3 py-3">
+            <div>
+              <p className="text-[10px] font-bold uppercase text-slate-500">Input</p>
+              <JsonBlock value={section.inputData} />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase text-slate-500">Output</p>
+              <JsonBlock value={section.output} />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase text-slate-500">Schema</p>
+              <JsonBlock value={section.outputSchema} />
+            </div>
+          </div>
+        </details>
       </div>
     </details>
   );
@@ -323,10 +332,22 @@ export function AttemptLlmContextPanel({ attemptId, api, externalData, onDataCha
         <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-900">
           Shared synthesis context (wellness + persona + ranked recs)
         </summary>
-        <JsonBlock value={data.sharedContext} />
+        <div className="border-t border-slate-100 px-4 py-4">
+          <LlmSharedContextView context={data.sharedContext} />
+          <details className="mt-4 rounded-lg border border-slate-200 bg-slate-50">
+            <summary className="cursor-pointer px-3 py-2 text-[11px] font-semibold text-slate-600">Raw debug JSON</summary>
+            <div className="border-t border-slate-200 px-3 py-3">
+              <JsonBlock value={data.sharedContext} />
+            </div>
+          </details>
+        </div>
       </details>
 
       <div className="space-y-3">
+        <h4 className="text-sm font-semibold text-slate-900">Report sections</h4>
+        <p className="text-[11px] text-slate-500">
+          Each section shows the prompt sent to the LLM and the stored response used in the user report.
+        </p>
         {data.sections.map((section, i) => (
           <SectionCard key={section.id} section={section} defaultOpen={expandAllSections ?? i === 0} />
         ))}

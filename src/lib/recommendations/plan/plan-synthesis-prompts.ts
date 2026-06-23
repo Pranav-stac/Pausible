@@ -1,22 +1,26 @@
 import type { OpportunityCard, PlanOutput, UserProfile } from "@/lib/recommendations/types";
+import { formatPhaseWeekLabel } from "@/lib/recommendations/plan/plan-phase-display";
 import { PERSONA_DISPLAY } from "@/lib/scoring/persona-defaults";
 import { fitTierLabel } from "@/lib/scoring/persona-fit";
 
-export const PLAN_PAGE_SYSTEM_PROMPT = `You are a wellness plan writer for Pausibl. You write warm, clear, personalised plan descriptions that make the user feel understood and motivated.
+export const PLAN_PAGE_SYSTEM_PROMPT = `You are a wellness plan writer for Pausibl. Write like a concise coach — direct, specific, and actionable. Every line should tell the user exactly what to do.
 
-Rules:
-- Never use OCEAN trait names (Openness, Conscientiousness, Extraversion, Agreeableness, Neuroticism). Use user-facing names: Openness, Discipline, Social Energy, Agreeableness, Stress Sensitivity.
-- For plan_subtitle, goal_framing, and phase copy: never use persona animal names (Turtle, Deer, Fox, Wolf, Bear, Elephant). Describe the pattern without naming the animal.
-- For plan_built_narrative ONLY: persona pattern names (e.g. Watchful Deer, Shielded Turtle) ARE allowed.
-- Never use engine terminology (activation energy, fit score, blend ratio, pillar distribution, readiness signal).
-- Never use motivational clichés ("crush your goals", "unleash your potential", "transform your life").
+VOICE (match the approved sample):
+- Short imperative actions: "Do any 10-minute workout on 3 fixed days this week."
+- Phase intents: 1–2 plain sentences. No fluff. Example: "Establish the minimum viable routine. Nothing ambitious — just proof that consistency is possible."
+- Readiness lines start with "When …" Example: "When 3 sessions/week feels like a default, not a decision."
+- Daily rhythm = things done most days. Weekly rhythm = a few times per week or weekly setup.
+- Include specifics when the engine item has them (minutes, days, times).
+
+RULES:
 - Write in second person ("you", "your").
-- Keep plan_subtitle, goal_framing, and phase sections to 1–2 sentences maximum.
-- plan_built_narrative must be one flowing paragraph (4–6 sentences), not bullets.
-- Rhythm items (anchor, daily, weekly) must be SHORT imperative actions — not psychology essays.
-- Daily rhythm = things done most days. Weekly rhythm = things done a few times per week or as weekly setup.
-- Do NOT invent new advice. Only rewrite/distill the engine items provided for each phase.
-- If an engine item belongs in the wrong bucket, move it to the correct bucket when rewriting.
+- plan_subtitle: ONE sentence. May name the primary persona pattern (e.g. Watchful Deer). Example: "A phased approach that builds your wellness routine layer by layer — shaped by your Watchful Deer personality."
+- plan_built_narrative: ONE paragraph, 4–6 sentences. Persona pattern names ARE allowed here. Must mention Wellness Intelligence assessment, fit score/tier, secondary pattern if blend > 0, main barrier, goals, gradual phasing, and 2–3 priority actions by name.
+- Never use OCEAN trait names. Use: Openness, Discipline, Social Energy, Agreeableness, Stress Sensitivity.
+- Never use engine jargon (activation energy, readiness signal, pillar distribution, fit tier as a label, blend ratio).
+- Never use motivational clichés ("crush your goals", "transform your life").
+- Do NOT invent new advice. Distill ONLY from the engine items provided for each phase. Move mis-bucketed items to the correct rhythm list.
+- If goals imply intensity misaligned with the pattern, acknowledge the goal and frame the plan as building toward it in stages. Never call a goal unrealistic.
 
 Return valid JSON only.`;
 
@@ -51,60 +55,62 @@ export function buildIntegratedPlanPrompt(
     .slice(0, 3)
     .map(
       (c, i) =>
-        `Priority ${i + 1} (${c.pillar}): headline="${c.headline}", first step="${c.startThisWeek}"`,
+        `Priority ${i + 1} (${c.pillar}): "${c.headline}" — first step: "${c.startThisWeek}"`,
     )
     .join("\n");
 
   const phaseDetails = planOutput.phases
-    .map(
-      (phase) => `Phase ${phase.phase_number}: ${phase.name}
-Duration: ${phase.approx_duration_weeks}
+    .map((phase, index) => {
+      const weekLabel = formatPhaseWeekLabel(planOutput.phases, index);
+      return `Phase ${phase.phase_number}: ${phase.name} (${weekLabel})
+Duration estimate: ${phase.approx_duration_weeks}
 Intent (engine): ${phase.intent}
 Anchor habit (engine): ${phase.anchor_habit.text}
 Daily rhythm (engine):
 ${formatRhythmList(phase.daily_rhythm)}
 Weekly rhythm (engine):
 ${formatRhythmList(phase.weekly_rhythm)}
-Readiness signal (engine): ${phase.readiness_signal.description}`,
-    )
+Ready to advance when (engine): ${phase.readiness_signal.description}`;
+    })
     .join("\n\n");
 
-  return `Generate plan page content for the following user:
+  return `Generate integrated plan page copy for this user.
 
 Persona: ${personaDisplay}
-Fit tier: ${fitTierLabel(planOutput.fit_tier)}${fitScore != null ? `\nFit score: ${Math.round(fitScore)}/100` : ""}
+Fit tier: ${fitTierLabel(planOutput.fit_tier)}${fitScore != null ? ` (${Math.round(fitScore)}/100)` : ""}
 Secondary persona: ${secondaryDisplay} (${blendPct}%)
 Goals: ${formatGoalsList(profile.goals)}
 Barriers: ${formatBarriersList(profile.barriers)}
 Progression style: ${planOutput.progression_style}
+Total duration: ${planOutput.total_duration_weeks} weeks · ${planOutput.total_phases} phases
+
 High-impact priorities:
 ${priorityLines || "None provided"}
 
-Phase details:
 ${phaseDetails}
 
 Generation notes: ${planOutput.generation_notes}
 
-Generate:
-1. plan_subtitle: One sentence describing the overall plan tone and structure.
-2. goal_framing: One sentence connecting the plan to the user's primary goal.
-3. For each phase:
-   a. phase_intent_user: 1–2 sentence user-facing description (rewrite the engine intent in warm, clear language).
-   b. readiness_signal_user: 1 sentence translating the readiness signal into what the user will feel/experience.
-   c. anchor_habit_user: ONE short imperative sentence (max 100 chars). Distill the engine anchor into the clearest single action.
-   d. daily_rhythm_user: 2–3 short imperative lines (max 90 chars each). Daily/each-day actions only. Rewrite from engine daily + misclassified weekly items if needed.
-   e. weekly_rhythm_user: 2–3 short imperative lines (max 90 chars each). Weekly/few-times-per-week actions. Rewrite from engine weekly items.
-4. plan_built_narrative: ONE cohesive paragraph (4–6 sentences, max 550 characters). Explain how this plan was built. Must include:
-   - Generated from Wellness Intelligence assessment
-   - Primary pattern name + fit score/tier
-   - Secondary pattern influence if blend > 0
-   - 1–2 behavioural observations (no OCEAN jargon)
-   - How top barrier and goals shaped phasing
-   - Gradual phasing philosophy
-   - Name 2–3 specific priority actions from the High-impact priorities input
-   Write as flowing prose — NOT bullet points. Persona animal names allowed here only.
+STYLE REFERENCE (tone and length only — use THIS user's engine items, not these exact actions):
+- Subtitle: "A phased approach that builds your wellness routine layer by layer — shaped by your Watchful Deer personality."
+- Phase 1 intent: "Establish the minimum viable routine. Nothing ambitious — just proof that consistency is possible."
+- Anchor: "Do any 10-minute workout on 3 fixed days this week."
+- Daily: "Pick one calming bedtime activity and do it nightly." / "Eat at regular times, even on busy days."
+- Weekly: "3 × 10-min home workouts (bodyweight basics)." / "Prep one backup meal before the week starts."
+- Advance: "When 3 sessions/week feels like a default, not a decision."
 
-Return as JSON with keys: plan_subtitle, goal_framing, phases (array with phase_number, phase_intent_user, readiness_signal_user, anchor_habit_user, daily_rhythm_user, weekly_rhythm_user), plan_built_narrative.`;
+Return JSON:
+1. plan_subtitle — one sentence; may name ${personaDisplay}.
+2. goal_framing — one short sentence tying the plan to the user's primary goal (may merge idea into subtitle if redundant).
+3. phases[] — for each phase_number:
+   - phase_intent_user: max 2 short sentences, plain language.
+   - readiness_signal_user: one sentence starting with "When".
+   - anchor_habit_user: ONE imperative action, max 90 chars, specific.
+   - daily_rhythm_user: exactly 2–3 imperative lines, max 85 chars each.
+   - weekly_rhythm_user: exactly 2–3 imperative lines, max 85 chars each.
+4. plan_built_narrative — one paragraph (4–6 sentences, max 600 chars). Flowing prose under "How This Plan Was Built". Name persona patterns, fit score/tier, barrier, goals, gradual phasing, and 2–3 priority actions.
+
+Keys: plan_subtitle, goal_framing, phases, plan_built_narrative.`;
 }
 
 export type IntegratedPlanPromptJson = {

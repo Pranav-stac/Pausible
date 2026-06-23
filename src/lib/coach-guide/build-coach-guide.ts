@@ -1,9 +1,7 @@
 import type { BuildProfileInput } from "@/lib/recommendations/build-user-profile";
-import type { UserProfile } from "@/lib/recommendations/types";
-import {
-  PERSONA_COACH_PROFILE,
-  secondaryInteractionPattern,
-} from "@/lib/coach-guide/persona-content";
+import type { IntegratedPlanSynthesis, PlanOutput, UserProfile } from "@/lib/recommendations/types";
+import { deriveCoachMatrixFromPlan, summarizePlanPhasePillars } from "@/lib/coach-guide/derive-matrix-from-plan";
+import { PERSONA_COACH_PROFILE, secondaryInteractionPattern } from "@/lib/coach-guide/persona-content";
 import type { CoachGuideDocument, CoachGuideTraitRow } from "@/lib/coach-guide/types";
 import { PERSONA_DISPLAY, DEFAULT_PERSONA_CENTROIDS } from "@/lib/scoring/persona-defaults";
 import { fitTierLabel } from "@/lib/scoring/persona-fit";
@@ -128,8 +126,10 @@ export function buildCoachGuideDocumentDeterministic(args: {
   persona: PersonaAnalysis;
   input?: BuildProfileInput;
   reportId: string;
+  planOutput?: PlanOutput | null;
+  integratedPlan?: IntegratedPlanSynthesis | null;
 }): CoachGuideDocument {
-  const { profile, persona, input, reportId } = args;
+  const { profile, persona, input, reportId, planOutput, integratedPlan } = args;
   const name = coachGuideClientName(input);
   const primaryKey = profile.primaryPersona;
   const secondaryKey = profile.secondaryPersona;
@@ -153,6 +153,12 @@ export function buildCoachGuideDocumentDeterministic(args: {
     return `Address ${r.signal.toLowerCase()} before adding anything new.`;
   });
   pivotTriggers.push("If 2+ plan elements are missed for 1+ week: simplify the plan before adding anything.");
+
+  const personaMatrix = coachProfile.pillarMatrix;
+  const pillarMatrix =
+    planOutput && integratedPlan
+      ? deriveCoachMatrixFromPlan(planOutput, integratedPlan, personaMatrix)
+      : personaMatrix;
 
   return {
     clientName: name,
@@ -179,7 +185,7 @@ export function buildCoachGuideDocumentDeterministic(args: {
       riskSignals: coachProfile.riskSignals,
     },
     guidingPrinciples: {
-      pillarMatrix: coachProfile.pillarMatrix,
+      pillarMatrix,
       validationCheck,
       monitoringSignals: coachProfile.riskSignals.map((r) => r.signal),
       pivotTriggers,
@@ -192,6 +198,13 @@ export function buildCoachGuideDocumentDeterministic(args: {
     closing: {
       fiveWordSummary: coachProfile.fiveWordSummary,
     },
+    planPhaseSummary:
+      planOutput && integratedPlan ? summarizePlanPhasePillars(planOutput) : undefined,
+    matrixSyncedFromPlan: Boolean(planOutput && integratedPlan),
+    clientIntegratedPlan:
+      planOutput && integratedPlan
+        ? { planOutput, synthesis: integratedPlan }
+        : null,
     synthesized: false,
   };
 }
