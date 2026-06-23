@@ -176,6 +176,7 @@ function buildSections(args: {
       userPrompt: buildSecondaryPatternPrompt(selection, ctx, fb),
       skipReason: "Pure blend — no secondary content",
       inputData: {
+        blendRatio: ctx.personality.blendRatio,
         blendStrength: ctx.personality.blendStrength,
         secondarySuccessConditionText: selection.piSeries.secondarySuccessConditionText,
         secondaryStrengthInsightText: selection.piSeries.secondaryStrengthInsightText,

@@ -121,7 +121,8 @@ export function AttemptActionPlanCacheOverview({ cache, onOpenCoachGuide }: Prop
           <div>
             <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Fit tier</dt>
             <dd className="mt-0.5 text-sm text-slate-800">
-              {fitTierLabel(profile.fitTier)} · blend {profile.blendStrength}
+              {fitTierLabel(profile.fitTier)} · ratio {profile.blendRatio.toFixed(3)} · blend{" "}
+              {profile.blendStrength}
             </dd>
           </div>
         </dl>

@@ -186,7 +186,9 @@ function CalculationTab({
             <div>
               <dt className="text-[10px] font-bold uppercase text-slate-500">Fit tier</dt>
               <dd>
-                {personality.fitTier} · {personality.fitScore}% · blend {personality.blendStrength}
+                {personality.fitTier} · {personality.fitScore}% · blend ratio{" "}
+                {Number.isFinite(personality.blendRatio) ? personality.blendRatio.toFixed(3) : "∞"} ·{" "}
+                {personality.blendStrength}
               </dd>
             </div>
             <div className="sm:col-span-2">

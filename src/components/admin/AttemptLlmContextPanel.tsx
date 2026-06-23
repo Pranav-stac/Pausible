@@ -289,6 +289,8 @@ export function AttemptLlmContextPanel({ attemptId, api, externalData, onDataCha
         ) : null}
         <p className="mt-1">
           <span className="font-semibold text-slate-900">Fit tier:</span> {data.fitBlend.fitTier} ·{" "}
+          <span className="font-semibold text-slate-900">Blend ratio:</span>{" "}
+          {Number.isFinite(data.fitBlend.blendRatio) ? data.fitBlend.blendRatio.toFixed(3) : "∞"} ·{" "}
           <span className="font-semibold text-slate-900">Blend:</span> {data.fitBlend.blendStrength}
         </p>
         <p className="mt-2 border-t border-slate-200 pt-2">

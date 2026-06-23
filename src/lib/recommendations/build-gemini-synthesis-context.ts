@@ -27,6 +27,7 @@ export type GeminiSynthesisContext = {
     personaTitle: string;
     fitScore: number;
     fitTier: string;
+    blendRatio: number;
     blendStrength: string;
     primarySummary: string;
     personaMix: { persona: string; pct: number }[];
@@ -295,6 +296,7 @@ export function buildGeminiSynthesisContext(
       personaTitle: scores?.persona?.personaTitle ?? personaLabel(primaryKey),
       fitScore: scores?.persona?.fitScore ?? 0,
       fitTier: scores?.persona?.fitTier ?? profile.fitTier,
+      blendRatio: scores?.persona?.blendRatio ?? profile.blendRatio,
       blendStrength: scores?.persona?.blendStrength ?? "pure",
       primarySummary: primaryCopy?.summary ?? "",
       personaMix,

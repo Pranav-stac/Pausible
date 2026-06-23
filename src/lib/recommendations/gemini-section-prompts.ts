@@ -29,6 +29,7 @@ const SECONDARY_BOX_TITLES = [
 
 export type SectionFitBlend = {
   fitTier: string;
+  blendRatio: number;
   blendStrength: string;
   secondaryPersona: string;
 };
@@ -340,6 +341,7 @@ export function resolveFitBlend(ctx: GeminiSynthesisContext, templates: ReportTe
   const { personality } = ctx;
   return {
     fitTier: personality.fitTier,
+    blendRatio: personality.blendRatio,
     blendStrength: personality.blendStrength,
     secondaryPersona: personality.secondaryPersona,
     fitTone: templates.geminiFitTierTone[personality.fitTier] ?? "",

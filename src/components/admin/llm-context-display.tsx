@@ -204,6 +204,16 @@ export function LlmInputDataView({ sectionId, data }: { sectionId: string; data:
   if (sectionId === "secondary_pattern") {
     return (
       <div className="space-y-3">
+        <TextBlock
+          label="Blend ratio"
+          text={
+            typeof data.blendRatio === "number"
+              ? Number.isFinite(data.blendRatio)
+                ? data.blendRatio.toFixed(3)
+                : "∞"
+              : ""
+          }
+        />
         <TextBlock label="Blend strength" text={asString(data.blendStrength)} />
         <TextBlock label="Secondary success condition" text={asString(data.secondarySuccessConditionText)} />
         <TextBlock label="Secondary strength insight" text={asString(data.secondaryStrengthInsightText)} />
@@ -385,7 +395,11 @@ export function LlmSharedContextView({ context }: { context: GeminiSynthesisCont
           <div>
             <dt className="text-[10px] font-bold uppercase text-slate-500">Fit</dt>
             <dd>
-              {context.personality.fitTier} · {context.personality.fitScore}% · {context.personality.blendStrength}
+              {context.personality.fitTier} · {context.personality.fitScore}% · ratio{" "}
+              {Number.isFinite(context.personality.blendRatio)
+                ? context.personality.blendRatio.toFixed(3)
+                : "∞"}{" "}
+              · {context.personality.blendStrength}
             </dd>
           </div>
         </dl>

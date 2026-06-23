@@ -76,7 +76,9 @@ export async function downloadLlmContextAsPdf(pkg: AttemptLlmContextPackage, att
         ? `Tokens: ${pkg.reportOutput.tokenUsage.totalTokens} (${pkg.reportOutput.tokenUsage.promptTokens} in · ${pkg.reportOutput.tokenUsage.completionTokens} out)`
         : null,
       pkg.reportOutput.synthesisError ? `Synthesis errors: ${pkg.reportOutput.synthesisError}` : null,
-      `Fit tier: ${pkg.fitBlend.fitTier} · Blend: ${pkg.fitBlend.blendStrength}`,
+      `Fit tier: ${pkg.fitBlend.fitTier} · Blend ratio: ${
+        Number.isFinite(pkg.fitBlend.blendRatio) ? pkg.fitBlend.blendRatio.toFixed(3) : "∞"
+      } · Blend: ${pkg.fitBlend.blendStrength}`,
     ]
       .filter(Boolean)
       .join("\n"),

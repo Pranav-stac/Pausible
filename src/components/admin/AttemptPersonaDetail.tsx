@@ -5,10 +5,17 @@ import { PERSONA_DISPLAY } from "@/lib/scoring/persona-defaults";
 import type { PersonaAnalysis, PersonaKey } from "@/lib/scoring/persona-types";
 import { PERSONA_KEYS, TRAIT_KEYS, TRAIT_LABELS } from "@/lib/scoring/persona-types";
 import { personaLabel } from "@/lib/results/persona-display";
+import { blendStrengthLabel, fitTierLabel } from "@/lib/scoring/persona-fit";
 
 function fmt(n: number | undefined, digits = 2) {
   if (typeof n !== "number" || !Number.isFinite(n)) return "—";
   return n.toFixed(digits);
+}
+
+function fmtBlendRatio(n: number | undefined) {
+  if (typeof n !== "number") return "—";
+  if (!Number.isFinite(n)) return "∞";
+  return n.toFixed(3);
 }
 
 function pct(n: number | undefined) {
@@ -31,6 +38,49 @@ export function AttemptPersonaDetail({ analysis }: { analysis: PersonaAnalysis |
           <strong>{personaLabel(analysis.secondaryPersona)}</strong> (
           {pct(analysis.personaPercentages[analysis.secondaryPersona])}) · Alpha: {fmt(analysis.alpha, 2)}
         </p>
+      </section>
+
+      <section>
+        <h4 className="font-semibold text-slate-800">Fit & blend calculations</h4>
+        <table className="mt-2 w-full border-collapse">
+          <tbody>
+            <tr className="border-b border-slate-100">
+              <td className="py-1 text-slate-600">Fit score</td>
+              <td className="py-1 font-mono">{fmt(analysis.fitScore, 1)}%</td>
+            </tr>
+            <tr className="border-b border-slate-100">
+              <td className="py-1 text-slate-600">Fit tier</td>
+              <td className="py-1">{fitTierLabel(analysis.fitTier)}</td>
+            </tr>
+            <tr className="border-b border-slate-100">
+              <td className="py-1 text-slate-600">Max inter-centroid distance</td>
+              <td className="py-1 font-mono">{fmt(analysis.maxInterCentroidDistance)}</td>
+            </tr>
+            <tr className="border-b border-slate-100">
+              <td className="py-1 text-slate-600">Primary distance</td>
+              <td className="py-1 font-mono">{fmt(analysis.personaDistances[analysis.primaryPersona])}</td>
+            </tr>
+            <tr className="border-b border-slate-100">
+              <td className="py-1 text-slate-600">Secondary distance</td>
+              <td className="py-1 font-mono">{fmt(analysis.personaDistances[analysis.secondaryPersona])}</td>
+            </tr>
+            <tr className="border-b border-slate-100">
+              <td className="py-1 text-slate-600">Blend ratio</td>
+              <td className="py-1 font-mono">
+                {fmtBlendRatio(analysis.blendRatio)}
+                <span className="ml-1 font-sans text-[10px] text-slate-500">(secondary ÷ primary)</span>
+              </td>
+            </tr>
+            <tr className="border-b border-slate-100">
+              <td className="py-1 text-slate-600">Blend strength</td>
+              <td className="py-1">{blendStrengthLabel(analysis.blendStrength)}</td>
+            </tr>
+            <tr className="border-b border-slate-100">
+              <td className="py-1 text-slate-600">Persona title</td>
+              <td className="py-1">{analysis.personaTitle}</td>
+            </tr>
+          </tbody>
+        </table>
       </section>
 
       <section>
