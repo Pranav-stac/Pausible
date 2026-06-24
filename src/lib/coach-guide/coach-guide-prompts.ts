@@ -1,5 +1,6 @@
+import type { CoachGuidePillarMatrix } from "@/lib/coach-guide/types";
 import type { BuildProfileInput } from "@/lib/recommendations/build-user-profile";
-import type { IntegratedPlanSynthesis, PlanOutput, UserProfile } from "@/lib/recommendations/types";
+import type { IntegratedPlanSynthesis, PlanOutput, PillarName, UserProfile } from "@/lib/recommendations/types";
 import {
   LAYER1_PSYCHOLOGICAL_CRITERIA,
   LAYER3_ENVIRONMENTAL_QUESTION,
@@ -36,6 +37,17 @@ export type CoachGuidePage3PromptJson = {
   validationCheck?: [string, string, string] | string[];
   pivotTriggers?: string[];
 };
+
+export type CoachGuideMatrixPromptJson = {
+  pillarMatrix?: CoachGuidePillarMatrix;
+};
+
+const COACH_PILLARS: PillarName[] = [
+  "Physical Activity",
+  "Nutrition",
+  "Sleep & Recovery",
+  "Mental Wellness",
+];
 
 export const COACH_GUIDE_SYSTEM_PROMPT = `You are writing sections of the Pausibl Coach Guide — a private coaching brief for wellness coaches.
 Use behavioral language only. Never reference OCEAN, assessments, or reports.
@@ -158,6 +170,126 @@ function formatPlanSummaryForCoach(
     .join("\n");
 }
 
+function formatPlanByPillar(
+  planOutput: PlanOutput,
+  integratedPlan: IntegratedPlanSynthesis,
+): string {
+  const buckets: Record<PillarName, string[]> = {
+    Nutrition: [],
+    "Physical Activity": [],
+    "Sleep & Recovery": [],
+    "Mental Wellness": [],
+  };
+
+  for (const phase of planOutput.phases) {
+    const copy = integratedPlan.phases.find((p) => p.phase_number === phase.phase_number);
+    const anchor = copy?.anchor_habit_user ?? phase.anchor_habit.text;
+    buckets[phase.anchor_habit.pillar].push(
+      `Phase ${phase.phase_number} anchor: ${anchor}`,
+    );
+    phase.daily_rhythm.forEach((item, i) => {
+      const text = copy?.daily_rhythm_user?.[i] ?? item.text;
+      buckets[item.pillar].push(`Phase ${phase.phase_number} daily: ${text}`);
+    });
+    phase.weekly_rhythm.forEach((item, i) => {
+      const text = copy?.weekly_rhythm_user?.[i] ?? item.text;
+      buckets[item.pillar].push(`Phase ${phase.phase_number} weekly: ${text}`);
+    });
+    const readiness = copy?.readiness_signal_user ?? phase.readiness_signal.description;
+    buckets[phase.anchor_habit.pillar].push(
+      `Phase ${phase.phase_number} advance when: ${readiness}`,
+    );
+  }
+
+  return COACH_PILLARS.map((pillar) => {
+    const lines = buckets[pillar];
+    return `${pillar}:\n${lines.length ? lines.map((l) => `  - ${l}`).join("\n") : "  - (no plan items this pillar)"}`;
+  }).join("\n\n");
+}
+
+function formatPersonaMatrixReference(matrix: CoachGuidePillarMatrix): string {
+  const rows = ["structure", "environment", "progression", "recoveryProtocol"] as const;
+  return rows
+    .map((row) => {
+      const label = row === "recoveryProtocol" ? "Recovery" : row.charAt(0).toUpperCase() + row.slice(1);
+      const cells = COACH_PILLARS.map((p) => `  ${p}: ${matrix[row][p] ?? ""}`).join("\n");
+      return `${label}:\n${cells}`;
+    })
+    .join("\n\n");
+}
+
+export function buildCoachGuideMatrixPrompt(args: {
+  profile: UserProfile;
+  persona: PersonaAnalysis;
+  firstName: string;
+  planOutput: PlanOutput;
+  integratedPlan: IntegratedPlanSynthesis;
+}): string {
+  const { profile, persona, firstName, planOutput, integratedPlan } = args;
+  const primaryKey = profile.primaryPersona;
+  const coachProfile = PERSONA_COACH_PROFILE[primaryKey];
+  const primaryLabel = PERSONA_DISPLAY[primaryKey]?.label ?? personaLabel(primaryKey);
+  const goal = formatGoal(profile.goals);
+  const barrier = formatBarrier(profile.barriers);
+  const personaMatrix = formatPersonaMatrixReference(coachProfile.pillarMatrix);
+  const planByPillar = formatPlanByPillar(planOutput, integratedPlan);
+  const phasedSummary = formatPlanSummaryForCoach(planOutput, integratedPlan);
+
+  return `Generate the coaching matrix for ${firstName}'s coach guide.
+
+This is coach-to-coach guidance: HOW to coach each pillar using THIS client's exact integrated plan — not a copy of the client plan table.
+
+CONTEXT:
+- Client: ${firstName}
+- Primary persona: ${primaryLabel} (${primaryKey})
+- Fit tier: ${fitTierLabel(persona.fitTier)}
+- Goal: ${goal}
+- Top barrier: ${barrier}
+- Operating style: ${coachProfile.operatingStyle}
+- Natural strength: ${coachProfile.naturalStrength}
+- Primary risk: ${coachProfile.primaryRisk}
+- Best setup: ${coachProfile.bestSetup}
+
+PERSONA COACHING PRINCIPLES (guardrails — stay aligned, do not contradict):
+${personaMatrix}
+
+CLIENT INTEGRATED PLAN — EXACT DATA (you MUST reference real actions from here):
+Phased summary:
+${phasedSummary}
+
+By pillar:
+${planByPillar}
+
+TASK — pillarMatrix (4 rows × 4 pillars):
+For each cell write 1–2 short imperative sentences telling the COACH what to do.
+- structure: how to coach routine/anchor for this pillar using their actual phase anchors and daily items
+- environment: how to set up context using their environment/setup actions in the plan
+- progression: how to advance load using their weekly rhythm and later phases for this pillar
+- recoveryProtocol: how to handle misses using their backup/recovery actions and readiness cues
+
+RULES:
+1. Every cell must cite or clearly reflect THIS client's plan actions for that pillar when plan items exist.
+2. Stay within ${primaryLabel} coaching principles (private, low-pressure, etc. as applicable).
+3. Do NOT paste client copy verbatim — translate into coach directives ("Coach the protein anchor in Phase 1…").
+4. If a pillar has few plan items, combine persona principle + the items that exist.
+5. Max 220 characters per cell. Coach-to-coach tone. No fluff.
+
+OUTPUT JSON:
+{
+  "pillarMatrix": {
+    "structure": {
+      "Physical Activity": "string",
+      "Nutrition": "string",
+      "Sleep & Recovery": "string",
+      "Mental Wellness": "string"
+    },
+    "environment": { ...same keys... },
+    "progression": { ...same keys... },
+    "recoveryProtocol": { ...same keys... }
+  }
+}`;
+}
+
 export function buildCoachGuidePage3Prompt(args: {
   profile: UserProfile;
   persona: PersonaAnalysis;
@@ -178,7 +310,7 @@ export function buildCoachGuidePage3Prompt(args: {
   const signals = coachProfile.riskSignals.map((r) => r.signal).join("; ");
   const planBlock =
     planOutput && integratedPlan
-      ? `\nCLIENT INTEGRATED PLAN (coaching matrix is derived from this — pivot triggers must reference these actions, not generic advice):\n${formatPlanSummaryForCoach(planOutput, integratedPlan)}\n`
+      ? `\nCLIENT INTEGRATED PLAN (pivot triggers must reference these actions):\n${formatPlanSummaryForCoach(planOutput, integratedPlan)}\n`
       : "";
 
   return `Generate Page 3 validation and pivot sections for ${firstName}.

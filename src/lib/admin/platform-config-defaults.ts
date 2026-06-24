@@ -54,9 +54,9 @@ export const DEFAULT_REPORT_TEMPLATES: ReportTemplatesDoc = {
     exploring: "Tentative and invitational — use 'Some aspects suggest...'",
   },
   geminiBlendRules: {
-    pure: "Never mention a secondary persona.",
-    tendencies: "Include one sentence acknowledging secondary influence.",
-    strong_influence: "Dedicate substantive content to the blend.",
+    pure: "Write only a 2-sentence summary of the secondary persona, making it clear that it does not have a significant impact on the primary persona. Skip the behavioural boxes and the blend narrative.",
+    tendencies: "Write an 80-100 word secondary narrative and 3 behavioural boxes (Behavioural Tendencies, What Motivates You, Growth Pattern only). Write a 60-80 word blend interaction summary.",
+    strong_influence: "Write a 100-150 word secondary narrative and all 6 behavioural boxes. Write a 100-120 word blend interaction narrative with specific examples of how the two patterns complement or create tension.",
   },
   pillarLabels: {
     Nutrition: "Nutrition",

@@ -61,8 +61,12 @@ export type CoachGuideDocument = {
     anchorPillar: PillarName;
     pillars: PillarName[];
   }[];
-  /** True when pillar matrix was derived from clientIntegratedPlan, not persona template only. */
+  /** True when coaching matrix was AI-written from this client's plan + persona guardrails. */
+  matrixAiGeneratedFromPlan?: boolean;
+  /** @deprecated use matrixAiGeneratedFromPlan */
   matrixSyncedFromPlan?: boolean;
+  /** Per-phase anchor summary — what the client is doing (separate from coaching principles matrix). */
+  planAlignmentNotes?: string[];
   synthesized: boolean;
   synthesisError?: string | null;
 };

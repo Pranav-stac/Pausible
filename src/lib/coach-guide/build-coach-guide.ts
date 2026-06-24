@@ -1,6 +1,7 @@
 import type { BuildProfileInput } from "@/lib/recommendations/build-user-profile";
 import type { IntegratedPlanSynthesis, PlanOutput, UserProfile } from "@/lib/recommendations/types";
-import { deriveCoachMatrixFromPlan, summarizePlanPhasePillars } from "@/lib/coach-guide/derive-matrix-from-plan";
+import { summarizePlanPhasePillars } from "@/lib/coach-guide/derive-matrix-from-plan";
+import { buildPlanAlignmentNotes } from "@/lib/coach-guide/plan-coach-alignment";
 import { PERSONA_COACH_PROFILE, secondaryInteractionPattern } from "@/lib/coach-guide/persona-content";
 import type { CoachGuideDocument, CoachGuideTraitRow } from "@/lib/coach-guide/types";
 import { PERSONA_DISPLAY, DEFAULT_PERSONA_CENTROIDS } from "@/lib/scoring/persona-defaults";
@@ -155,10 +156,6 @@ export function buildCoachGuideDocumentDeterministic(args: {
   pivotTriggers.push("If 2+ plan elements are missed for 1+ week: simplify the plan before adding anything.");
 
   const personaMatrix = coachProfile.pillarMatrix;
-  const pillarMatrix =
-    planOutput && integratedPlan
-      ? deriveCoachMatrixFromPlan(planOutput, integratedPlan, personaMatrix)
-      : personaMatrix;
 
   return {
     clientName: name,
@@ -185,7 +182,7 @@ export function buildCoachGuideDocumentDeterministic(args: {
       riskSignals: coachProfile.riskSignals,
     },
     guidingPrinciples: {
-      pillarMatrix,
+      pillarMatrix: personaMatrix,
       validationCheck,
       monitoringSignals: coachProfile.riskSignals.map((r) => r.signal),
       pivotTriggers,
@@ -200,7 +197,10 @@ export function buildCoachGuideDocumentDeterministic(args: {
     },
     planPhaseSummary:
       planOutput && integratedPlan ? summarizePlanPhasePillars(planOutput) : undefined,
-    matrixSyncedFromPlan: Boolean(planOutput && integratedPlan),
+    planAlignmentNotes:
+      planOutput && integratedPlan ? buildPlanAlignmentNotes(planOutput, integratedPlan) : undefined,
+    matrixAiGeneratedFromPlan: false,
+    matrixSyncedFromPlan: false,
     clientIntegratedPlan:
       planOutput && integratedPlan
         ? { planOutput, synthesis: integratedPlan }

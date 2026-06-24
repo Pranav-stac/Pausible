@@ -7,6 +7,7 @@ export const SECTION_OUTPUT_TOKENS = {
   priorities: 1000,
   integratedPlan: 2200,
   coachGuidePage2: 1400,
-  coachGuidePage3: 1000,
+  coachGuidePage3: 800,
+  coachGuideMatrix: 2200,
   default: 600,
 } as const;

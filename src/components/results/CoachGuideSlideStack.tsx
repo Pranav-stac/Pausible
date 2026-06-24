@@ -186,7 +186,8 @@ function CoachGuidePrinciplesSlide({
 }) {
   const gp = guide.guidingPrinciples;
   const matrix = gp.pillarMatrix;
-  const synced = guide.matrixSyncedFromPlan && guide.clientIntegratedPlan;
+  const hasClientPlan = Boolean(guide.clientIntegratedPlan);
+  const matrixFromPlan = Boolean(guide.matrixAiGeneratedFromPlan);
 
   return (
     <section data-report-page className={REPORT_PAGE}>
@@ -195,21 +196,45 @@ function CoachGuidePrinciplesSlide({
         <SlideTitle
           title="Guiding Principles for Coach"
           subtitle={
-            synced
-              ? `Coaching matrix derived from ${guide.clientName}'s integrated plan — same actions, organised by pillar and coaching dimension.`
-              : "Coaching matrix and monitoring signals"
+            matrixFromPlan
+              ? `AI coaching matrix for ${guide.clientName} — grounded in their integrated plan and ${guide.primaryPersonaLabel} principles.`
+              : hasClientPlan
+                ? `Persona coaching principles for ${guide.clientName} — regenerate to refresh AI matrix from their plan.`
+                : "Coaching matrix and monitoring signals"
           }
         />
 
         <div className="mb-4 rounded-lg border border-teal-100 bg-teal-50/50 px-3 py-2.5 text-[10px] leading-relaxed text-slate-700">
-          <p className="font-bold uppercase tracking-wide text-teal-800">How matrix maps to the plan</p>
+          <p className="font-bold uppercase tracking-wide text-teal-800">
+            {matrixFromPlan ? "AI matrix from plan + persona" : "Coaching matrix = persona principles"}
+          </p>
           <p className="mt-1">
-            <span className="font-semibold">Structure</span> = anchor habits + daily rhythm ·{" "}
-            <span className="font-semibold">Environment</span> = setup/context actions ·{" "}
-            <span className="font-semibold">Progression</span> = weekly rhythm + later-phase anchors ·{" "}
-            <span className="font-semibold">Recovery</span> = backup/restart actions + readiness cues
+            {matrixFromPlan ? (
+              <>
+                Each cell tells the coach <span className="font-semibold">how to coach</span> this pillar using{" "}
+                {guide.clientName}&apos;s real anchors, rhythms, and readiness cues — not a copy of the client table.
+              </>
+            ) : (
+              <>
+                <span className="font-semibold">Structure</span> = how to build routine for this persona ·{" "}
+                <span className="font-semibold">Environment</span> = setup and context ·{" "}
+                <span className="font-semibold">Progression</span> = when and how to advance load ·{" "}
+                <span className="font-semibold">Recovery</span> = how to handle misses without shame
+              </>
+            )}
           </p>
         </div>
+
+        {guide.planAlignmentNotes?.length ? (
+          <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50/80 p-3">
+            <p className="text-[10px] font-bold uppercase text-slate-500">Client plan anchors (for reference)</p>
+            <ul className="mt-2 space-y-1 text-xs text-slate-700">
+              {guide.planAlignmentNotes.map((note) => (
+                <li key={note}>• {note}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
 
         <div className="mb-5 overflow-hidden rounded-xl border border-slate-200 text-xs">
           <p className="border-b border-slate-200 bg-slate-900 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-white">

@@ -1,4 +1,5 @@
 import type { CoachGuideDocument, CoachGuidePillarMatrix } from "@/lib/coach-guide/types";
+import { buildPlanAlignmentNotes } from "@/lib/coach-guide/plan-coach-alignment";
 import { toPlanActionLine } from "@/lib/recommendations/plan/plan-phase-display";
 import type {
   IntegratedPlanSynthesis,
@@ -174,20 +175,14 @@ export function syncCoachGuideWithIntegratedPlan(
   planOutput: PlanOutput,
   integratedPlan: IntegratedPlanSynthesis,
 ): CoachGuideDocument {
-  const fallback = guide.guidingPrinciples.pillarMatrix;
-  const pillarMatrix = deriveCoachMatrixFromPlan(planOutput, integratedPlan, fallback);
-
   return {
     ...guide,
-    guidingPrinciples: {
-      ...guide.guidingPrinciples,
-      pillarMatrix,
-    },
     clientIntegratedPlan: {
       planOutput,
       synthesis: integratedPlan,
     },
     planPhaseSummary: summarizePlanPhasePillars(planOutput),
-    matrixSyncedFromPlan: true,
+    planAlignmentNotes: buildPlanAlignmentNotes(planOutput, integratedPlan),
+    matrixSyncedFromPlan: false,
   };
 }

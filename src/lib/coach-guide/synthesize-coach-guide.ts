@@ -5,9 +5,12 @@ import type { ReportLlmProvider } from "@/lib/recommendations/report-llm-types";
 import { SECTION_OUTPUT_TOKENS } from "@/lib/recommendations/section-output-limits";
 import type { IntegratedPlanSynthesis, PlanOutput, UserProfile } from "@/lib/recommendations/types";
 import { buildCoachGuideDocumentDeterministic } from "@/lib/coach-guide/build-coach-guide";
+import { mergeAiPillarMatrix } from "@/lib/coach-guide/merge-coach-matrix";
 import {
+  buildCoachGuideMatrixPrompt,
   buildCoachGuidePage2Prompt,
   buildCoachGuidePage3Prompt,
+  type CoachGuideMatrixPromptJson,
   type CoachGuidePage2PromptJson,
   type CoachGuidePage3PromptJson,
   COACH_GUIDE_SYSTEM_PROMPT,
@@ -49,9 +52,17 @@ function mergeCoachGuideSynthesis(
   base: CoachGuideDocument,
   page2: CoachGuidePage2PromptJson | null,
   page3: CoachGuidePage3PromptJson | null,
+  matrix: CoachGuideMatrixPromptJson | null,
   synthesized: boolean,
   synthesisError?: string | null,
 ): CoachGuideDocument {
+  const templateMatrix = base.guidingPrinciples.pillarMatrix;
+  const { matrix: mergedMatrix, aiCellCount } = mergeAiPillarMatrix(
+    matrix?.pillarMatrix,
+    templateMatrix,
+  );
+  const matrixFromPlan = Boolean(matrix?.pillarMatrix && aiCellCount >= 8);
+
   const merged: CoachGuideDocument = {
     ...base,
     introduction: {
@@ -66,6 +77,7 @@ function mergeCoachGuideSynthesis(
     },
     guidingPrinciples: {
       ...base.guidingPrinciples,
+      pillarMatrix: matrixFromPlan ? mergedMatrix : templateMatrix,
       validationCheck: normalizeValidationCheck(
         page3?.validationCheck,
         base.guidingPrinciples.validationCheck,
@@ -76,6 +88,8 @@ function mergeCoachGuideSynthesis(
         4,
       ),
     },
+    matrixAiGeneratedFromPlan: matrixFromPlan,
+    matrixSyncedFromPlan: matrixFromPlan,
     synthesized,
     synthesisError: synthesisError ?? null,
   };
@@ -128,6 +142,8 @@ export async function synthesizeCoachGuideDocument(args: {
   const base = buildCoachGuideDocumentDeterministic(args);
   const firstName = base.clientName;
 
+  const hasPlan = Boolean(args.planOutput && args.integratedPlan);
+
   const page2Prompt = buildCoachGuidePage2Prompt({
     profile: args.profile,
     persona: args.persona,
@@ -141,20 +157,36 @@ export async function synthesizeCoachGuideDocument(args: {
     planOutput: args.planOutput,
     integratedPlan: args.integratedPlan,
   });
+  const matrixPrompt =
+    hasPlan && args.planOutput && args.integratedPlan
+      ? buildCoachGuideMatrixPrompt({
+          profile: args.profile,
+          persona: args.persona,
+          firstName,
+          planOutput: args.planOutput,
+          integratedPlan: args.integratedPlan,
+        })
+      : null;
 
-  const [page2Result, page3Result] = await Promise.all([
+  const [page2Result, page3Result, matrixResult] = await Promise.all([
     callCoachGuideSection(args.llmProvider, page2Prompt, SECTION_OUTPUT_TOKENS.coachGuidePage2),
     callCoachGuideSection(args.llmProvider, page3Prompt, SECTION_OUTPUT_TOKENS.coachGuidePage3),
+    matrixPrompt
+      ? callCoachGuideSection(args.llmProvider, matrixPrompt, SECTION_OUTPUT_TOKENS.coachGuideMatrix)
+      : Promise.resolve({ text: "", error: undefined }),
   ]);
 
   let page2Json = parseSectionJson<CoachGuidePage2PromptJson>(page2Result.text);
   let page3Json = parseSectionJson<CoachGuidePage3PromptJson>(page3Result.text);
+  let matrixJson = parseSectionJson<CoachGuideMatrixPromptJson>(matrixResult.text);
 
   const errors: string[] = [];
   if (page2Result.error) errors.push(`page2: ${page2Result.error}`);
   if (page3Result.error) errors.push(`page3: ${page3Result.error}`);
+  if (matrixResult.error) errors.push(`matrix: ${matrixResult.error}`);
   if (!page2Json && page2Result.text.trim()) errors.push("page2: invalid JSON");
   if (!page3Json && page3Result.text.trim()) errors.push("page3: invalid JSON");
+  if (matrixPrompt && !matrixJson && matrixResult.text.trim()) errors.push("matrix: invalid JSON");
 
   if (!page2Json && !page2Result.error) {
     const retry = await callCoachGuideSection(
@@ -176,11 +208,22 @@ export async function synthesizeCoachGuideDocument(args: {
     if (!page3Json && retry.text.trim()) errors.push("page3: retry invalid JSON");
   }
 
+  if (matrixPrompt && !matrixJson && !matrixResult.error) {
+    const retry = await callCoachGuideSection(
+      args.llmProvider,
+      matrixPrompt,
+      SECTION_OUTPUT_TOKENS.coachGuideMatrix,
+    );
+    matrixJson = parseSectionJson<CoachGuideMatrixPromptJson>(retry.text);
+    if (!matrixJson && retry.text.trim()) errors.push("matrix: retry invalid JSON");
+  }
+
   const llmSucceeded = Boolean(
     page2Json?.personaDescription?.trim() ||
       page2Json?.motivates?.length ||
       page3Json?.validationCheck?.length ||
-      page3Json?.pivotTriggers?.length,
+      page3Json?.pivotTriggers?.length ||
+      matrixJson?.pillarMatrix,
   );
 
   if (!llmSucceeded && !errors.length) {
@@ -191,6 +234,7 @@ export async function synthesizeCoachGuideDocument(args: {
     base,
     page2Json,
     page3Json,
+    matrixJson,
     llmSucceeded,
     errors.length ? errors.join("; ") : null,
   );

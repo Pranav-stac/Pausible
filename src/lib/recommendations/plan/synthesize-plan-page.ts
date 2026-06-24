@@ -11,6 +11,7 @@ import {
   formatReadinessLine,
   toPlanActionLine,
 } from "@/lib/recommendations/plan/plan-phase-display";
+import { isSelfTalkOrMantra } from "@/lib/recommendations/plan/plan-rhythm-cadence";
 import {
   buildIntegratedPlanPrompt,
   PLAN_PAGE_SYSTEM_PROMPT,
@@ -39,27 +40,45 @@ function mergeRhythmLines(
   return engineItems.slice(0, max).map((item) => toPlanActionLine(item.text, 85));
 }
 
+function fallbackConcreteAnchor(phase: PlanOutput["phases"][number]): string {
+  const pool = [phase.anchor_habit, ...phase.daily_rhythm, ...phase.weekly_rhythm];
+  const hit = pool.find(
+    (item) =>
+      !isSelfTalkOrMantra(item.text) &&
+      /\b(eat|walk|workout|meal|sleep|train|protein|bedtime)\b/i.test(item.text),
+  );
+  return toPlanActionLine((hit ?? phase.anchor_habit).text, 90);
+}
+
+function resolveAnchorUser(
+  ai: string | undefined,
+  phase: PlanOutput["phases"][number],
+): string {
+  const engine = toPlanActionLine(phase.anchor_habit.text, 90);
+  const candidate = ai?.trim() ? toPlanActionLine(ai, 90) : engine;
+  if (!isSelfTalkOrMantra(candidate)) return candidate;
+  if (!isSelfTalkOrMantra(engine)) return engine;
+  return fallbackConcreteAnchor(phase);
+}
+
 function mergePhaseRhythm(
   phase: PlanOutput["phases"][number],
   hit: IntegratedPlanPromptJson["phases"] extends (infer P)[] | undefined ? P | undefined : undefined,
   synthesized: boolean,
 ) {
-  const engineAnchor = toPlanActionLine(phase.anchor_habit.text, 90);
   const engineDaily = phase.daily_rhythm;
   const engineWeekly = phase.weekly_rhythm;
 
   if (!synthesized) {
     return {
-      anchor_habit_user: engineAnchor,
+      anchor_habit_user: resolveAnchorUser(undefined, phase),
       daily_rhythm_user: engineDaily.slice(0, 3).map((item) => toPlanActionLine(item.text, 85)),
       weekly_rhythm_user: engineWeekly.slice(0, 3).map((item) => toPlanActionLine(item.text, 85)),
     };
   }
 
   return {
-    anchor_habit_user: hit?.anchor_habit_user?.trim()
-      ? toPlanActionLine(hit.anchor_habit_user, 90)
-      : engineAnchor,
+    anchor_habit_user: resolveAnchorUser(hit?.anchor_habit_user, phase),
     daily_rhythm_user: mergeRhythmLines(hit?.daily_rhythm_user, engineDaily, 3),
     weekly_rhythm_user: mergeRhythmLines(hit?.weekly_rhythm_user, engineWeekly, 3),
   };

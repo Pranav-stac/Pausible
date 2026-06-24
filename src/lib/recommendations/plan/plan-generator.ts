@@ -1,5 +1,11 @@
 import { isActionPlanPoolRow } from "@/lib/recommendations/action-pool";
 import { classifyActivationEnergy } from "@/lib/recommendations/plan/activation-energy";
+import { buildPhaseReadinessDescription } from "@/lib/recommendations/plan/build-readiness-signal";
+import {
+  anchorCandidateRank,
+  classifyRhythmCadence,
+  isValidAnchorCandidate,
+} from "@/lib/recommendations/plan/plan-rhythm-cadence";
 import {
   formatTotalDurationWeeks,
   GOAL_PILLAR_DENSITY,
@@ -73,6 +79,57 @@ function comparePlanRhythmCandidates(a: ScoredRecommendation, b: ScoredRecommend
   const tr = planRhythmTypeRank(a.type) - planRhythmTypeRank(b.type);
   if (tr !== 0) return tr;
   return compareCandidates(a, b);
+}
+
+function compareAnchorCandidates(a: ScoredRecommendation, b: ScoredRecommendation): number {
+  const ar = anchorCandidateRank(a) - anchorCandidateRank(b);
+  if (ar !== 0) return ar;
+  return comparePlanRhythmCandidates(a, b);
+}
+
+function assignRhythmItem(
+  row: ScoredRecommendation,
+  daily: PlanRecommendationItem[],
+  weekly: PlanRecommendationItem[],
+  counts: { daily: number; weekly: number },
+  allowCadenceMismatch: boolean,
+): boolean {
+  const item = toPlanItem(row);
+  const cadence = classifyRhythmCadence(row.text, row.type);
+
+  if (cadence === "daily") {
+    if (daily.length < counts.daily) {
+      daily.push(item);
+      return true;
+    }
+    if (allowCadenceMismatch && weekly.length < counts.weekly) {
+      weekly.push(item);
+      return true;
+    }
+    return false;
+  }
+
+  if (cadence === "weekly") {
+    if (weekly.length < counts.weekly) {
+      weekly.push(item);
+      return true;
+    }
+    if (allowCadenceMismatch && daily.length < counts.daily) {
+      daily.push(item);
+      return true;
+    }
+    return false;
+  }
+
+  if (daily.length < counts.daily) {
+    daily.push(item);
+    return true;
+  }
+  if (weekly.length < counts.weekly) {
+    weekly.push(item);
+    return true;
+  }
+  return false;
 }
 
 function hasHighNeuroticismPersona(persona: PersonaKey): boolean {
@@ -299,8 +356,8 @@ function pickAnchor(
 ): ScoredRecommendation | null {
   const candidates = pool
     .filter((r) => !used.has(r.id) && isEligibleForPhase(r, capacity, phaseNumber, profile))
-    .filter((r) => PLAN_RHYTHM_TYPES.has(r.type))
-    .sort(comparePlanRhythmCandidates);
+    .filter((r) => PLAN_RHYTHM_TYPES.has(r.type) && isValidAnchorCandidate(r))
+    .sort(compareAnchorCandidates);
 
   if (profile.barriers.includes("barrier_poor_sleep") && phaseNumber === 1) {
     const sleepHit = candidates.find((r) => r.pillar === "Sleep & Recovery");
@@ -363,16 +420,11 @@ function assignPhaseItems(
     const currentPillarShare = pillarCounts[row.pillar] / Math.max(1, assigned);
     if (assigned > 2 && currentPillarShare * 100 > pillarTarget + 15) continue;
 
+    if (!assignRhythmItem(row, daily, weekly, counts, false)) continue;
+
     used.add(row.id);
     pillarCounts[row.pillar] += 1;
     assigned += 1;
-
-    const item = toPlanItem(row);
-    if (daily.length < counts.daily) {
-      daily.push(item);
-    } else if (weekly.length < counts.weekly) {
-      weekly.push(item);
-    }
   }
 
   // R3 — at least one item per pillar where possible
@@ -387,12 +439,11 @@ function assignPhaseItems(
       continue;
     }
 
+    if (!assignRhythmItem(filler, daily, weekly, counts, true)) continue;
+
     used.add(filler.id);
     pillarCounts[pillar] += 1;
     assigned += 1;
-    const item = toPlanItem(filler);
-    if (daily.length < counts.daily) daily.push(item);
-    else weekly.push(item);
   }
 
   // R8 — extend once if high-priority items remain
@@ -400,15 +451,32 @@ function assignPhaseItems(
     const leftover = candidates.find(
       (r) => !used.has(r.id) && (r.strength === "core" || r.strength === "supporting"),
     );
-    if (leftover) {
+    if (leftover && assignRhythmItem(leftover, daily, weekly, { daily: counts.daily + 1, weekly: counts.weekly + 1 }, true)) {
       used.add(leftover.id);
-      const item = toPlanItem(leftover);
-      if (daily.length < counts.daily + 1) daily.push(item);
-      else weekly.push(item);
     }
   }
 
+  rebalanceRhythmBuckets(daily, weekly);
+
   return { daily, weekly, anchor: anchorRow };
+}
+
+/** Move daily-labelled items out of weekly (and vice versa) when slots were filled in order. */
+function rebalanceRhythmBuckets(daily: PlanRecommendationItem[], weekly: PlanRecommendationItem[]): void {
+  for (let i = weekly.length - 1; i >= 0; i--) {
+    const item = weekly[i]!;
+    if (classifyRhythmCadence(item.text, "do") === "daily") {
+      daily.push(item);
+      weekly.splice(i, 1);
+    }
+  }
+  for (let i = daily.length - 1; i >= 0; i--) {
+    const item = daily[i]!;
+    if (classifyRhythmCadence(item.text, "do") === "weekly") {
+      weekly.push(item);
+      daily.splice(i, 1);
+    }
+  }
 }
 
 function buildGenerationNotes(
@@ -524,24 +592,36 @@ export function generatePlanOutput(args: {
       pillarDistribution[row.pillar] += 1;
     }
 
+    const anchorHabit = anchor
+      ? toPlanItem(anchor)
+      : assigned.daily[0] ??
+        assigned.weekly[0] ?? {
+          id: "fallback",
+          text: "Start with one small action.",
+          pillar: "Mental Wellness" as PillarName,
+        };
+    const dailyRhythm = assigned.daily.filter((d) => d.id !== anchor?.id);
+    const weeklyRhythm = assigned.weekly;
+
     phases.push({
       phase_number: phase.phaseNumber,
       name: phase.name,
       intent: phase.intent,
       approx_duration_weeks: phase.durationWeeks,
-      anchor_habit: anchor
-        ? toPlanItem(anchor)
-        : assigned.daily[0] ??
-          assigned.weekly[0] ?? {
-            id: "fallback",
-            text: "Start with one small action.",
-            pillar: "Mental Wellness",
-          },
-      daily_rhythm: assigned.daily.filter((d) => d.id !== anchor?.id),
-      weekly_rhythm: assigned.weekly,
+      anchor_habit: anchorHabit,
+      daily_rhythm: dailyRhythm,
+      weekly_rhythm: weeklyRhythm,
       readiness_signal: {
         primary_type: signals.primary,
-        description: phase.readinessDescription,
+        description: buildPhaseReadinessDescription({
+          anchor: anchorHabit,
+          daily: dailyRhythm,
+          weekly: weeklyRhythm,
+          primaryType: signals.primary,
+          secondaryType: signals.secondary,
+          barriers: profile.barriers,
+          templateFallback: phase.readinessDescription,
+        }),
         secondary_type: signals.secondary,
       },
       activation_energy_cap: aeCap,
