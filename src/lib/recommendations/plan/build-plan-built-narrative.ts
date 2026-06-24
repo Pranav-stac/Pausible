@@ -1,4 +1,5 @@
 import type { OpportunityCard, PlanOutput, UserProfile } from "@/lib/recommendations/types";
+import { PLAN_TEXT_LIMITS } from "@/lib/recommendations/plan/plan-text-limits";
 import { PERSONA_DISPLAY } from "@/lib/scoring/persona-defaults";
 import { fitTierLabel } from "@/lib/scoring/persona-fit";
 import type { BuildProfileInput } from "@/lib/recommendations/build-user-profile";
@@ -52,9 +53,27 @@ export function buildDeterministicPlanBuiltNarrative(args: {
   ].join(" ");
 }
 
-export function buildDeterministicPlanSubtitle(profile: UserProfile): string {
+export function buildDeterministicPlanSubtitle(
+  profile: UserProfile,
+  secondaryBlendPct?: number,
+): string {
   const primaryLabel = PERSONA_DISPLAY[profile.primaryPersona]?.label ?? profile.primaryPersona;
-  return `A phased approach that builds your wellness routine layer by layer — shaped by your ${primaryLabel} personality.`;
+  const base = `A phased approach that builds your wellness routine layer by layer — shaped by your ${primaryLabel} personality.`;
+
+  const secondaryLabel = PERSONA_DISPLAY[profile.secondaryPersona]?.label;
+  const blendPct = secondaryBlendPct ?? 0;
+  if (
+    secondaryLabel &&
+    blendPct > 15 &&
+    profile.secondaryPersona !== profile.primaryPersona
+  ) {
+    const withSecondary = `${base.slice(0, -1)}, with ${secondaryLabel} support when you need it.`;
+    if (withSecondary.length <= PLAN_TEXT_LIMITS.plan_subtitle) {
+      return withSecondary;
+    }
+  }
+
+  return base;
 }
 
 export function buildDeterministicGoalFraming(profile: UserProfile): string {

@@ -137,8 +137,20 @@ function CoachGuideIntroductionSlide({
 
         <div className="mb-5 grid gap-3 sm:grid-cols-2">
           <div className="rounded-lg border border-slate-200 p-4">
-            <p className="text-[10px] font-bold uppercase text-slate-500">Primary goal</p>
-            <p className="mt-1 font-semibold text-slate-900">{intro.primaryGoal}</p>
+            <p className="text-[10px] font-bold uppercase text-slate-500">
+              {(intro.goals?.length ?? 0) > 1 ? "Goals" : "Goal"}
+            </p>
+            {(intro.goals?.length ? intro.goals : intro.primaryGoal ? [intro.primaryGoal] : []).length > 1 ? (
+              <ul className="mt-1 space-y-1 text-sm font-semibold text-slate-900">
+                {(intro.goals?.length ? intro.goals : [intro.primaryGoal]).map((g) => (
+                  <li key={g}>• {g}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-1 font-semibold text-slate-900">
+                {intro.goals?.[0] ?? intro.primaryGoal ?? "General wellness"}
+              </p>
+            )}
           </div>
           <div className="rounded-lg border border-slate-200 p-4">
             <p className="text-[10px] font-bold uppercase text-slate-500">Top barrier</p>
@@ -227,7 +239,7 @@ function CoachGuidePrinciplesSlide({
 
         {guide.planAlignmentNotes?.length ? (
           <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50/80 p-3">
-            <p className="text-[10px] font-bold uppercase text-slate-500">Client plan anchors (for reference)</p>
+            <p className="text-[10px] font-bold uppercase text-slate-500">Client plan snapshot (for reference)</p>
             <ul className="mt-2 space-y-1 text-xs text-slate-700">
               {guide.planAlignmentNotes.map((note) => (
                 <li key={note}>• {note}</li>

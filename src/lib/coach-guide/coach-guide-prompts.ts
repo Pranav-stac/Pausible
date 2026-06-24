@@ -55,15 +55,10 @@ Use the client's first name — never "the client" or "this person".
 No motivational fluff. Short, directive, coach-to-coach tone.
 Return valid JSON only.`;
 
-function formatGoal(goals: string[]): string {
-  if (!goals.length) return "General wellness";
-  return goals[0].replace(/^goal_/, "").replace(/_/g, " ");
-}
-
-function formatBarrier(barriers: string[]): string {
-  if (!barriers.length) return "Not specified";
-  return barriers[0].replace(/^barrier_/, "").replace(/_/g, " ");
-}
+import {
+  formatBarrier,
+  formatGoalsPhrase,
+} from "@/lib/coach-guide/format-profile-context";
 
 export function collectTraitDeviations(
   persona: PersonaAnalysis,
@@ -108,7 +103,7 @@ export function buildCoachGuidePage2Prompt(args: {
   const primaryLabel = PERSONA_DISPLAY[primaryKey]?.label ?? personaLabel(primaryKey);
   const secondaryLabel = PERSONA_DISPLAY[secondaryKey]?.label ?? personaLabel(secondaryKey);
   const secondaryPct = Math.round(persona.personaPercentages?.[secondaryKey] ?? 0);
-  const goal = formatGoal(profile.goals);
+  const goalsPhrase = formatGoalsPhrase(profile.goals);
   const barrier = formatBarrier(profile.barriers);
   const interaction = secondaryInteractionPattern(secondaryKey);
   const deviations = collectTraitDeviations(persona, primaryKey);
@@ -120,7 +115,7 @@ CONTEXT:
 - Secondary persona: ${secondaryLabel} (${secondaryPct}%)
 - Secondary interaction pattern: ${interaction}
 - Fit tier: ${fitTierLabel(persona.fitTier)}
-- Primary goal: ${goal}
+- Goals: ${goalsPhrase}
 - Top barrier: ${barrier}
 - Trait scores: ${traitScoreSummary(persona)}
 - Persona operating style: ${coachProfile.operatingStyle}
@@ -133,7 +128,7 @@ TASKS (6 prompts combined):
 
 1. personaDescription — Exactly 2 sentences.
    Sentence 1: How ${firstName} naturally approaches wellness (from operating style).
-   Sentence 2: What this means for their ${goal} goal given ${barrier} as main barrier.
+   Sentence 2: What this means for their ${goalsPhrase} goal(s) given ${barrier} as main barrier.
 
 2. secondaryInfluence — Exactly 2 sentences.
    Intro: "${firstName} is primarily a ${primaryLabel} with ${secondaryLabel} influence (${secondaryPct}%)."
@@ -229,7 +224,7 @@ export function buildCoachGuideMatrixPrompt(args: {
   const primaryKey = profile.primaryPersona;
   const coachProfile = PERSONA_COACH_PROFILE[primaryKey];
   const primaryLabel = PERSONA_DISPLAY[primaryKey]?.label ?? personaLabel(primaryKey);
-  const goal = formatGoal(profile.goals);
+  const goalsPhrase = formatGoalsPhrase(profile.goals);
   const barrier = formatBarrier(profile.barriers);
   const personaMatrix = formatPersonaMatrixReference(coachProfile.pillarMatrix);
   const planByPillar = formatPlanByPillar(planOutput, integratedPlan);
@@ -243,7 +238,7 @@ CONTEXT:
 - Client: ${firstName}
 - Primary persona: ${primaryLabel} (${primaryKey})
 - Fit tier: ${fitTierLabel(persona.fitTier)}
-- Goal: ${goal}
+- Goals: ${goalsPhrase}
 - Top barrier: ${barrier}
 - Operating style: ${coachProfile.operatingStyle}
 - Natural strength: ${coachProfile.naturalStrength}
@@ -302,7 +297,7 @@ export function buildCoachGuidePage3Prompt(args: {
   const primaryKey = profile.primaryPersona;
   const coachProfile = PERSONA_COACH_PROFILE[primaryKey];
   const primaryLabel = PERSONA_DISPLAY[primaryKey]?.label ?? personaLabel(primaryKey);
-  const goal = formatGoal(profile.goals);
+  const goalsPhrase = formatGoalsPhrase(profile.goals);
   const barrier = formatBarrier(profile.barriers);
   const layer1 = LAYER1_PSYCHOLOGICAL_CRITERIA[primaryKey];
   const layer2 = layer2CriterionForBarrier(profile.barriers[0] ?? barrier);
@@ -317,7 +312,7 @@ export function buildCoachGuidePage3Prompt(args: {
 
 CONTEXT:
 - Primary persona: ${primaryLabel}
-- Primary goal: ${goal}
+- Goals: ${goalsPhrase}
 - Top barrier: ${barrier}
 - Layer 1 criterion (${primaryLabel}): ${layer1}
 - Layer 2 criterion (${barrier}): ${layer2}

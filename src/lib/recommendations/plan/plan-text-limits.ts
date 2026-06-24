@@ -6,10 +6,23 @@ export const PLAN_TEXT_LIMITS = {
   phase_intent_user: 220,
   readiness_signal_user: 150,
   anchor_habit_user: 90,
-  rhythm_line: 85,
-  plan_built_narrative: 600,
+  rhythm_line: 100,
+  plan_built_narrative: 720,
   plan_note: 120,
 } as const;
+
+const DANGLING_ENDINGS =
+  /\b(when|with|and|or|the|a|an|to|for|if|as|but|so|by|at|in|on|of|from|into|about|after|before|during|while|until|unless|because|although|though|where|which|that|who|whom|whose|what|how|why|whether|either|neither|both|every|each|any|some|no|not|nor|yet|still|just|only|even|also|too|more|most|less|least|such|same|other|another|upon|count)\.$/i;
+
+/** True when text ends cleanly — not mid-clause or on a dangling word. */
+export function isCompleteSentence(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+  if (!/[.!?]$/.test(trimmed)) return false;
+  if (DANGLING_ENDINGS.test(trimmed)) return false;
+  if (/\b(or|and)\s*$/i.test(trimmed.replace(/[.!?]$/, ""))) return false;
+  return true;
+}
 
 function truncateAtSentence(text: string, maxLength: number): string {
   const trimmed = text.trim();
@@ -18,18 +31,51 @@ function truncateAtSentence(text: string, maxLength: number): string {
   const slice = trimmed.slice(0, maxLength);
   const lastSentence = Math.max(slice.lastIndexOf(". "), slice.lastIndexOf("! "), slice.lastIndexOf("? "));
   if (lastSentence > maxLength * 0.5) {
-    return slice.slice(0, lastSentence + 1).trim();
+    const cut = slice.slice(0, lastSentence + 1).trim();
+    if (isCompleteSentence(cut)) return cut;
   }
 
   const lastSpace = slice.lastIndexOf(" ");
   if (lastSpace > maxLength * 0.6) {
-    return `${slice.slice(0, lastSpace).trim()}.`;
+    const cut = `${slice.slice(0, lastSpace).trim()}.`;
+    if (isCompleteSentence(cut)) return cut;
   }
 
-  return `${slice.trim()}.`;
+  const forced = `${slice.trim()}.`;
+  return isCompleteSentence(forced) ? forced : trimmed.slice(0, maxLength).trim();
+}
+
+/** Truncate action lines at clause boundaries so list items stay intact. */
+export function truncatePlanLine(text: string, maxLength: number): string {
+  const trimmed = text.trim();
+  if (trimmed.length <= maxLength) return trimmed;
+
+  const slice = trimmed.slice(0, maxLength);
+  const clauseBreaks = [
+    slice.lastIndexOf(", or "),
+    slice.lastIndexOf("; "),
+    slice.lastIndexOf(" — "),
+    slice.lastIndexOf(", "),
+  ];
+  for (const idx of clauseBreaks) {
+    if (idx > maxLength * 0.45) {
+      const cut = slice.slice(0, idx).trim();
+      if (cut.length >= maxLength * 0.45) return cut;
+    }
+  }
+
+  const lastSpace = slice.lastIndexOf(" ");
+  if (lastSpace > maxLength * 0.55) {
+    return slice.slice(0, lastSpace).trim();
+  }
+
+  return slice.trim();
 }
 
 export function enforcePlanTextLimit(field: keyof typeof PLAN_TEXT_LIMITS, text: string): string {
+  if (field === "rhythm_line") {
+    return truncatePlanLine(text, PLAN_TEXT_LIMITS.rhythm_line);
+  }
   return truncateAtSentence(text, PLAN_TEXT_LIMITS[field]);
 }
 

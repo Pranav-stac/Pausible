@@ -1,4 +1,5 @@
 import { parseDurationWeeks } from "@/lib/recommendations/plan/phase-config";
+import { PLAN_TEXT_LIMITS, truncatePlanLine } from "@/lib/recommendations/plan/plan-text-limits";
 import type { PlanPhaseOutput } from "@/lib/recommendations/types";
 import { firstSentence } from "@/lib/results/plan-line-format";
 
@@ -23,14 +24,12 @@ export function formatPhaseWeekLabel(
 }
 
 /** One imperative action line — engine fallback when AI is unavailable. */
-export function toPlanActionLine(text: string, maxChars = 100): string {
-  let line = firstSentence(text.trim()).replace(/\s+/g, " ");
-  if (line.length > maxChars) {
-    const cut = line.slice(0, maxChars);
-    const lastSpace = cut.lastIndexOf(" ");
-    line = lastSpace > maxChars * 0.6 ? cut.slice(0, lastSpace) : cut;
-  }
-  return line.trim();
+export function toPlanActionLine(
+  text: string,
+  maxChars: number = PLAN_TEXT_LIMITS.rhythm_line,
+): string {
+  const line = firstSentence(text.trim()).replace(/\s+/g, " ");
+  return truncatePlanLine(line, maxChars);
 }
 
 export function formatReadinessLine(text: string): string {

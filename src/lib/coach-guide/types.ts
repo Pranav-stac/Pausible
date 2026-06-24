@@ -32,6 +32,8 @@ export type CoachGuideDocument = {
     secondaryInfluence: string;
     traits: CoachGuideTraitRow[];
     primaryGoal: string;
+    /** All wellness goals selected in the assessment. */
+    goals?: string[];
     topBarrier: string;
     motivates: string[];
     drains: string[];

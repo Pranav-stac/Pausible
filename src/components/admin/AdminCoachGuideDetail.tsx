@@ -100,8 +100,20 @@ export function AdminCoachGuideDetail({ guide }: { guide: CoachGuideDocument | n
 
         <dl className="mt-4 grid gap-3 sm:grid-cols-2">
           <div>
-            <dt className="text-[10px] font-bold uppercase text-slate-500">Primary goal</dt>
-            <dd className="mt-0.5">{intro.primaryGoal}</dd>
+            <dt className="text-[10px] font-bold uppercase text-slate-500">
+              {(intro.goals?.length ?? 0) > 1 ? "Goals" : "Goal"}
+            </dt>
+            <dd className="mt-0.5">
+              {(intro.goals?.length ? intro.goals : intro.primaryGoal ? [intro.primaryGoal] : []).length > 1 ? (
+                <ul className="list-inside list-disc">
+                  {(intro.goals?.length ? intro.goals : [intro.primaryGoal]).map((g) => (
+                    <li key={g}>{g}</li>
+                  ))}
+                </ul>
+              ) : (
+                intro.goals?.[0] ?? intro.primaryGoal ?? "General wellness"
+              )}
+            </dd>
           </div>
           <div>
             <dt className="text-[10px] font-bold uppercase text-slate-500">Top barrier</dt>

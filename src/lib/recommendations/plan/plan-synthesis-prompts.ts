@@ -14,7 +14,7 @@ VOICE (match the approved sample):
 
 RULES:
 - Write in second person ("you", "your").
-- plan_subtitle: ONE sentence. May name the primary persona pattern (e.g. Watchful Deer). Example: "A phased approach that builds your wellness routine layer by layer — shaped by your Watchful Deer personality."
+- plan_subtitle: ONE complete sentence, max 140 characters. Name the primary persona pattern only (e.g. Watchful Deer). Do NOT mention secondary patterns here — put those in plan_built_narrative. Example: "A phased approach that builds your wellness routine layer by layer — shaped by your Watchful Deer personality."
 - plan_built_narrative: ONE paragraph, 4–6 sentences. Persona pattern names ARE allowed here. Must mention Wellness Intelligence assessment, fit score/tier, secondary pattern if blend > 0, main barrier, goals, gradual phasing, and 2–3 priority actions by name.
 - Never use OCEAN trait names. Use: Openness, Discipline, Social Energy, Agreeableness, Stress Sensitivity.
 - Never use engine jargon (activation energy, readiness signal, pillar distribution, fit tier as a label, blend ratio).

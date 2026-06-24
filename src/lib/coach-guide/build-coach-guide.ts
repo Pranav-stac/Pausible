@@ -30,15 +30,7 @@ function coachGuideClientName(input?: BuildProfileInput): string {
   });
 }
 
-function formatGoal(goals: string[]): string {
-  if (!goals.length) return "General wellness";
-  return goals[0].replace(/^goal_/, "").replace(/_/g, " ");
-}
-
-function formatBarrier(barriers: string[]): string {
-  if (!barriers.length) return "Not specified";
-  return barriers[0].replace(/^barrier_/, "").replace(/_/g, " ");
-}
+import { formatBarrier, formatGoalTags, formatGoalsPhrase } from "@/lib/coach-guide/format-profile-context";
 
 function buildTraitRows(persona: PersonaAnalysis, primaryKey: UserProfile["primaryPersona"]): CoachGuideTraitRow[] {
   const centroid = DEFAULT_PERSONA_CENTROIDS[primaryKey];
@@ -62,10 +54,12 @@ function buildTraitRows(persona: PersonaAnalysis, primaryKey: UserProfile["prima
 function buildPersonaDescription(
   name: string,
   profile: PersonaCoachProfile,
-  goal: string,
+  goals: string[],
   barrier: string,
 ): string {
-  return `${name} is ${profile.operatingStyle.toLowerCase()}, preferring setups that feel ${profile.bestSetup.toLowerCase()}. For their ${goal} goal, progress depends on plans that account for ${barrier} — ${profile.naturalStrength.toLowerCase()} is the lever, while ${profile.primaryRisk.toLowerCase()} is the main risk.`;
+  const goalPhrase = formatGoalsPhrase(goals);
+  const goalNoun = formatGoalTags(goals).length > 1 ? "goals" : "goal";
+  return `${name} is ${profile.operatingStyle.toLowerCase()}, preferring setups that feel ${profile.bestSetup.toLowerCase()}. For their ${goalPhrase} ${goalNoun}, progress depends on plans that account for ${barrier} — ${profile.naturalStrength.toLowerCase()} is the lever, while ${profile.primaryRisk.toLowerCase()} is the main risk.`;
 }
 
 function buildSecondaryInfluence(
@@ -138,7 +132,7 @@ export function buildCoachGuideDocumentDeterministic(args: {
   const primaryLabel = PERSONA_DISPLAY[primaryKey]?.label ?? personaLabel(primaryKey);
   const secondaryLabel = PERSONA_DISPLAY[secondaryKey]?.label ?? personaLabel(secondaryKey);
   const secondaryPct = Math.round(persona.personaPercentages?.[secondaryKey] ?? 0);
-  const goal = formatGoal(profile.goals);
+  const goals = formatGoalTags(profile.goals);
   const barrier = formatBarrier(profile.barriers);
 
   const validationCheck = buildDeterministicValidationCheck(
@@ -170,10 +164,11 @@ export function buildCoachGuideDocumentDeterministic(args: {
     secondaryPct,
     introduction: {
       personaSummary: `${coachProfile.operatingStyle} · ${coachProfile.naturalStrength}`,
-      personaDescription: buildPersonaDescription(name, coachProfile, goal, barrier),
+      personaDescription: buildPersonaDescription(name, coachProfile, profile.goals, barrier),
       secondaryInfluence: buildSecondaryInfluence(name, primaryLabel, secondaryLabel, secondaryPct, secondaryKey),
       traits: buildTraitRows(persona, primaryKey),
-      primaryGoal: goal,
+      goals,
+      primaryGoal: formatGoalsPhrase(profile.goals),
       topBarrier: barrier,
       motivates: defaultMotivators(coachProfile),
       drains: defaultDrains(coachProfile),

@@ -11,13 +11,14 @@ import {
   formatReadinessLine,
   toPlanActionLine,
 } from "@/lib/recommendations/plan/plan-phase-display";
+import { PLAN_TEXT_LIMITS } from "@/lib/recommendations/plan/plan-text-limits";
 import { isSelfTalkOrMantra } from "@/lib/recommendations/plan/plan-rhythm-cadence";
 import {
   buildIntegratedPlanPrompt,
   PLAN_PAGE_SYSTEM_PROMPT,
   type IntegratedPlanPromptJson,
 } from "@/lib/recommendations/plan/plan-synthesis-prompts";
-import { enforceIntegratedPlanLimits } from "@/lib/recommendations/plan/plan-text-limits";
+import { enforceIntegratedPlanLimits, isCompleteSentence } from "@/lib/recommendations/plan/plan-text-limits";
 import type { ReportLlmProvider } from "@/lib/recommendations/report-llm-types";
 import { SECTION_OUTPUT_TOKENS } from "@/lib/recommendations/section-output-limits";
 import type {
@@ -30,14 +31,17 @@ import type {
 
 const PLAN_PAGE_OPENAI_MODEL = process.env.OPENAI_PLAN_MODEL?.trim() || "gpt-5.4-mini";
 
+const RHYTHM_MAX = PLAN_TEXT_LIMITS.rhythm_line;
+const ANCHOR_MAX = PLAN_TEXT_LIMITS.anchor_habit_user;
+
 function mergeRhythmLines(
   aiLines: string[] | undefined,
   engineItems: PlanRecommendationItem[],
   max: number,
 ): string[] {
-  const cleaned = (aiLines ?? []).map((line) => toPlanActionLine(line, 85)).filter(Boolean).slice(0, max);
+  const cleaned = (aiLines ?? []).map((line) => toPlanActionLine(line, RHYTHM_MAX)).filter(Boolean).slice(0, max);
   if (cleaned.length > 0) return cleaned;
-  return engineItems.slice(0, max).map((item) => toPlanActionLine(item.text, 85));
+  return engineItems.slice(0, max).map((item) => toPlanActionLine(item.text, RHYTHM_MAX));
 }
 
 function fallbackConcreteAnchor(phase: PlanOutput["phases"][number]): string {
@@ -47,15 +51,15 @@ function fallbackConcreteAnchor(phase: PlanOutput["phases"][number]): string {
       !isSelfTalkOrMantra(item.text) &&
       /\b(eat|walk|workout|meal|sleep|train|protein|bedtime)\b/i.test(item.text),
   );
-  return toPlanActionLine((hit ?? phase.anchor_habit).text, 90);
+  return toPlanActionLine((hit ?? phase.anchor_habit).text, ANCHOR_MAX);
 }
 
 function resolveAnchorUser(
   ai: string | undefined,
   phase: PlanOutput["phases"][number],
 ): string {
-  const engine = toPlanActionLine(phase.anchor_habit.text, 90);
-  const candidate = ai?.trim() ? toPlanActionLine(ai, 90) : engine;
+  const engine = toPlanActionLine(phase.anchor_habit.text, ANCHOR_MAX);
+  const candidate = ai?.trim() ? toPlanActionLine(ai, ANCHOR_MAX) : engine;
   if (!isSelfTalkOrMantra(candidate)) return candidate;
   if (!isSelfTalkOrMantra(engine)) return engine;
   return fallbackConcreteAnchor(phase);
@@ -72,8 +76,8 @@ function mergePhaseRhythm(
   if (!synthesized) {
     return {
       anchor_habit_user: resolveAnchorUser(undefined, phase),
-      daily_rhythm_user: engineDaily.slice(0, 3).map((item) => toPlanActionLine(item.text, 85)),
-      weekly_rhythm_user: engineWeekly.slice(0, 3).map((item) => toPlanActionLine(item.text, 85)),
+      daily_rhythm_user: engineDaily.slice(0, 3).map((item) => toPlanActionLine(item.text, RHYTHM_MAX)),
+      weekly_rhythm_user: engineWeekly.slice(0, 3).map((item) => toPlanActionLine(item.text, RHYTHM_MAX)),
     };
   }
 
@@ -97,6 +101,18 @@ function resolvePlanBuiltNarrative(
   return fallbackNarrative;
 }
 
+function resolvePlanSubtitle(
+  ai: string | undefined,
+  profile: UserProfile,
+  secondaryBlendPct?: number,
+): string {
+  const fallback = buildDeterministicPlanSubtitle(profile, secondaryBlendPct);
+  const candidate = ai?.trim();
+  if (!candidate) return fallback;
+  if (!isCompleteSentence(candidate)) return fallback;
+  return candidate;
+}
+
 function deterministicIntegratedPlan(
   planOutput: PlanOutput,
   profile: UserProfile,
@@ -113,15 +129,15 @@ function deterministicIntegratedPlan(
   });
 
   return {
-    plan_subtitle: buildDeterministicPlanSubtitle(profile),
+    plan_subtitle: buildDeterministicPlanSubtitle(profile, secondaryBlendPct),
     goal_framing: buildDeterministicGoalFraming(profile),
     phases: planOutput.phases.map((phase) => ({
       phase_number: phase.phase_number,
       phase_intent_user: phase.intent,
       readiness_signal_user: formatReadinessLine(phase.readiness_signal.description),
-      anchor_habit_user: toPlanActionLine(phase.anchor_habit.text, 90),
-      daily_rhythm_user: phase.daily_rhythm.slice(0, 3).map((item) => toPlanActionLine(item.text, 85)),
-      weekly_rhythm_user: phase.weekly_rhythm.slice(0, 3).map((item) => toPlanActionLine(item.text, 85)),
+      anchor_habit_user: toPlanActionLine(phase.anchor_habit.text, ANCHOR_MAX),
+      daily_rhythm_user: phase.daily_rhythm.slice(0, 3).map((item) => toPlanActionLine(item.text, RHYTHM_MAX)),
+      weekly_rhythm_user: phase.weekly_rhythm.slice(0, 3).map((item) => toPlanActionLine(item.text, RHYTHM_MAX)),
     })),
     plan_built_narrative,
     plan_notes: [],
@@ -154,7 +170,7 @@ function mergeParsedPlan(
   });
 
   const raw = {
-    plan_subtitle: parsed?.plan_subtitle?.trim() || fallback.plan_subtitle,
+    plan_subtitle: resolvePlanSubtitle(parsed?.plan_subtitle, profile, secondaryBlendPct),
     goal_framing: parsed?.goal_framing?.trim() || fallback.goal_framing,
     phases,
     plan_built_narrative: resolvePlanBuiltNarrative(parsed, fallback.plan_built_narrative),
@@ -162,7 +178,13 @@ function mergeParsedPlan(
   };
 
   const limited = enforceIntegratedPlanLimits(raw);
-  const { sanitized, violations } = sanitizeIntegratedPlanFields(limited);
+  const planSubtitle = isCompleteSentence(limited.plan_subtitle)
+    ? limited.plan_subtitle
+    : buildDeterministicPlanSubtitle(profile, secondaryBlendPct);
+  const { sanitized, violations } = sanitizeIntegratedPlanFields({
+    ...limited,
+    plan_subtitle: planSubtitle,
+  });
 
   if (violations.length) {
     console.warn("[plan-page] blocklist violations:", violations);
