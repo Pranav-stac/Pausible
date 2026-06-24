@@ -120,11 +120,13 @@ export async function POST(req: Request) {
     );
     const apiPlan = toActionPlanApiPayload(plan);
     const cache = buildStoredActionPlanCache(inputHash, apiPlan, llmProvider);
+    const reportDisplayName = plan.synthesis.reportDisplayName?.trim() || null;
 
     if (attemptId && db) {
       await db.collection("attempts").doc(attemptId).set(
         stripUndefinedDeep({
           actionPlanCache: cache,
+          ...(reportDisplayName ? { reportDisplayName } : {}),
           ...(recomputed ? { scores, personaAnalysis: scores.persona ?? null } : {}),
           updatedAt: FieldValue.serverTimestamp(),
         }),
@@ -136,6 +138,7 @@ export async function POST(req: Request) {
       plan: apiPlan,
       inputHash,
       llmProvider,
+      reportDisplayName,
       cached: false,
     });
   } catch (e) {

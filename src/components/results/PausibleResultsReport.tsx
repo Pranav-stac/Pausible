@@ -132,8 +132,15 @@ export function PausibleResultsReport({
             json.plan,
             json.llmProvider === "gpt" ? "gpt" : reportLlmProvider,
           );
+          const reportDisplayName =
+            (typeof json.reportDisplayName === "string" && json.reportDisplayName.trim()) ||
+            json.plan?.synthesis?.reportDisplayName?.trim() ||
+            undefined;
           onActionPlanCached?.(cache);
-          void patchAttempt(attempt.id, { actionPlanCache: cache });
+          void patchAttempt(attempt.id, {
+            actionPlanCache: cache,
+            ...(reportDisplayName ? { reportDisplayName } : {}),
+          });
         }
       } catch (e) {
         if (!cancelled) setPlanError(e instanceof Error ? e.message : "Could not load report content");

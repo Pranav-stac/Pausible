@@ -15,6 +15,10 @@ import { PERSONA_REPORT_THEME } from "@/lib/results/persona-report-theme";
 import type { DimensionRow } from "@/lib/results/dimension-rows";
 import type { StoredActionPlanCache } from "@/lib/recommendations/action-plan-cache";
 import type { SerializedAttempt } from "@/lib/local/attempts";
+import {
+  formatAttemptListDate,
+  resolveAttemptDisplayName,
+} from "@/lib/results/attempt-display-name";
 
 type PersonaCopy = { label: string; summary: string; bullets: string[] };
 type PersonaMixRow = { key: PersonaKey; label: string; pct: number };
@@ -566,12 +570,14 @@ export function ResultsBentoSummary({
                       : "bg-slate-50 text-slate-700 hover:bg-slate-100"
                   }`}
                 >
-                  <span className="truncate text-xs sm:text-sm">
-                    {new Date(row.createdAtIso ?? "").toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
+                  <span className="min-w-0 truncate text-xs sm:text-sm">
+                    <span className="font-semibold text-slate-900">
+                      {resolveAttemptDisplayName(row)}
+                    </span>
+                    <span className="mt-0.5 block text-[10px] font-medium text-slate-500 sm:inline sm:mt-0">
+                      <span className="hidden sm:inline"> · </span>
+                      {formatAttemptListDate(row.createdAtIso)}
+                    </span>
                   </span>
                   <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide">
                     {row.id === attemptId ? (

@@ -7,6 +7,11 @@ import { useFirebaseAuth } from "@/lib/firebase/auth-context";
 import { isFirebaseConfigured } from "@/lib/firebase/config";
 import { listMyAttempts } from "@/lib/data/attempt-service";
 import type { SerializedAttempt } from "@/lib/local/attempts";
+import {
+  formatAttemptListDate,
+  paymentStatusLabel,
+  resolveAttemptDisplayName,
+} from "@/lib/results/attempt-display-name";
 import { BrandLogo } from "@/components/BrandLogo";
 import type { User } from "firebase/auth";
 
@@ -140,40 +145,50 @@ export function MyResultsHub() {
               </Link>
             </p>
           ) : (
-            rows.map((row) => (
-              <div
-                key={row.id}
-                className="flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
-              >
-                <div>
-                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    {row.assessmentId} · {row.paymentStatus}
-                  </div>
-                  <div className="mt-1 font-mono text-xs text-slate-500">{row.id}</div>
-                  <div className="mt-2 text-sm text-slate-700">
-                    Started {row.createdAtIso ? new Date(row.createdAtIso).toLocaleString() : "—"}
-                    {row.paidAtIso ? ` · Paid ${new Date(row.paidAtIso).toLocaleString()}` : ""}
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold">
-                    {row.paymentStatus === "paid" ? (
-                      <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-900">Unlocked results</span>
-                    ) : (
-                      <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-950">Needs payment</span>
-                    )}
-                    {row.paymentStatus === "paid" && row.isLatestShareEligible ? (
-                      <span className="rounded-full bg-sky-100 px-3 py-1 text-sky-950">Latest share spotlight</span>
-                    ) : null}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => router.push(`/results/${row.id}`)}
-                  className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white"
+            rows.map((row) => {
+              const title = resolveAttemptDisplayName(row);
+              const dateLabel = formatAttemptListDate(row.createdAtIso);
+              const statusLabel = paymentStatusLabel(row.paymentStatus);
+
+              return (
+                <div
+                  key={row.id}
+                  className="flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
                 >
-                  Open
-                </button>
-              </div>
-            ))
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-base font-semibold leading-snug text-slate-900 sm:text-lg">{title}</h2>
+                    <p className="mt-1 text-sm text-slate-600">
+                      {dateLabel}
+                      <span className="text-slate-400"> · </span>
+                      {statusLabel}
+                      {row.paidAtIso ? (
+                        <>
+                          <span className="text-slate-400"> · </span>
+                          Paid {formatAttemptListDate(row.paidAtIso)}
+                        </>
+                      ) : null}
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold">
+                      {row.paymentStatus === "paid" ? (
+                        <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-900">Unlocked results</span>
+                      ) : (
+                        <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-950">Needs payment</span>
+                      )}
+                      {row.paymentStatus === "paid" && row.isLatestShareEligible ? (
+                        <span className="rounded-full bg-sky-100 px-3 py-1 text-sky-950">Latest share spotlight</span>
+                      ) : null}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/results/${row.id}`)}
+                    className="shrink-0 rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white"
+                  >
+                    Open
+                  </button>
+                </div>
+              );
+            })
           )}
         </div>
       </div>

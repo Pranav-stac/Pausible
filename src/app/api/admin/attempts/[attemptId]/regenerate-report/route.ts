@@ -61,10 +61,12 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ attemptId:
     const apiPlan = toActionPlanApiPayload(plan);
     const inputHash = hashActionPlanInputs(answers, scores, llmProvider);
     const cache = buildStoredActionPlanCache(inputHash, apiPlan, llmProvider);
+    const reportDisplayName = plan.synthesis.reportDisplayName?.trim() || null;
 
     await db.collection("attempts").doc(attemptId).set(
       stripUndefinedDeep({
         actionPlanCache: cache,
+        ...(reportDisplayName ? { reportDisplayName } : {}),
         scores,
         personaAnalysis: scores.persona ?? null,
         updatedAt: FieldValue.serverTimestamp(),

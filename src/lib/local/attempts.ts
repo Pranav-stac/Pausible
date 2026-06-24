@@ -23,6 +23,8 @@ export type SerializedAttempt = {
   paidAtIso?: string;
   /** Cached Gemini + recommendation engine output — one synthesis per attempt. */
   actionPlanCache?: StoredActionPlanCache | null;
+  /** AI-assigned short title for history lists. */
+  reportDisplayName?: string | null;
 };
 
 function readAll(): SerializedAttempt[] {

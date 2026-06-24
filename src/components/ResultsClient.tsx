@@ -155,7 +155,16 @@ export function ResultsClient() {
   }, [attemptId, effectiveUid, forceRegenerateReport, hasGoogleIdentity, mustUseGoogle, ready, requirePayment, router, settingsLoading]);
 
   const handleActionPlanCached = useCallback((cache: StoredActionPlanCache) => {
-    setAttempt((row) => (row ? { ...row, actionPlanCache: cache } : row));
+    const reportDisplayName = cache.plan?.synthesis?.reportDisplayName?.trim();
+    setAttempt((row) =>
+      row
+        ? {
+            ...row,
+            actionPlanCache: cache,
+            ...(reportDisplayName ? { reportDisplayName } : {}),
+          }
+        : row,
+    );
   }, []);
 
   const reportModel = useMemo(() => {

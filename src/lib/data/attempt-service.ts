@@ -55,6 +55,7 @@ export type WritableAttempt = {
   /** Same-tab proof so a later Google sign-in can claim this attempt (see /api/attempts/claim). */
   claimSecret?: string | null;
   actionPlanCache?: StoredActionPlanCache | null;
+  reportDisplayName?: string | null;
 };
 
 function toSerialized(a: WritableAttempt & { createdAtIso?: string; paidAtIso?: string }): SerializedAttempt {
@@ -75,6 +76,7 @@ function toSerialized(a: WritableAttempt & { createdAtIso?: string; paidAtIso?: 
     createdAtIso: a.createdAtIso,
     paidAtIso: a.paidAtIso,
     actionPlanCache: a.actionPlanCache ?? null,
+    reportDisplayName: a.reportDisplayName ?? null,
   };
 }
 
@@ -170,6 +172,7 @@ export async function fetchAttempt(attemptId: string): Promise<SerializedAttempt
     createdAtIso: d.createdAt?.toDate?.()?.toISOString?.() ?? undefined,
     paidAtIso: d.paidAt?.toDate?.()?.toISOString?.() ?? undefined,
     actionPlanCache: parseActionPlanCache(d.actionPlanCache, d.answers as AttemptAnswers, (d.scores ?? null) as AttemptScores | null),
+    reportDisplayName: d.reportDisplayName != null ? String(d.reportDisplayName) : null,
   };
 }
 
@@ -200,6 +203,7 @@ export async function listMyAttempts(uid: string): Promise<SerializedAttempt[]> 
       createdAtIso: d.createdAt?.toDate?.()?.toISOString?.() ?? undefined,
       paidAtIso: d.paidAt?.toDate?.()?.toISOString?.() ?? undefined,
       actionPlanCache: parseActionPlanCache(d.actionPlanCache, d.answers as AttemptAnswers, (d.scores ?? null) as AttemptScores | null),
+      reportDisplayName: d.reportDisplayName != null ? String(d.reportDisplayName) : null,
     } satisfies SerializedAttempt;
   });
 }

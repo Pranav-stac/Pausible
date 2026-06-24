@@ -332,6 +332,8 @@ export type ActionPlanSynthesis = {
   integratedPlan?: IntegratedPlanSynthesis | null;
   planOutput?: PlanOutput | null;
   coachGuide?: CoachGuideDocument | null;
+  /** Short AI title for history lists (e.g. "Pranav's Floor-First Plan"). */
+  reportDisplayName?: string | null;
 };
 
 export type ActionPlan = ActionPlanSelection & {

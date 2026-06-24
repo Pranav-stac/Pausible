@@ -87,7 +87,11 @@ export function PausibleCoachGuideReport({
           data.plan,
           reportLlmProvider,
         );
-        void patchAttempt(attemptId, { actionPlanCache: cache });
+        const reportDisplayName = data.plan?.synthesis?.reportDisplayName?.trim();
+        void patchAttempt(attemptId, {
+          actionPlanCache: cache,
+          ...(reportDisplayName ? { reportDisplayName } : {}),
+        });
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load coach guide");
       } finally {

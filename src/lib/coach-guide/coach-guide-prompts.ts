@@ -53,6 +53,7 @@ export const COACH_GUIDE_SYSTEM_PROMPT = `You are writing sections of the Pausib
 Use behavioral language only. Never reference OCEAN, assessments, or reports.
 Use the client's first name — never "the client" or "this person".
 No motivational fluff. Short, directive, coach-to-coach tone.
+The reader is already the coach — write direct imperatives (Keep, Set, Add, Protect). Do not start sentences with "Coach".
 Return valid JSON only.`;
 
 import {
@@ -256,18 +257,24 @@ By pillar:
 ${planByPillar}
 
 TASK — pillarMatrix (4 rows × 4 pillars):
-For each cell write 1–2 short imperative sentences telling the COACH what to do.
-- structure: how to coach routine/anchor for this pillar using their actual phase anchors and daily items
-- environment: how to set up context using their environment/setup actions in the plan
-- progression: how to advance load using their weekly rhythm and later phases for this pillar
-- recoveryProtocol: how to handle misses using their backup/recovery actions and readiness cues
+For each cell write 1–2 short imperative sentences — direct coaching notes for the reader (they are the coach).
+- structure: routine/anchor for this pillar — their phase anchors and daily items
+- environment: setup and context — environment actions from the plan
+- progression: when and how to advance load — weekly rhythm and later phases
+- recoveryProtocol: handle misses — backup/recovery actions and readiness cues
+
+VOICE (critical):
+- Do NOT start cells with "Coach" or "Coach the". The audience is the coach; write as briefing notes.
+- Vary sentence openings across the 16 cells. Good starters: Keep, Start with, Set, Pre-stock, Add, Protect, Hold, Test, If ${firstName} misses, After a bad night, Only advance when, Give, Use, Build, Reset to.
+- Prefer row-appropriate verbs: structure → Keep/Start with/Anchor; environment → Set/Pre-stock/Protect; progression → Add/Test/Only advance when; recovery → If ${firstName} misses/Contain/Reset/Next session.
+- Use ${firstName}'s name in recovery cells when natural — not in every cell.
 
 RULES:
 1. Every cell must cite or clearly reflect THIS client's plan actions for that pillar when plan items exist.
 2. Stay within ${primaryLabel} coaching principles (private, low-pressure, etc. as applicable).
-3. Do NOT paste client copy verbatim — translate into coach directives ("Coach the protein anchor in Phase 1…").
+3. Do NOT paste client copy verbatim — translate into brief coach notes (e.g. "Keep the Phase 1 protein meal as the anchor; one food rule at a time.").
 4. If a pillar has few plan items, combine persona principle + the items that exist.
-5. Max 220 characters per cell. Coach-to-coach tone. No fluff.
+5. Max 220 characters per cell. No fluff. No repeated opening word across a row.
 
 OUTPUT JSON:
 {

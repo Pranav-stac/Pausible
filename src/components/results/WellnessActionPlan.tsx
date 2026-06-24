@@ -109,8 +109,15 @@ export function WellnessActionPlan({
             json.plan,
             json.llmProvider === "gpt" ? "gpt" : DEFAULT_REPORT_LLM_PROVIDER,
           );
+          const reportDisplayName =
+            (typeof json.reportDisplayName === "string" && json.reportDisplayName.trim()) ||
+            json.plan?.synthesis?.reportDisplayName?.trim() ||
+            undefined;
           onActionPlanCached?.(cache);
-          void patchAttempt(attempt.id, { actionPlanCache: cache });
+          void patchAttempt(attempt.id, {
+            actionPlanCache: cache,
+            ...(reportDisplayName ? { reportDisplayName } : {}),
+          });
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Could not load your action plan");

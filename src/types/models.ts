@@ -88,6 +88,8 @@ export type AttemptDoc = {
   claimedAt?: Timestamp;
   createdAt?: Timestamp;
   paidAt?: Timestamp;
+  /** Short AI title for private history lists. */
+  reportDisplayName?: string | null;
 };
 
 export type UserDoc = {

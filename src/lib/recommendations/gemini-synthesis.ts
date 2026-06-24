@@ -453,7 +453,7 @@ export async function buildActionPlan(args: {
     secondaryBlendPct,
   });
 
-  const [synthesis, integratedPlan] = await Promise.all([
+  const [synthesis, integratedPlan, reportDisplayName] = await Promise.all([
     synthesizeActionPlanWithLlm(args.selection, ctx, args.input, templates, llmProvider),
     synthesizeIntegratedPlanPage(
       planOutput,
@@ -462,6 +462,17 @@ export async function buildActionPlan(args: {
       llmProvider,
       args.selection.opportunityCards,
     ),
+    (async () => {
+      const { synthesizeReportDisplayName } = await import(
+        "@/lib/recommendations/synthesize-report-display-name"
+      );
+      return synthesizeReportDisplayName({
+        profile: args.selection.profile,
+        persona: args.input.scores?.persona,
+        input: args.input,
+        llmProvider,
+      });
+    })(),
   ]);
 
   const reportId = (planOutput?.plan_id ?? `plan_${Date.now()}`).slice(-8).toUpperCase();
@@ -487,6 +498,7 @@ export async function buildActionPlan(args: {
       integratedPlan,
       planOutput,
       coachGuide,
+      reportDisplayName,
     },
   };
 }
