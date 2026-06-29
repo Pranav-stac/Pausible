@@ -1,6 +1,6 @@
 export const siteConfig = {
   siteName: "Pausible",
-  tagline: "Fitness behavioral insights you can act on.",
+  tagline: "Pause. Reflect. Accelerate.",
   legalEntity: "Pausible",
   urls: {
     twitter: "https://twitter.com",

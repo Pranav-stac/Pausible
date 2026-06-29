@@ -1,34 +1,36 @@
 import Link from "next/link";
-import { siteConfig } from "@/config/site";
+
 import { BrandLogo } from "@/components/BrandLogo";
+import { siteConfig } from "@/config/site";
 
 export function SiteFooter() {
   return (
-    <footer className="border-t border-slate-100 bg-white px-1.5 py-12 sm:px-2">
-      <div className="mx-auto flex max-w-7xl flex-col gap-8 md:flex-row md:items-center md:justify-between">
-        <div>
-          <div className="mb-3">
-            <BrandLogo heightClass="h-8 sm:h-9" withWordmark wordmarkClassName="text-lg sm:text-xl" />
+    <footer className="border-t border-slate-100 bg-white px-4 py-12 sm:px-6 sm:py-14">
+      <div className="mx-auto max-w-6xl">
+        <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <BrandLogo variant="footer" />
+            <p className="mt-3 text-sm text-[#6E7191]">Pause. Reflect. Accelerate.</p>
           </div>
-          <p className="max-w-md text-sm text-slate-600">{siteConfig.tagline}</p>
+
+          <nav className="flex flex-wrap gap-x-8 gap-y-3 text-sm text-[#6E7191]" aria-label="Footer">
+            <Link href="/terms" className="transition hover:text-[#0D1B2A]">
+              About
+            </Link>
+            <Link href="/privacy" className="transition hover:text-[#0D1B2A]">
+              Privacy
+            </Link>
+            <a href="mailto:hello@pausible.com" className="transition hover:text-[#0D1B2A]">
+              Contact
+            </a>
+          </nav>
         </div>
-        <div className="flex flex-wrap gap-x-6 gap-y-3 text-sm text-slate-600">
-          <Link href="/terms" className="hover:text-slate-900">
-            Terms
-          </Link>
-          <Link href="/privacy" className="hover:text-slate-900">
-            Privacy
-          </Link>
-          <a href="mailto:hello@pausible.com" className="hover:text-slate-900">
-            Contact
-          </a>
-          <Link href="/admin" className="font-medium text-slate-800 hover:text-slate-950">
-            Admin
-          </Link>
+
+        <div className="mt-10 border-t border-slate-100 pt-6">
+          <p className="text-xs text-[#6E7191]">
+            © {new Date().getFullYear()} {siteConfig.legalEntity}. A Wellness Intelligence Platform.
+          </p>
         </div>
-      </div>
-      <div className="mx-auto mt-10 max-w-7xl text-center text-xs text-slate-400">
-        © {new Date().getFullYear()} {siteConfig.legalEntity}. Crafted for clarity—not clinical vibes.
       </div>
     </footer>
   );
