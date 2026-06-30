@@ -6,6 +6,7 @@ import { clusterRecommendations } from "@/lib/recommendations/cluster";
 import { auditFilterExclusions } from "@/lib/recommendations/filter-audit";
 import { filterRecommendations } from "@/lib/recommendations/filter";
 import { GOAL_PREFERENCE_BRIDGE_REC_ID, injectGoalPreferenceBridge } from "@/lib/recommendations/goal-preference-bridge";
+import { injectModalityAnchors } from "@/lib/recommendations/modality-anchors";
 import { loadRecommendationConfig } from "@/lib/recommendations/load-recommendation-config";
 import { generatePlanOutput } from "@/lib/recommendations/plan/plan-generator";
 import { validatePreGeneration } from "@/lib/recommendations/report-validation";
@@ -164,7 +165,11 @@ export async function buildAttemptEngineDebugPackage(
   const excluded = auditFilterExclusions(master, profile);
   const scored = scoreAll(filtered, profile);
   const preBridge = scored;
-  const ranked = injectGoalPreferenceBridge(scored, profile, scored);
+  const ranked = injectModalityAnchors(
+    injectGoalPreferenceBridge(scored, profile, scored),
+    profile,
+    scored,
+  );
   const bridgeInjected = ranked.some((r) => r.id === GOAL_PREFERENCE_BRIDGE_REC_ID && !preBridge.some((p) => p.id === r.id && p.score.total === r.score.total));
   const bridgeIds = new Set<string>();
   if (profile.goalPreferenceBridge) bridgeIds.add(GOAL_PREFERENCE_BRIDGE_REC_ID);

@@ -7,6 +7,7 @@ import type { ResultsReportModel } from "@/lib/results/build-results-report";
 import { PERSONA_ANIMAL, PERSONA_DISPLAY } from "@/lib/scoring/persona-defaults";
 import { personaAnimal } from "@/lib/results/persona-display";
 import { PERSONA_KEYS } from "@/lib/scoring/persona-types";
+import { sanitizePersonaSummaryText } from "@/lib/results/trait-labels";
 import { fitTierLabel, blendStrengthLabel } from "@/lib/scoring/persona-fit";
 import type { FitTier, BlendStrength, PersonaAnalysis } from "@/lib/scoring/persona-types";
 import { DEFAULT_PERSONA_CENTROIDS } from "@/lib/scoring/persona-defaults";
@@ -217,14 +218,10 @@ export function UnderstandingWellnessPersonalitySlide({
   totalPages: number;
   refId: string;
 }) {
-  const personas = [
-    { key: "self_regulated_planner" as const, blurb: "Consistent, structured, and self-regulated. Thrives on routine and predictable systems." },
-    { key: "resilient_performer" as const, blurb: "Disciplined, driven, and performance-oriented. Pushes hard and values effort." },
-    { key: "curious_explorer" as const, blurb: "Explorative, adaptable, and knowledge-seeking. Loves trying new approaches." },
-    { key: "stress_sensitive" as const, blurb: "Observant, analytical, and emotionally sensitive. Notices subtle patterns." },
-    { key: "social_motivator" as const, blurb: "Social, energetic, and community-driven. Draws motivation from groups." },
-    { key: "brittle_avoidant" as const, blurb: "Cautious, self-protective, and deliberate. Takes time before committing." },
-  ];
+  const personas = PERSONA_KEYS.map((key) => ({
+    key,
+    blurb: sanitizePersonaSummaryText(PERSONA_DISPLAY[key].summary),
+  }));
 
   return (
     <section data-report-page className={REPORT_PAGE}>

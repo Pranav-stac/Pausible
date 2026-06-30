@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import type { IntegratedPlanSynthesis, PlanOutput } from "@/lib/recommendations/types";
+import type { IntegratedPlanSynthesis, PlanOutput, PillarName } from "@/lib/recommendations/types";
 import { formatPhaseWeekLabel } from "@/lib/recommendations/plan/plan-phase-display";
 import {
   INTEGRATED_PLAN_BUILT_NARRATIVE_TITLE,
@@ -67,35 +67,79 @@ function PlanVerticalRail({ label }: { label: string }) {
   );
 }
 
+const PILLAR_ICON_COLORS: Record<PillarName, string> = {
+  Nutrition: "#10b981",
+  "Physical Activity": "#3b82f6",
+  "Sleep & Recovery": "#8b5cf6",
+  "Mental Wellness": "#f59e0b",
+};
+
+function PhasePillarIndicators({ distribution }: { distribution: Record<PillarName, number> }) {
+  const entries = (Object.entries(distribution) as [PillarName, number][]).filter(([, n]) => n > 0);
+  if (!entries.length) return null;
+  return (
+    <div className="mt-2 flex flex-wrap gap-1.5">
+      {entries.map(([pillar, count]) => (
+        <span
+          key={pillar}
+          className="inline-flex items-center gap-1 rounded-full bg-white/80 px-2 py-0.5 text-[9px] font-semibold text-slate-600 ring-1 ring-slate-200"
+          title={pillar}
+        >
+          <span
+            className="h-2 w-2 rounded-full"
+            style={{ backgroundColor: PILLAR_ICON_COLORS[pillar] }}
+            aria-hidden
+          />
+          {count}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function PlanPhaseHeader({
   phaseNumber,
   weekLabel,
   name,
   intent,
+  muted,
+  startHere,
+  pillarDistribution,
 }: {
   phaseNumber: number;
   weekLabel: string;
   name: string;
   intent: string;
+  muted?: boolean;
+  startHere?: boolean;
+  pillarDistribution?: Record<PillarName, number>;
 }) {
   const theme = phaseTheme(phaseNumber);
 
   return (
     <div
-      className="min-w-0 px-4 py-5"
+      className={`min-w-0 px-4 py-5 ${muted ? "opacity-55" : ""}`}
       style={{
         backgroundColor: theme.bg,
         borderTop: `3px solid ${theme.accent}`,
       }}
     >
-      <p
-        className="text-[11px] font-bold uppercase tracking-[0.06em]"
-        style={{ color: theme.accent }}
-      >
-        Phase {phaseNumber} · {weekLabel}
-      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <p
+          className="text-[11px] font-bold uppercase tracking-[0.06em]"
+          style={{ color: theme.accent }}
+        >
+          Phase {phaseNumber} · {weekLabel}
+        </p>
+        {startHere ? (
+          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-800">
+            Start here
+          </span>
+        ) : null}
+      </div>
       <h3 className="mt-2 text-lg font-bold leading-tight text-slate-900">{name}</h3>
       <p className="mt-2 text-sm italic leading-relaxed text-slate-600">{intent}</p>
+      {pillarDistribution ? <PhasePillarIndicators distribution={pillarDistribution} /> : null}
     </div>
   );
 }
@@ -121,16 +165,18 @@ function PlanPhaseCell({
   phaseNumber,
   sectionLabel,
   labelColor,
+  muted,
   children,
 }: {
   phaseNumber: number;
   sectionLabel: string;
   labelColor: string;
+  muted?: boolean;
   children: ReactNode;
 }) {
   const theme = phaseTheme(phaseNumber);
   return (
-    <div className="min-w-0 px-4 py-4" style={{ backgroundColor: theme.bg }}>
+    <div className={`min-w-0 px-4 py-4 ${muted ? "opacity-55" : ""}`} style={{ backgroundColor: theme.bg }}>
       <PlanColumnSectionLabel color={labelColor}>{sectionLabel}</PlanColumnSectionLabel>
       <div className="mt-2">{children}</div>
     </div>
@@ -205,9 +251,9 @@ export function IntegratedPlanTable({
   integratedPlan: IntegratedPlanSynthesis;
 }) {
   const phaseCopy = new Map(integratedPlan.phases.map((p) => [p.phase_number, p]));
-  const phaseCount = planOutput.show_all_phases === false ? 1 : planOutput.phases.length;
-  const visiblePhases =
-    planOutput.show_all_phases === false ? planOutput.phases.slice(0, 1) : planOutput.phases;
+  const overwhelmSafe = planOutput.show_all_phases === false;
+  const visiblePhases = planOutput.phases;
+  const phaseCount = visiblePhases.length;
   const phaseGridStyle = { gridTemplateColumns: `repeat(${phaseCount}, minmax(0, 1fr))` };
 
   const phaseRows = visiblePhases.map((phase, index) => {
@@ -230,14 +276,17 @@ export function IntegratedPlanTable({
       dailyLines,
       weeklyLines,
       readiness: copy?.readiness_signal_user ?? phase.readiness_signal.description,
+      muted: overwhelmSafe && phase.phase_number > 1,
+      startHere: phase.phase_number === 1,
+      pillarDistribution: phase.pillar_distribution,
     };
   });
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      {planOutput.show_all_phases === false ? (
+      {overwhelmSafe ? (
         <p className="border-b border-amber-100 bg-amber-50/80 px-4 py-2 text-xs text-amber-900">
-          Phase 1 only for now — later phases unlock as you build consistency (overwhelm-safe pacing).
+          Start with Phase 1 — later phases unlock as you build consistency (overwhelm-safe pacing).
         </p>
       ) : null}
       <div className="flex border-b border-slate-200/80">
@@ -250,6 +299,9 @@ export function IntegratedPlanTable({
               weekLabel={row.weekLabel}
               name={row.phase.name}
               intent={row.intent}
+              muted={row.muted}
+              startHere={row.startHere}
+              pillarDistribution={row.pillarDistribution}
             />
           ))}
         </div>
@@ -272,6 +324,7 @@ export function IntegratedPlanTable({
                   phaseNumber={row.phase.phase_number}
                   sectionLabel={section.label}
                   labelColor={labelColor}
+                  muted={row.muted}
                 >
                   {section.key === "anchor" ? (
                     <p className="text-sm font-bold leading-snug text-slate-900">{row.anchorText.trim()}</p>

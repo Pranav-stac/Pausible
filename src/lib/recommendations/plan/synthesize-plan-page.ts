@@ -12,12 +12,12 @@ import {
   toPlanActionLine,
 } from "@/lib/recommendations/plan/plan-phase-display";
 import { PLAN_TEXT_LIMITS } from "@/lib/recommendations/plan/plan-text-limits";
-import { isSelfTalkOrMantra } from "@/lib/recommendations/plan/plan-rhythm-cadence";
 import {
   buildIntegratedPlanPrompt,
   type IntegratedPlanPromptJson,
 } from "@/lib/recommendations/plan/plan-synthesis-prompts";
 import { buildSystemPrompt } from "@/lib/recommendations/gemini-section-prompts";
+import { validatePostSynthesis } from "@/lib/recommendations/report-validation";
 import { enforceIntegratedPlanLimits, isCompleteSentence } from "@/lib/recommendations/plan/plan-text-limits";
 import type { ReportLlmProvider } from "@/lib/recommendations/report-llm-types";
 import { SECTION_OUTPUT_TOKENS } from "@/lib/recommendations/section-output-limits";
@@ -25,7 +25,6 @@ import type {
   IntegratedPlanSynthesis,
   OpportunityCard,
   PlanOutput,
-  PlanRecommendationItem,
   UserProfile,
 } from "@/lib/recommendations/types";
 
@@ -34,58 +33,25 @@ const PLAN_PAGE_OPENAI_MODEL = process.env.OPENAI_PLAN_MODEL?.trim() || "gpt-5.4
 const RHYTHM_MAX = PLAN_TEXT_LIMITS.rhythm_line;
 const ANCHOR_MAX = PLAN_TEXT_LIMITS.anchor_habit_user;
 
-function mergeRhythmLines(
-  aiLines: string[] | undefined,
-  engineItems: PlanRecommendationItem[],
-  max: number,
-): string[] {
-  const cleaned = (aiLines ?? []).map((line) => toPlanActionLine(line, RHYTHM_MAX)).filter(Boolean).slice(0, max);
-  if (cleaned.length > 0) return cleaned;
-  return engineItems.slice(0, max).map((item) => toPlanActionLine(item.text, RHYTHM_MAX));
-}
-
-function fallbackConcreteAnchor(phase: PlanOutput["phases"][number]): string {
-  const pool = [phase.anchor_habit, ...phase.daily_rhythm, ...phase.weekly_rhythm];
-  const hit = pool.find(
-    (item) =>
-      !isSelfTalkOrMantra(item.text) &&
-      /\b(eat|walk|workout|meal|sleep|train|protein|bedtime)\b/i.test(item.text),
-  );
-  return toPlanActionLine((hit ?? phase.anchor_habit).text, ANCHOR_MAX);
-}
-
-function resolveAnchorUser(
-  ai: string | undefined,
+function engineRhythmLines(
   phase: PlanOutput["phases"][number],
-): string {
-  const engine = toPlanActionLine(phase.anchor_habit.text, ANCHOR_MAX);
-  const candidate = ai?.trim() ? toPlanActionLine(ai, ANCHOR_MAX) : engine;
-  if (!isSelfTalkOrMantra(candidate)) return candidate;
-  if (!isSelfTalkOrMantra(engine)) return engine;
-  return fallbackConcreteAnchor(phase);
+): {
+  anchor_habit_user: string;
+  daily_rhythm_user: string[];
+  weekly_rhythm_user: string[];
+} {
+  return {
+    anchor_habit_user: toPlanActionLine(phase.anchor_habit.text, ANCHOR_MAX),
+    daily_rhythm_user: phase.daily_rhythm.slice(0, 3).map((item) => toPlanActionLine(item.text, RHYTHM_MAX)),
+    weekly_rhythm_user: phase.weekly_rhythm.slice(0, 3).map((item) => toPlanActionLine(item.text, RHYTHM_MAX)),
+  };
 }
 
 function mergePhaseRhythm(
   phase: PlanOutput["phases"][number],
-  hit: IntegratedPlanPromptJson["phases"] extends (infer P)[] | undefined ? P | undefined : undefined,
-  synthesized: boolean,
+  _hit: IntegratedPlanPromptJson["phases"] extends (infer P)[] | undefined ? P | undefined : undefined,
 ) {
-  const engineDaily = phase.daily_rhythm;
-  const engineWeekly = phase.weekly_rhythm;
-
-  if (!synthesized) {
-    return {
-      anchor_habit_user: resolveAnchorUser(undefined, phase),
-      daily_rhythm_user: engineDaily.slice(0, 3).map((item) => toPlanActionLine(item.text, RHYTHM_MAX)),
-      weekly_rhythm_user: engineWeekly.slice(0, 3).map((item) => toPlanActionLine(item.text, RHYTHM_MAX)),
-    };
-  }
-
-  return {
-    anchor_habit_user: resolveAnchorUser(hit?.anchor_habit_user, phase),
-    daily_rhythm_user: mergeRhythmLines(hit?.daily_rhythm_user, engineDaily, 3),
-    weekly_rhythm_user: mergeRhythmLines(hit?.weekly_rhythm_user, engineWeekly, 3),
-  };
+  return engineRhythmLines(phase);
 }
 
 function resolvePlanBuiltNarrative(
@@ -159,7 +125,7 @@ function mergeParsedPlan(
 
   const phases = planOutput.phases.map((phase) => {
     const hit = parsed?.phases?.find((p) => p.phase_number === phase.phase_number);
-    const rhythm = mergePhaseRhythm(phase, hit, synthesized);
+    const rhythm = mergePhaseRhythm(phase, hit);
     const readinessRaw = hit?.readiness_signal_user?.trim() || phase.readiness_signal.description;
     return {
       phase_number: phase.phase_number,
@@ -188,6 +154,21 @@ function mergeParsedPlan(
 
   if (violations.length) {
     console.warn("[plan-page] blocklist violations:", violations);
+  }
+
+  const postGate = validatePostSynthesis({
+    planSubtitle: sanitized.plan_subtitle,
+    planBuiltNarrative: sanitized.plan_built_narrative,
+    planPhaseIntents: sanitized.phases.map((p) => p.phase_intent_user),
+    planReadinessSignals: sanitized.phases.map((p) => p.readiness_signal_user),
+  });
+
+  if (postGate.useFallback && synthesized) {
+    return {
+      ...fallback,
+      synthesized: false,
+      synthesisError: postGate.violations.join("; ") || "post_gate_plan_page",
+    };
   }
 
   return {

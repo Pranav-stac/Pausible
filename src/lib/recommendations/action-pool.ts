@@ -33,13 +33,18 @@ export function primaryPersonaMatchesRow(
   return fit.includes("all_personas") || fit.includes(alias);
 }
 
-export function resolvedText(row: ScoredRecommendation, profile: UserProfile): string {
+export function resolvedText(
+  row: ScoredRecommendation,
+  profile: UserProfile,
+  options?: { topScoring?: boolean },
+): string {
   return resolvePersonaContextText(
     row,
     profile.primaryPersonaAlias,
     profile.secondaryPersonaAlias,
     undefined,
     profile.blendStrength,
+    options,
   );
 }
 
@@ -48,6 +53,7 @@ export function resolvedTextForPlan(
   row: ScoredRecommendation,
   profile: UserProfile,
   secondaryBlendPct?: number,
+  options?: { topScoring?: boolean },
 ): string {
   return resolvePersonaContextText(
     row,
@@ -55,6 +61,7 @@ export function resolvedTextForPlan(
     profile.secondaryPersonaAlias,
     secondaryBlendPct,
     profile.blendStrength,
+    options,
   );
 }
 

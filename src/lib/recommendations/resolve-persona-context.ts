@@ -15,6 +15,7 @@ export function resolvePersonaContextText(
   secondaryAlias?: string | null,
   secondaryBlendPct?: number,
   blendStrength?: BlendStrength | null,
+  options?: { topScoring?: boolean },
 ): string {
   const fromPrimary = contextForAlias(row, personaAlias);
   const fromSecondary =
@@ -22,7 +23,14 @@ export function resolvePersonaContextText(
       ? contextForAlias(row, secondaryAlias)
       : null;
 
-  if (blendStrength === "strong_influence" && fromPrimary && fromSecondary && fromPrimary !== fromSecondary) {
+  const dualStrongInfluence =
+    blendStrength === "strong_influence" &&
+    options?.topScoring === true &&
+    fromPrimary &&
+    fromSecondary &&
+    fromPrimary !== fromSecondary;
+
+  if (dualStrongInfluence) {
     return `${fromPrimary} ${fromSecondary}`;
   }
 

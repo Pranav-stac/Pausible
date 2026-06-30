@@ -36,7 +36,10 @@ function euclideanDistance(
   return Math.sqrt(sumSq);
 }
 
-/** Largest Euclidean distance between any two persona centroids (v7 benchmark table). */
+/** PDA §9 — max inter-centroid distance (Pack Wolf ↔ Shielded Turtle) with §8.1 centroids. */
+export const PDA_MAX_INTER_CENTROID_DISTANCE = 7.1099;
+
+/** Largest Euclidean distance between any two persona centroids (§8.1 / §9). */
 export function computeMaxInterCentroidDistance(centroids: PersonaCentroidTable): number {
   let max = 0;
   for (let i = 0; i < PERSONA_KEYS.length; i++) {

@@ -5,6 +5,8 @@ const INTENSITY_EXCLUSION_TAGS = new Set([
   "exclude_poor_sleep_high_intensity",
   "exclude_beginner_advanced_training",
   "exclude_high_stress_extreme_diet",
+  "exclude_emotional_eating_extreme_restriction",
+  "exclude_high_anxiety_overtracking",
 ]);
 
 /** Why a master row was excluded by §13 filter (admin audit). */

@@ -188,6 +188,10 @@ export function validatePostSynthesis(sections: {
   pillarDonts?: string[];
   priorityHeadlines?: string[];
   priorityBodies?: string[];
+  planSubtitle?: string;
+  planBuiltNarrative?: string;
+  planPhaseIntents?: string[];
+  planReadinessSignals?: string[];
   behaviouralBoxBodies?: string[];
   primaryPersonaKey?: PersonaKey | null;
   pillarSourceIds?: string[][];
@@ -209,6 +213,10 @@ export function validatePostSynthesis(sections: {
   for (const [i, t] of (sections.pillarDonts ?? []).entries()) scan(t, `pillar_dont[${i}]`);
   for (const [i, t] of (sections.priorityHeadlines ?? []).entries()) scan(t, `priority[${i}].headline`);
   for (const [i, t] of (sections.priorityBodies ?? []).entries()) scan(t, `priority[${i}].body`);
+  scan(sections.planSubtitle, "plan_page.subtitle");
+  scan(sections.planBuiltNarrative, "plan_page.rationale");
+  for (const [i, t] of (sections.planPhaseIntents ?? []).entries()) scan(t, `plan_page.phase[${i}].intent`);
+  for (const [i, t] of (sections.planReadinessSignals ?? []).entries()) scan(t, `plan_page.phase[${i}].readiness`);
 
   for (const [i, body] of (sections.behaviouralBoxBodies ?? []).entries()) {
     if (body && ANIMAL_NAME_PATTERN.test(body)) {

@@ -86,12 +86,11 @@ Return JSON:
 1. plan_subtitle — one sentence; may name ${personaDisplay}.
 2. goal_framing — one short sentence tying the plan to the user's primary goal (may merge idea into subtitle if redundant).
 3. phases[] — for each phase_number:
-   - phase_intent_user: max 2 short sentences, plain language.
-   - readiness_signal_user: one sentence starting with "When". Must reflect THIS phase's anchor habit and daily/weekly rhythm above — do not invent advance criteria that are not in the plan.
-   - anchor_habit_user: ONE concrete physical action (meal, walk, workout, sleep, protein) — max 90 chars. Never self-talk, mantras, or "say to yourself" scripts. Recovery/self-talk belongs in daily or weekly rhythm, not anchor.
-   - daily_rhythm_user: exactly 2–3 imperative lines, max 85 chars each.
-   - weekly_rhythm_user: exactly 2–3 imperative lines, max 85 chars each.
+   - phase_intent_user: max 2 short sentences, plain language (warm rewrite of engine intent only).
+   - readiness_signal_user: one sentence starting with "When". Must reflect THIS phase's anchor habit and daily/weekly rhythm above.
 4. plan_built_narrative — one paragraph (4–6 sentences, max 600 chars). Flowing prose under "How This Plan Was Built". Name persona patterns, fit score/tier, barrier, goals, gradual phasing, and 2–3 priority actions.
+
+Do NOT rewrite anchor_habit_user, daily_rhythm_user, or weekly_rhythm_user — those render verbatim from the engine.
 
 GOAL–PERSONA MISALIGNMENT (apply when relevant):
 "If the user's stated goals imply intensity or timelines that are misaligned with their behavioural

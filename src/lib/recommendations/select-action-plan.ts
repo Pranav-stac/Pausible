@@ -1,6 +1,6 @@
 import { isActionPlanPoolRow, resolvedText } from "@/lib/recommendations/action-pool";
 import { hasBarrierOverride } from "@/lib/recommendations/barrier-override-tags";
-import { clusterRecommendations } from "@/lib/recommendations/cluster";
+import { selectOpportunityClusters } from "@/lib/recommendations/cluster";
 import { GOAL_PREFERENCE_BRIDGE_REC_ID } from "@/lib/recommendations/goal-preference-bridge";
 import { selectHighImpactPriorities } from "@/lib/recommendations/select-opportunities";
 import { selectPiSeries } from "@/lib/recommendations/select-pi-series";
@@ -78,17 +78,19 @@ function buildPillarPlan(
 
   return {
     pillar,
-    focusArea: focus ? resolvedText(focus, profile) : pillar,
-    focusReason: focus ? resolvedText(focus, profile) : `Personalized ${pillar} guidance for your profile.`,
+    focusArea: focus ? resolvedText(focus, profile, { topScoring: true }) : pillar,
+    focusReason: focus
+      ? resolvedText(focus, profile, { topScoring: true })
+      : `Personalized ${pillar} guidance for your profile.`,
     focusId: focus?.id ?? null,
     dos: dos.map((d) => ({
       id: d.id,
-      text: resolvedText(d, profile),
+      text: resolvedText(d, profile, { topScoring: true }),
       category: d.category,
     })),
     donts: donts.map((d) => ({
       id: d.id,
-      text: resolvedText(d, profile),
+      text: resolvedText(d, profile, { topScoring: true }),
       category: d.category,
     })),
     sourceIds,
@@ -109,7 +111,7 @@ function ensureGoalPreferenceBridgeInPhysicalActivity(
   used.add(bridge.id);
   const bridgeItem = {
     id: bridge.id,
-    text: resolvedText(bridge, profile),
+    text: resolvedText(bridge, profile, { topScoring: true }),
     category: bridge.category,
   };
   const dos = [bridgeItem, ...plan.dos.filter((d) => d.id !== bridge.id)].slice(0, 3);
@@ -135,15 +137,31 @@ function pairNutritionDontsForEmotionalEating(
     (r) => r.pillar === "Nutrition" && r.type === "dont" && isActionPlanPoolRow(r),
   );
   const donts = [...plan.donts];
+  const pairedIds = new Set(donts.map((d) => d.id));
 
-  while (donts.length < plan.dos.length && donts.length < 2) {
-    const next = dontsPool.find((r) => !used.has(r.id) && !donts.some((d) => d.id === r.id));
-    if (!next) break;
-    used.add(next.id);
+  for (const d of plan.dos) {
+    if (donts.length >= 2) break;
+    const match =
+      dontsPool.find(
+        (r) =>
+          !used.has(r.id) &&
+          !pairedIds.has(r.id) &&
+          !donts.some((x) => x.id === r.id) &&
+          r.category === d.category,
+      ) ??
+      dontsPool.find(
+        (r) =>
+          !used.has(r.id) &&
+          !pairedIds.has(r.id) &&
+          !donts.some((x) => x.id === r.id),
+      );
+    if (!match) continue;
+    used.add(match.id);
+    pairedIds.add(match.id);
     donts.push({
-      id: next.id,
-      text: resolvedText(next, profile),
-      category: next.category,
+      id: match.id,
+      text: resolvedText(match, profile, { topScoring: true }),
+      category: match.category,
     });
   }
 
@@ -179,7 +197,7 @@ export function selectActionPlan(
   const opportunityCards = selectHighImpactPriorities(ranked, profile, pillarPlans);
   for (const card of opportunityCards) used.add(card.id);
 
-  const opportunities = clusterRecommendations(ranked, profile);
+  const opportunities = selectOpportunityClusters(ranked, profile);
 
   const safetyGuidance = selectTriggeredSafetyGuidance(ranked, profile);
   for (const s of safetyGuidance) used.add(s.id);

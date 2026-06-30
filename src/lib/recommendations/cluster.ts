@@ -10,35 +10,19 @@ function intersect(a: string[], b: string[]): string[] {
   return a.filter((x) => set.has(x));
 }
 
-function mainBarrierForCluster(rows: ScoredRecommendation[], profile: UserProfile): string | null {
+/** Per-row barrier key for §16 secondary grouping. */
+function barrierKeyForRow(row: ScoredRecommendation, profile: UserProfile): string {
   for (const b of profile.barriers) {
-    if (rows.some((r) => r.barrierFit.includes(b))) return b;
+    if (row.barrierFit.includes(b)) return b;
   }
-  return profile.barriers[0] ?? null;
+  return "none";
 }
 
-/** Tertiary clustering key — OCEAN category tag alignment (col L), §16. */
-function oceanAlignmentForCluster(rows: ScoredRecommendation[], profile: UserProfile): string | null {
-  const userTags = profile.oceanCategoryTags;
-  if (!userTags.length) return null;
-
-  const tagHits = new Map<string, number>();
-  for (const row of rows) {
-    const tags = row.oceanCategoryTags.length ? row.oceanCategoryTags : [];
-    for (const tag of intersect(tags, userTags)) {
-      tagHits.set(tag, (tagHits.get(tag) ?? 0) + 1);
-    }
-  }
-
-  let best: string | null = null;
-  let bestCount = 0;
-  for (const [tag, count] of tagHits) {
-    if (count > bestCount) {
-      best = tag;
-      bestCount = count;
-    }
-  }
-  return best;
+/** Per-row OCEAN col-L alignment for §16 tertiary grouping. */
+function oceanKeyForRow(row: ScoredRecommendation, profile: UserProfile): string {
+  const hits = intersect(row.oceanCategoryTags, profile.oceanCategoryTags);
+  if (!hits.length) return "none";
+  return hits.sort().join("+");
 }
 
 /** Average score of top N rows in cluster (§16). */
@@ -64,23 +48,24 @@ export function clusterRecommendations(
 
   const pool = ranked.filter((r) => !excludeTypes.has(r.type)).slice(0, poolSize);
 
-  const byCategory = new Map<string, ScoredRecommendation[]>();
+  const groups = new Map<string, ScoredRecommendation[]>();
   for (const row of pool) {
-    const list = byCategory.get(row.category) ?? [];
+    const barrier = barrierKeyForRow(row, profile);
+    const ocean = oceanKeyForRow(row, profile);
+    const key = `${row.category}::${barrier}::${ocean}`;
+    const list = groups.get(key) ?? [];
     list.push(row);
-    byCategory.set(row.category, list);
+    groups.set(key, list);
   }
 
   const clusters: RecommendationCluster[] = [];
-  for (const [category, rows] of byCategory) {
-    const barrier = mainBarrierForCluster(rows, profile);
-    const oceanAlignment = oceanAlignmentForCluster(rows, profile);
-    const key = `${category}::${barrier ?? "none"}::${oceanAlignment ?? "none"}`;
+  for (const [key, rows] of groups) {
+    const [category, barrierPart, oceanPart] = key.split("::");
     clusters.push({
       key,
       category,
-      mainBarrier: barrier,
-      oceanAlignment,
+      mainBarrier: barrierPart === "none" ? null : barrierPart,
+      oceanAlignment: oceanPart === "none" ? null : oceanPart,
       clusterScore: clusterScoreFromRows(rows),
       rows: [...rows].sort((a, b) => b.score.total - a.score.total),
     });

@@ -1,6 +1,7 @@
 import { buildUserProfile, type BuildProfileInput } from "@/lib/recommendations/build-user-profile";
 import { filterRecommendations } from "@/lib/recommendations/filter";
 import { injectGoalPreferenceBridge } from "@/lib/recommendations/goal-preference-bridge";
+import { injectModalityAnchors } from "@/lib/recommendations/modality-anchors";
 import { validatePreGeneration } from "@/lib/recommendations/report-validation";
 import { buildActionPlan } from "@/lib/recommendations/gemini-synthesis";
 import { loadRecommendationConfig } from "@/lib/recommendations/load-recommendation-config";
@@ -17,7 +18,11 @@ export async function runRecommendationEngine(
   const profile = buildUserProfile(input, config);
   const filtered = filterRecommendations(config.recommendations, profile);
   const scored = scoreAll(filtered, profile);
-  const ranked = injectGoalPreferenceBridge(scored, profile, scored);
+  const ranked = injectModalityAnchors(
+    injectGoalPreferenceBridge(scored, profile, scored),
+    profile,
+    scored,
+  );
   const selection = selectActionPlan(ranked, profile);
   const gate = validatePreGeneration({
     answers: input.answers,

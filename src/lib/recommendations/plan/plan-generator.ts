@@ -1,5 +1,5 @@
 import { isActionPlanPoolRow } from "@/lib/recommendations/action-pool";
-import { hasBarrierOverride } from "@/lib/recommendations/barrier-override-tags";
+import { hasBarrierOverride, hasPerfectionismPattern } from "@/lib/recommendations/barrier-override-tags";
 import { GOAL_PREFERENCE_BRIDGE_REC_ID } from "@/lib/recommendations/goal-preference-bridge";
 import { compareScored, passesPlanScoreGate } from "@/lib/recommendations/score";
 import { classifyActivationEnergy } from "@/lib/recommendations/plan/activation-energy";
@@ -347,7 +347,10 @@ function bestPhaseForConditional(
   profile: UserProfile,
 ): number {
   if (row.id === GOAL_PREFERENCE_BRIDGE_REC_ID && profile.goalPreferenceBridge) {
-    return Math.min(2, totalPhases);
+    const disciplined =
+      profile.primaryPersona === "resilient_performer" ||
+      profile.primaryPersona === "self_regulated_planner";
+    return disciplined ? 1 : Math.min(2, totalPhases);
   }
 
   const ctx = row.score.matchedContext;
@@ -378,6 +381,7 @@ function passesBarrierFilters(row: ScoredRecommendation, profile: UserProfile, p
   if (hasBarrierOverride(profile, "lack_of_time")) {
     if (classifyActivationEnergy(row) > 2) return false;
     const text = row.text.toLowerCase();
+    if (/\b\d+\s*(hour|hr|hrs)\b/.test(text) && !/\b(10|15)\s*min/.test(text)) return false;
     if (text.includes("hour") && !text.includes("15 min") && !text.includes("10 min")) {
       return false;
     }
@@ -656,6 +660,11 @@ function pairDontRecsWithDo(
           isEligibleForPhase(r, capacity, phaseNumber, profile),
       )
       .sort((a, b) => {
+        if (hasBarrierOverride(profile, "emotional_eating") && anchorDo.pillar === "Nutrition") {
+          const catA = a.category === anchorDo.category ? 0 : 1;
+          const catB = b.category === anchorDo.category ? 0 : 1;
+          if (catA !== catB) return catA - catB;
+        }
         const pillarA = a.pillar === anchorDo.pillar ? 0 : 1;
         const pillarB = b.pillar === anchorDo.pillar ? 0 : 1;
         if (pillarA !== pillarB) return pillarA - pillarB;
@@ -1046,6 +1055,7 @@ export function generatePlanOutput(args: {
           primaryType: signals.primary,
           secondaryType: signals.secondary,
           barriers: profile.barriers,
+          perfectionismPattern: hasPerfectionismPattern(profile) || hasBarrierOverride(profile, "perfectionism"),
           templateFallback: phase.readinessDescription,
         }),
         secondary_type: signals.secondary,

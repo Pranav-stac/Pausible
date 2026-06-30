@@ -79,6 +79,7 @@ function effortFit(row: RecommendationRow, profile: UserProfile): number {
 export type RankContext = {
   selectedCategories?: Set<string>;
   pillarAssignmentCounts?: Partial<Record<PillarName, number>>;
+  profile?: UserProfile;
 };
 
 /** §21.3 Step 1 — positive scores only; drop unmatched conditional negatives. */
@@ -167,9 +168,14 @@ export function compareScored(
     return sb.matchedOcean.length - sa.matchedOcean.length;
   }
 
-  const lowCapacity =
-    a.score.matchedBarriers.includes("barrier_low_activation_energy") ||
-    a.score.matchedContext.some((t) => t === "stress_high" || t === "time_under_15_min");
+  const lowCapacity = ctx?.profile
+    ? ctx.profile.barriers.includes("barrier_low_activation_energy") ||
+      ctx.profile.barriers.includes("barrier_overwhelm_from_complexity") ||
+      ctx.profile.context.includes("stress_high") ||
+      ctx.profile.context.includes("time_under_15_min")
+    : a.score.matchedBarriers.includes("barrier_low_activation_energy") ||
+      a.score.matchedBarriers.includes("barrier_overwhelm_from_complexity") ||
+      a.score.matchedContext.some((t) => t === "stress_high" || t === "time_under_15_min");
   if (lowCapacity && a.effortLevel !== b.effortLevel) {
     const order = { low: 0, medium: 1, high: 2 };
     return (order[a.effortLevel] ?? 1) - (order[b.effortLevel] ?? 1);

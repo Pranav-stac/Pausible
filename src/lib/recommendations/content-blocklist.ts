@@ -17,6 +17,7 @@ export const FORBIDDEN_ENGINE_INTERNALS = [
   "scoring",
   "scoring pipeline",
   "scoring formula",
+  "score",
   "centroid",
   "euclidean",
   "softmax",

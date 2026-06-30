@@ -80,6 +80,7 @@ export function buildPhaseReadinessDescription(args: {
   primaryType: ReadinessSignalType;
   secondaryType: ReadinessSignalType;
   barriers?: string[];
+  perfectionismPattern?: boolean;
   templateFallback: string;
 }): string {
   const allRhythm = [...args.daily, ...args.weekly];
@@ -91,7 +92,7 @@ export function buildPhaseReadinessDescription(args: {
   const mindset = findMindsetAction(allRhythm);
   const dailyShort = args.daily[0] ? clip(args.daily[0].text, 50) : null;
   const weeklyShort = args.weekly[0] ? clip(args.weekly[0].text, 50) : null;
-  const perfectionism = args.barriers?.includes("barrier_perfectionism");
+  const perfectionism = args.perfectionismPattern ?? args.barriers?.includes("barrier_perfectionism");
 
   let body: string;
 

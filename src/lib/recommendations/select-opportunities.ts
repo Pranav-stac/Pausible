@@ -80,7 +80,7 @@ export function selectHighImpactPriorities(
       clusterScore: entry.clusterScore,
       rank: index + 1,
       impactLevel: impactLevel(entry.clusterScore),
-      personaContextText: resolvedText(row, profile),
+      personaContextText: resolvedText(row, profile, { topScoring: true }),
       headline: "",
       whyItMatters: "",
       startThisWeek: "",
