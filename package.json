@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "generate:recommendation-seed": "node scripts/generate-recommendation-seed.mjs",
     "import:pda-v1": "node scripts/import-pda-v1.mjs",
     "import:revised-ocean": "node scripts/import-revised-ocean.mjs",
@@ -39,6 +41,7 @@
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
     "tsx": "^4.22.4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.6"
   }
 }

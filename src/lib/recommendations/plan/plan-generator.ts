@@ -18,6 +18,7 @@ import {
   type PhaseDefinition,
   type ReadinessSignalType,
 } from "@/lib/recommendations/plan/phase-config";
+import { resolvePhases, type ResolvedPhase } from "@/lib/recommendations/plan/plan-phase-resolve";
 import type {
   PillarName,
   PlanOutput,
@@ -39,8 +40,6 @@ const STRENGTH_ORDER: Record<RecommendationStrength, number> = {
   optional: 2,
   conditional: 3,
 };
-
-type ResolvedPhase = PhaseDefinition & { phaseNumber: number; durationWeeks: string };
 
 type PhaseCapacity = {
   dailyCount: number;
@@ -141,50 +140,6 @@ function hasHighNeuroticismPersona(persona: PersonaKey): boolean {
 
 function secondaryInfluenceActive(_profile: UserProfile, secondaryBlendPct?: number): boolean {
   return typeof secondaryBlendPct === "number" && secondaryBlendPct > 15;
-}
-
-function resolvePhases(profile: UserProfile, fitTier: FitTier): ResolvedPhase[] {
-  const base = PERSONA_PHASE_CONFIG[profile.primaryPersona];
-  let phases: PhaseDefinition[] = [...base.phases];
-
-  if (fitTier === "exploring") {
-    if (profile.primaryPersona === "self_regulated_planner" && base.optionalThirdPhase) {
-      phases = [...phases, base.optionalThirdPhase];
-    } else if (phases.length < 4 && base.optionalThirdPhase) {
-      phases = [...phases, base.optionalThirdPhase];
-    } else if (phases.length < 4) {
-      const last = phases[phases.length - 1];
-      phases = [
-        ...phases,
-        {
-          ...last,
-          name: "Settle In",
-          intent: "Extra stabilisation time before expanding further.",
-          durationWeeks: "2 weeks",
-        },
-      ];
-    }
-  }
-
-  return phases.map((phase, index) => {
-    let durationWeeks = phase.durationWeeks;
-    if (index === 0) {
-      if (fitTier === "core" || fitTier === "leaning" || fitTier === "exploring") {
-        const baseWeeks = parseDurationWeeks(durationWeeks);
-        durationWeeks = `Approximately ${baseWeeks + 1} weeks`;
-      }
-      if (fitTier === "exploring") {
-        const baseWeeks = parseDurationWeeks(durationWeeks);
-        durationWeeks = `Approximately ${baseWeeks + 1} weeks`;
-      }
-    }
-
-    return {
-      ...phase,
-      phaseNumber: index + 1,
-      durationWeeks,
-    };
-  });
 }
 
 function itemCountsForPhase(

@@ -296,7 +296,7 @@ function buildDerivedRules(): DerivedExclusionRule[] {
     {
       id: "DR08",
       exclusionTag: "exclude_emotional_eating_extreme_restriction",
-      anyBarriers: ["barrier_emotional_eating_cravings"],
+      anyBarriers: ["barrier_emotional_eating_cravings", "barrier_emotional_eating"],
     },
   ];
 }

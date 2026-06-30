@@ -87,7 +87,7 @@ export const PERSONA_PHASE_CONFIG: Record<PersonaKey, PersonaPhaseConfig> = {
     weeklyItems: { min: 3, max: 3 },
     phases: [
       {
-        name: "Building the Floor",
+        name: "Build the Floor",
         intent: "Minimum viable routine. Prove consistency is possible. Backup systems for missed days.",
         eligibleTypes: ["first_action", "do", "environment_change"],
         readinessDescription: "When 3 sessions/week feels like a default, not a decision.",

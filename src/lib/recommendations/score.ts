@@ -65,15 +65,35 @@ function strengthComponent(
   return PDA_STRENGTH_POINTS[strength] ?? 0;
 }
 
-/** +5 for low-effort recs when user shows low capacity (§14). */
-function effortFit(row: RecommendationRow, profile: UserProfile): number {
-  if (row.effortLevel !== "low") return 0;
-  const lowCapacity =
+/** §14 — low capacity favours low-effort recs; high-capacity profiles favour high-effort recs. */
+export function hasLowCapacityProfile(profile: UserProfile): boolean {
+  return (
     profile.barriers.includes("barrier_low_activation_energy") ||
     profile.barriers.includes("barrier_overwhelm_from_complexity") ||
     profile.context.includes("stress_high") ||
-    profile.context.includes("time_under_15_min");
-  return lowCapacity ? PDA_EFFORT.bonus : 0;
+    profile.context.includes("time_under_15_min")
+  );
+}
+
+export function hasHighCapacityProfile(profile: UserProfile): boolean {
+  if (hasLowCapacityProfile(profile)) return false;
+  const disciplined =
+    profile.context.includes("fitness_consistent") ||
+    profile.context.includes("fitness_advanced") ||
+    profile.context.includes("fitness_intermediate");
+  const ampleTime =
+    profile.context.includes("time_45_plus_min") || profile.context.includes("time_30_45_min");
+  return disciplined || ampleTime;
+}
+
+function effortFit(row: RecommendationRow, profile: UserProfile): number {
+  if (row.effortLevel === "low" && hasLowCapacityProfile(profile)) {
+    return PDA_EFFORT.bonus;
+  }
+  if (row.effortLevel === "high" && hasHighCapacityProfile(profile)) {
+    return PDA_EFFORT.bonus;
+  }
+  return 0;
 }
 
 export type RankContext = {
@@ -168,11 +188,9 @@ export function compareScored(
     return sb.matchedOcean.length - sa.matchedOcean.length;
   }
 
-  const lowCapacity = ctx?.profile
-    ? ctx.profile.barriers.includes("barrier_low_activation_energy") ||
-      ctx.profile.barriers.includes("barrier_overwhelm_from_complexity") ||
-      ctx.profile.context.includes("stress_high") ||
-      ctx.profile.context.includes("time_under_15_min")
+  const profileForCapacity = ctx?.profile;
+  const lowCapacity = profileForCapacity
+    ? hasLowCapacityProfile(profileForCapacity)
     : a.score.matchedBarriers.includes("barrier_low_activation_energy") ||
       a.score.matchedBarriers.includes("barrier_overwhelm_from_complexity") ||
       a.score.matchedContext.some((t) => t === "stress_high" || t === "time_under_15_min");
@@ -184,6 +202,10 @@ export function compareScored(
   const primaryA = sa.primaryPersonaMatch ? 1 : 0;
   const primaryB = sb.primaryPersonaMatch ? 1 : 0;
   if (primaryB !== primaryA) return primaryB - primaryA;
+
+  const secondaryA = sa.secondaryPersonaMatch ? 1 : 0;
+  const secondaryB = sb.secondaryPersonaMatch ? 1 : 0;
+  if (secondaryB !== secondaryA) return secondaryB - secondaryA;
 
   if (ctx?.selectedCategories) {
     const dupA = ctx.selectedCategories.has(a.category) ? 1 : 0;
