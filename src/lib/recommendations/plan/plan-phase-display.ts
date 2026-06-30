@@ -1,4 +1,5 @@
 import { parseDurationWeeks } from "@/lib/recommendations/plan/phase-config";
+import { coercePlanText } from "@/lib/recommendations/plan/coerce-plan-field";
 import { PLAN_TEXT_LIMITS, truncatePlanLine } from "@/lib/recommendations/plan/plan-text-limits";
 import type { PlanPhaseOutput } from "@/lib/recommendations/types";
 import { firstSentence } from "@/lib/results/plan-line-format";
@@ -32,8 +33,8 @@ export function toPlanActionLine(
   return truncatePlanLine(line, maxChars);
 }
 
-export function formatReadinessLine(text: string): string {
-  const trimmed = text.trim();
+export function formatReadinessLine(text: string | unknown): string {
+  const trimmed = coercePlanText(text, "").trim();
   if (!trimmed) return "";
   if (/^when\b/i.test(trimmed)) return trimmed;
   return `When ${trimmed.replace(/^[Ww]hen\s+/, "").replace(/\.$/, "")}.`;

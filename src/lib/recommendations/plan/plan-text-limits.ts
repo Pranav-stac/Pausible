@@ -1,5 +1,7 @@
 /** Character limits for Page 10 AI synthesis (Section 8.2). */
 
+import { coercePlanText } from "@/lib/recommendations/plan/coerce-plan-field";
+
 export const PLAN_TEXT_LIMITS = {
   plan_subtitle: 120,
   goal_framing: 100,
@@ -72,11 +74,12 @@ export function truncatePlanLine(text: string, maxLength: number): string {
   return slice.trim();
 }
 
-export function enforcePlanTextLimit(field: keyof typeof PLAN_TEXT_LIMITS, text: string): string {
+export function enforcePlanTextLimit(field: keyof typeof PLAN_TEXT_LIMITS, text: string | unknown): string {
+  const normalized = coercePlanText(text, "");
   if (field === "rhythm_line") {
-    return truncatePlanLine(text, PLAN_TEXT_LIMITS.rhythm_line);
+    return truncatePlanLine(normalized, PLAN_TEXT_LIMITS.rhythm_line);
   }
-  return truncateAtSentence(text, PLAN_TEXT_LIMITS[field]);
+  return truncateAtSentence(normalized, PLAN_TEXT_LIMITS[field]);
 }
 
 function enforceRhythmLines(lines: string[]): string[] {

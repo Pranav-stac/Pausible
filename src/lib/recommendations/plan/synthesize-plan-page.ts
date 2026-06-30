@@ -1,4 +1,5 @@
 import type { BuildProfileInput } from "@/lib/recommendations/build-user-profile";
+import { coerceOptionalPlanText, coercePlanText } from "@/lib/recommendations/plan/coerce-plan-field";
 import { callGeminiSection, parseSectionJson } from "@/lib/recommendations/gemini-api-client";
 import { callOpenAiSection } from "@/lib/recommendations/openai-api-client";
 import {
@@ -58,22 +59,24 @@ function resolvePlanBuiltNarrative(
   parsed: IntegratedPlanPromptJson | null,
   fallbackNarrative: string,
 ): string {
-  const narrative = parsed?.plan_built_narrative?.trim();
+  const narrative = coerceOptionalPlanText(parsed?.plan_built_narrative);
   if (narrative) return narrative;
 
-  const legacyNotes = (parsed?.plan_notes ?? []).filter(Boolean);
+  const legacyNotes = (parsed?.plan_notes ?? [])
+    .map((note) => coercePlanText(note, ""))
+    .filter(Boolean);
   if (legacyNotes.length) return legacyNotes.join(" ");
 
   return fallbackNarrative;
 }
 
 function resolvePlanSubtitle(
-  ai: string | undefined,
+  ai: unknown,
   profile: UserProfile,
   secondaryBlendPct?: number,
 ): string {
   const fallback = buildDeterministicPlanSubtitle(profile, secondaryBlendPct);
-  const candidate = ai?.trim();
+  const candidate = coerceOptionalPlanText(ai);
   if (!candidate) return fallback;
   if (!isCompleteSentence(candidate)) return fallback;
   return candidate;
@@ -126,10 +129,12 @@ function mergeParsedPlan(
   const phases = planOutput.phases.map((phase) => {
     const hit = parsed?.phases?.find((p) => p.phase_number === phase.phase_number);
     const rhythm = mergePhaseRhythm(phase, hit);
-    const readinessRaw = hit?.readiness_signal_user?.trim() || phase.readiness_signal.description;
+    const readinessRaw =
+      coercePlanText(hit?.readiness_signal_user, phase.readiness_signal.description) ||
+      phase.readiness_signal.description;
     return {
       phase_number: phase.phase_number,
-      phase_intent_user: hit?.phase_intent_user?.trim() || phase.intent,
+      phase_intent_user: coercePlanText(hit?.phase_intent_user, phase.intent),
       readiness_signal_user: formatReadinessLine(readinessRaw),
       ...rhythm,
     };
@@ -137,7 +142,7 @@ function mergeParsedPlan(
 
   const raw = {
     plan_subtitle: resolvePlanSubtitle(parsed?.plan_subtitle, profile, secondaryBlendPct),
-    goal_framing: parsed?.goal_framing?.trim() || fallback.goal_framing,
+    goal_framing: coercePlanText(parsed?.goal_framing, fallback.goal_framing),
     phases,
     plan_built_narrative: resolvePlanBuiltNarrative(parsed, fallback.plan_built_narrative),
     plan_notes: [] as string[],
@@ -235,13 +240,15 @@ export async function synthesizeIntegratedPlanPage(
     provider === "gpt" ? await callOpenAiSection(callArgs) : await callGeminiSection(callArgs);
 
   let parsed = parseSectionJson<IntegratedPlanPromptJson>(result.text);
-  if (result.text.trim() && !parsed?.plan_subtitle?.trim()) {
+  const parsedSubtitle = coerceOptionalPlanText(parsed?.plan_subtitle);
+  if (result.text.trim() && !parsedSubtitle) {
     result =
       provider === "gpt" ? await callOpenAiSection(callArgs) : await callGeminiSection(callArgs);
     parsed = parseSectionJson<IntegratedPlanPromptJson>(result.text);
   }
 
-  if (result.error || !parsed?.plan_subtitle?.trim()) {
+  const planSubtitle = coerceOptionalPlanText(parsed?.plan_subtitle);
+  if (result.error || !planSubtitle) {
     return mergeParsedPlan(
       planOutput,
       profile,

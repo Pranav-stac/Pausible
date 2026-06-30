@@ -1,5 +1,7 @@
 /** Global + plan-specific blocklist enforcement for Page 10 AI synthesis (§24). */
 
+import { coercePlanText } from "@/lib/recommendations/plan/coerce-plan-field";
+
 const TECHNICAL_TRAIT_REPLACEMENTS: [RegExp, string][] = [
   [/\bconscientiousness\b/gi, "Discipline"],
   [/\bneuroticism\b/gi, "Stress Sensitivity"],
@@ -90,24 +92,24 @@ export function sanitizeIntegratedPlanFields(content: IntegratedPlanSanitizeInpu
 } {
   const violations: BlocklistViolation[] = [];
 
-  const scrub = (value: string, field: string): string => {
-    const { text, violations: found } = sanitizePlanPageText(value);
+  const scrub = (value: string | unknown, field: string): string => {
+    const { text, violations: found } = sanitizePlanPageText(coercePlanText(value, ""));
     for (const term of found) {
       violations.push({ term, field });
     }
     return text;
   };
 
-  const scrubMeta = (value: string, field: string): string => {
-    const { text, violations: found } = sanitizePlanMetaText(value);
+  const scrubMeta = (value: string | unknown, field: string): string => {
+    const { text, violations: found } = sanitizePlanMetaText(coercePlanText(value, ""));
     for (const term of found) {
       violations.push({ term, field });
     }
     return text;
   };
 
-  const scrubNarrative = (value: string): string => {
-    const { text, violations: found } = sanitizePlanBuiltNarrative(value);
+  const scrubNarrative = (value: string | unknown): string => {
+    const { text, violations: found } = sanitizePlanBuiltNarrative(coercePlanText(value, ""));
     for (const term of found) {
       violations.push({ term, field: "plan_built_narrative" });
     }
