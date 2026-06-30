@@ -205,12 +205,14 @@ export function IntegratedPlanTable({
   integratedPlan: IntegratedPlanSynthesis;
 }) {
   const phaseCopy = new Map(integratedPlan.phases.map((p) => [p.phase_number, p]));
-  const phaseCount = planOutput.phases.length;
+  const phaseCount = planOutput.show_all_phases === false ? 1 : planOutput.phases.length;
+  const visiblePhases =
+    planOutput.show_all_phases === false ? planOutput.phases.slice(0, 1) : planOutput.phases;
   const phaseGridStyle = { gridTemplateColumns: `repeat(${phaseCount}, minmax(0, 1fr))` };
 
-  const phaseRows = planOutput.phases.map((phase, index) => {
+  const phaseRows = visiblePhases.map((phase, index) => {
     const copy = phaseCopy.get(phase.phase_number);
-    const weekLabel = formatPhaseWeekLabel(planOutput.phases, index);
+    const weekLabel = formatPhaseWeekLabel(visiblePhases, index);
     const dailyLines =
       copy?.daily_rhythm_user?.length
         ? copy.daily_rhythm_user
@@ -233,6 +235,11 @@ export function IntegratedPlanTable({
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      {planOutput.show_all_phases === false ? (
+        <p className="border-b border-amber-100 bg-amber-50/80 px-4 py-2 text-xs text-amber-900">
+          Phase 1 only for now — later phases unlock as you build consistency (overwhelm-safe pacing).
+        </p>
+      ) : null}
       <div className="flex border-b border-slate-200/80">
         <div className="w-[4.5rem] shrink-0 border-r border-slate-200/80 bg-slate-50" aria-hidden />
         <div className="grid min-w-0 flex-1 divide-x divide-slate-200/80" style={phaseGridStyle}>

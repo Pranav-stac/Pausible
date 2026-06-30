@@ -6,10 +6,11 @@ import { formatPillarDoLine, formatPillarDontLine } from "@/lib/recommendations/
 import { buildStoredActionPlanCache, hashActionPlanInputs, type StoredActionPlanCache } from "@/lib/recommendations/action-plan-cache";
 import { DEFAULT_REPORT_LLM_PROVIDER } from "@/lib/recommendations/report-llm-types";
 import type { PillarName } from "@/lib/recommendations/types";
+import { PDA_REPORT_PILLAR_ORDER } from "@/lib/recommendations/scoring-constants";
 import { patchAttempt } from "@/lib/data/attempt-service";
 import type { SerializedAttempt } from "@/lib/local/attempts";
 
-const PILLAR_ORDER: PillarName[] = ["Nutrition", "Physical Activity", "Sleep & Recovery", "Mental Wellness"];
+const PILLAR_ORDER: PillarName[] = [...PDA_REPORT_PILLAR_ORDER];
 
 const PILLAR_ACCENTS: Record<PillarName, { bg: string; ring: string; dot: string }> = {
   Nutrition: { bg: "from-emerald-50 to-teal-50/60", ring: "ring-emerald-200/80", dot: "#059669" },

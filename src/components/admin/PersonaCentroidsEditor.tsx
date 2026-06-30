@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { DEFAULT_PERSONA_ALPHA, PERSONA_DISPLAY } from "@/lib/scoring/persona-defaults";
 import type { PersonaCentroidTable, PersonaKey, TraitKey } from "@/lib/scoring/persona-types";
-import { PERSONA_KEYS, TRAIT_KEYS, TRAIT_LABELS } from "@/lib/scoring/persona-types";
+import { PERSONA_KEYS, TRAIT_KEYS } from "@/lib/scoring/persona-types";
+import { userFacingTraitLabel } from "@/lib/results/trait-labels";
 
 type Props = {
   api: (path: string, init?: RequestInit) => Promise<Response>;
@@ -174,7 +175,7 @@ export function PersonaCentroidsEditor({ api, onMessage, onError }: Props) {
               {TRAIT_KEYS.map((trait, idx) => (
                 <tr key={trait} className="border-b border-slate-100">
                   <td className="px-2 py-2 font-medium text-slate-800">
-                    {idx + 1}. {TRAIT_LABELS[trait]}
+                    {idx + 1}. {userFacingTraitLabel(trait)}
                   </td>
                   {PERSONA_KEYS.map((persona) => (
                     <td key={persona} className="px-2 py-1">

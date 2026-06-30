@@ -3,7 +3,8 @@
 import { FACET_IDS_ORDERED } from "@/lib/scoring/question-bank-meta";
 import { PERSONA_DISPLAY } from "@/lib/scoring/persona-defaults";
 import type { PersonaAnalysis, PersonaKey } from "@/lib/scoring/persona-types";
-import { PERSONA_KEYS, TRAIT_KEYS, TRAIT_LABELS } from "@/lib/scoring/persona-types";
+import { PERSONA_KEYS, TRAIT_KEYS } from "@/lib/scoring/persona-types";
+import { userFacingTraitLabel } from "@/lib/results/trait-labels";
 import { personaLabel } from "@/lib/results/persona-display";
 import { blendStrengthLabel, fitTierLabel } from "@/lib/scoring/persona-fit";
 
@@ -96,7 +97,7 @@ export function AttemptPersonaDetail({ analysis }: { analysis: PersonaAnalysis |
             {TRAIT_KEYS.map((t, i) => (
               <tr key={t} className="border-b border-slate-100">
                 <td className="py-1">
-                  {i + 1}. {TRAIT_LABELS[t]}
+                  {i + 1}. {userFacingTraitLabel(t)}
                 </td>
                 <td className="py-1 font-mono">{fmt(analysis.traitAverages[t])}</td>
               </tr>

@@ -1,533 +1,0 @@
-
-
-PAUSIBL WELLNESS INTELLIGENCE PLATFORM
-Wellness Report Content Logic Guide
-How Each Report Section Gets Its Content
-
-
-Document: Content Logic Guide v1.1
-Companion To: Wellness Report Template v1.0 (PPTX)
-Dependencies: Recommendation Master v1.7, Developer Implementation Guide v2.1
-Date: June 10, 2026
-Classification: Internal / Engineering
-
-
-Table of Contents
-1. Document Purpose and Scope
-2. System Architecture Overview
-2.3 Fit-Tier Scoring Adjustments (New in v1.1)
-The fit tier (Classic/Core/Adaptive/Emerging) modifies the recommendation scoring pipeline. For lower fit tiers, the primary persona scoring bonus is reduced, which naturally promotes all_personas recommendations higher in the ranking. This ensures users with weaker persona fits receive more universally applicable content.
-Fit TierPrimary Persona BonusPersona-Specific %All-Personas %Classic (75-100)+25 (unchanged)80-85%15-20%Core (50-74)+2065-70%30-35%Adaptive (25-49)+1550-55%45-50%Emerging (0-24)+1030-35%65-70%Implementation: After computing the fit score, determine the fit tier, then use the corresponding primary persona bonus in Step 2 of the pipeline (Score). All other scoring components (secondary +15, barriers, goals, context, OCEAN, strength) remain unchanged.
-2.4 Blend-Strength Content Rules (New in v1.1)
-Blend strength (Pure/Tendencies/Strong Influence) determines how much secondary persona content appears in each report section. These rules apply at Step 5 (Resolve Persona Context) and Step 7 (AI Synthesize).
-Report SectionPure (ratio > 2.0)Tendencies (1.3-2.0)Strong Influence (< 1.3)Slide 2: PersonalityPrimary only1 sentence on secondaryFull paragraph on blendSlide 3: Blind SpotsPrimary blind_spot + pattern_prediction onlyPrimary + optionally secondary pattern_predictionBoth personas' blind_spot insights, framed as two sidesSlide 4: Success BlueprintPrimary onlyPrimary + brief secondary mentionBoth personas' success_condition, framed as dual requirementSlide 5: Where You StandNo secondary mentionSecondary shown in distribution onlySecondary highlighted in distribution + narrativeSlides 7-8: Action PlanPrimary persona context onlyPrimary context, 1-2 secondary notesPrimary context + secondary "also consider" notesSlide 10: Coaching GuidePrimary PI onlyPrimary PI + secondary tendency noteExplicit blend coaching — how two sides conflict/complementAI Synthesis Impact: Every AI synthesis prompt now receives fit_tier and blend_strength as input parameters. The system prompt instructs the model to adjust tone (assertive for Classic, tentative for Emerging) and content inclusion (single-persona for Pure, dual-persona for Strong Influence).
-2.5 AI Tone Adjustment by Fit Tier (New in v1.1)
-Fit TierToneExample PhrasingClassicAssertive, confident"You naturally operate with..." / "You do X because..."CoreConfident but softer"You tend to..." / "Your pattern suggests..."AdaptiveExploratory"You may find that..." / "People with your pattern often..."EmergingTentative, invitational"Some aspects of your responses suggest..." / "Consider whether..."3. Data Sources Reference
-4. Slide 1: Cover Page
-5. Slide 2: Wellness Personality
-6. Slide 3: What You Don't See (Blind Spots)
-7. Slide 4: Success Blueprint
-8. Slide 5: Where You Stand (Relative Positioning)
-9. Slide 6: High-Impact Opportunities
-10. Slides 7-8: 4-Pillar Action Plan
-11. Slide 9: Wellness Launchpad
-12. Slide 10: Coaching Guide
-13. AI Synthesis Engine Specifications
-14. Content Quality Checks
-
-
-1. Document Purpose and Scope
-This document is the operational companion to the Wellness Report Template (PPTX). It specifies, for each of the 10 report slides, exactly how content is sourced, derived, and generated. Every section includes three components:
-* Data Source: Which columns, rows, or computed values feed the section.
-* Derivation Logic: Formulas, filters, scoring rules, and selection criteria.
-* AI Synthesis Prompt: The exact prompt to pass to the AI model to generate user-facing text.
-The AI synthesis engine's role is to compose and structure pre-personalized content, not to personalize generic recommendations. The recommendation master v1.7 and persona context columns already contain persona-specific text. The AI takes this pre-personalized content and weaves it into a coherent, emotionally intelligent narrative.
-NOTE: All prompts in this document assume a system-level instruction that sets the AI's role as a wellness report writer. The prompts below are the user-turn messages sent per section. See Section 13 for the system prompt.
-
-
-2. System Architecture Overview
-2.1 Report Generation Pipeline
-The report generation follows this sequence: Assessment Complete > OCEAN Scores Calculated > Persona Assigned > Recommendations Filtered & Scored > Persona Context Resolved > Sections Generated (AI Synthesis) > Report Assembled (PPTX).
-2.2 Engine Pipeline (from Implementation Guide v2.0)
-StepDescription1. FilterRemove recs where user's persona is in the exclude column2. ScoreApply scoring formula: Primary +25, Secondary +15, all_personas +10, Barrier +12 (cap 36), Goal +8 (cap 24), Context +3 (cap 15), OCEAN +4 (cap 20), Strength bonus. Max = 145.3. RankSort by total score descending within each pillar4. ClusterGroup by category within pillar5. Resolve Persona ContextFor each rec, pull text from the user's primary persona column (e.g., turtle, fox, deer, bear, elephant, wolf). If empty, use the rec column as fallback.6. Select for ReportTop N recs per pillar based on score and type distribution7. AI SynthesizePass selected recs + persona context to AI for each report section
-
-3. Data Sources Reference
-3.1 Recommendation Master v1.7 Schema
-ColumnDescriptionUsed ForidUnique ID (e.g., NUT001)Filteringpillarnutrition, physical_activity, sleep, mental_wellnessFiltering, groupingcategorySub-category within pillarClusteringtypedo, dont, first_action, mindset_shift, recovery_rule, environment_change, safety_guidance, blind_spot, pattern_prediction, success_condition, strength_insightSection routingrecEngine text (used for scoring/filtering)ScoringpersonaTarget persona(s) or all_personasScoring, filteringcontextSituational contextsScoringgoalMatched goalsScoringbarrierMatched barriersScoringexcludePersonas to excludeFilteringstrengthcore, supporting, optional, conditionalScoring, selectionoceanOCEAN trait tagsScoringnotesInternal notesNot used in reportturtleShielded Turtle persona contextAI synthesis textfoxCurious Fox persona contextAI synthesis textdeerWatchful Deer persona contextAI synthesis textbearSteadfast Bear persona contextAI synthesis textelephantSteady Elephant persona contextAI synthesis textwolfPack Wolf persona contextAI synthesis text3.2 Assessment Data (Per User)
-Data PointDescriptionSourceOCEAN Scores5 trait scores (1-7 scale), 30 facet scoresAssessment enginePrimary PersonaClosest centroid by Euclidean distanceAssessment engineSecondary PersonaSecond closest centroidAssessment enginePersona PercentagesSoftmax of negative distances for all 6Assessment engineFit ScoreNormalized 0-100 against inter-centroid distancesDerivedPersona Titlee.g., "Classic Steady Elephant with Steadfast Bear tendencies"Derived from fit score + blend ratioTrait DeviationsTraits where user deviates > 0.8 from centroidDerivedContextual InputsStress level, sleep quality, available time, etc.Contextual questionnaireGoalsUser-selected wellness goalsContextual questionnaireBarriersUser-identified barriersContextual questionnaire3.3 OCEAN Centroids
-PersonaOCEANSteady Elephant3.56.54.65.51.5Pack Wolf4.55.26.56.02.8Watchful Deer4.52.82.85.06.0Curious Fox6.52.55.54.02.5Steadfast Bear3.05.83.05.02.0Shielded Turtle2.52.52.04.06.53.4 Persona Archetype Mapping
-PersonaArchetypeKey PatternSteady ElephantSelf-Regulated PlannerHigh C, low N. Plans methodically, stays consistent.Pack WolfSocial MotivatorHigh E, high A. Thrives in groups, externally motivated.Watchful DeerStress-SensitiveHigh N, low E. Easily overwhelmed, needs safe environments.Curious FoxCurious ExplorerHigh O, high E. Seeks variety, bores easily with routine.Steadfast BearResilient PerformerHigh C, low N, low E. Gritty, self-reliant, disciplined.Shielded TurtleBrittle/AvoidantHigh N, low everything else. Withdraws under pressure.
-
-4. Slide 1: Cover Page
-4.1 Content Elements
-ElementExampleSourceReport Title"Your Wellness Intelligence Report"Static textUser NameUser's display nameUser profilePersona Namee.g., "Steady Elephant"Primary persona from assessmentPersona Titlee.g., "Classic Steady Elephant with Steadfast Bear tendencies"Derived (see 4.2)Persona IllustrationAnimal illustration placeholderAsset libraryDateReport generation dateSystem4.2 Persona Title Derivation Logic
-The persona title combines fit tier and blend strength:
-Step 1: Calculate Fit Score (0-100)
-fit_score = (1 - (user_distance / max_inter_centroid_distance)) * 100, clamped to 0-100. max_inter_centroid_distance is the largest Euclidean distance between any two persona centroids (pre-computed constant).
-Step 2: Determine Fit Tier
-Score RangeTierExample75-100Classic"Classic Steady Elephant"50-74Core"Core Steady Elephant"25-49Adaptive"Adaptive Steady Elephant"0-24Emerging"Emerging Steady Elephant"Step 3: Determine Blend Strength
-blend_ratio = secondary_distance / primary_distance
-RatioLabelSuffix> 2.0PureNo suffix1.3-2.0Tendencies"...with Curious Fox tendencies"< 1.3Strong influence"...with strong Curious Fox influence"Step 4: Assemble Title
-Format: "[Tier] [Primary Persona] [Blend Suffix]". Example: "Classic Steady Elephant with Steadfast Bear tendencies"
-NOTE: No AI synthesis needed for Slide 1. All content is deterministic.
-
-
-5. Slide 2: Wellness Personality
-5.1 Content Elements
-ElementDescriptionSourcePersona Narrative2-3 paragraph personality descriptionAI synthesisQuick Profile PanelStructured sidebar with key attributesDerived + AIPersona Percentagee.g., "78% Steady Elephant"Assessment engine (softmax)5.2 Data Sources
-Primary persona archetype description (from archetype mapping table in Section 3.4), user OCEAN scores vs. centroid values, persona percentages from assessment, user-reported goals and barriers from contextual questionnaire.
-5.3 Quick Profile Panel Derivation
-AttributeLogicExampleWellness StyleMap primary persona to style label"Structured & Self-Regulated" for ElephantEnergy PatternDerive from E score relative to centroid"Steady-paced" if E near centroid, "High-energy" if E > centroid+1Motivation DriverDerive from persona archetype"Internal discipline" for Bear, "Social energy" for WolfRisk FactorTop barrier from contextual questionnaire"Perfectionism" or "Inconsistency"Best EnvironmentDerive from E + N scores"Quiet, low-pressure" for high-N low-E5.4 AI Synthesis Prompt
-AI SYNTHESIS PROMPT
-You are writing the Wellness Personality section of a personalized wellness report.
-
-INPUT DATA:
-- Primary persona: {primary_persona} ({fit_score}% fit)
-- Secondary persona: {secondary_persona}
-- Persona title: {persona_title}
-- Archetype: {archetype_description}
-- User OCEAN scores: O={o}, C={c}, E={e}, A={a}, N={n}
-- Centroid values: O={co}, C={cc}, E={ce}, A={ca}, N={cn}
-- User goals: {goals_list}
-- User barriers: {barriers_list}
-
-TASK:
-Write a 2-3 paragraph personality narrative (150-200 words) that describes how this person approaches wellness. Do NOT list traits. Write as if you are a perceptive coach who has been observing this person.
-
-RULES:
-1. Open with a strength-based observation (emotional arc: Pride)
-2. Describe their natural behavioral patterns around health, fitness, and nutrition
-3. Mention their likely relationship with consistency, motivation, and environment
-4. Reference their specific barriers naturally, not as a clinical list
-5. End with a recognition statement that makes the user feel understood
-6. Use simple English. No jargon. No academic terms.
-7. Write in second person ("You tend to..." not "This persona...")
-8. Do NOT mention OCEAN traits by name (no "Your Openness score...")
-9. Do NOT mention persona names (no "As a Steady Elephant...")
-10. Tone: warm, insightful, slightly surprising
-
-OUTPUT FORMAT:
-Return only the narrative paragraphs. No headings, no bullet points.
-- Fit tier: {fit_tier} (Classic/Core/Adaptive/Emerging)
-- Blend strength: {blend_strength} (Pure/Tendencies/Strong Influence)
-- Secondary persona (if blend != Pure): {secondary_persona}
-
-
-6. Slide 3: What You Don't See
-6.1 Content Elements
-ElementDescriptionSourceBlind Spot Insights2 blind_spot recommendations with persona contextPI series (blind_spot type)Pattern Predictions2 pattern_prediction recommendations with persona contextPI series (pattern_prediction type)6.2 Data Sources
-Recommendation Master v1.7, filtered to: type = blind_spot OR pattern_prediction, pillar = mental_wellness, category = persona_insights. These are the PI series records (PI001-PI024). Each persona has exactly 1 blind_spot and 1 pattern_prediction in the PI series.
-6.3 Selection Logic
-Filter the PI series by the user's primary persona. For each matched rec, resolve the persona context column (e.g., if primary = steady_elephant, read the elephant column). This column contains the user-facing text. The rec column contains the engine-level text and should NOT appear in the report.
-StepActionResult1Filter PI series: type = blind_spot, persona matches primary1 result2Filter PI series: type = pattern_prediction, persona matches primary1 result3If secondary persona has blend_ratio < 1.5, also pull secondary blind_spot0-1 additional4Read persona context column for each selected recUser-facing text6.4 AI Synthesis Prompt
-AI SYNTHESIS PROMPT
-You are writing the "What You Don't See" section of a personalized wellness report. This is the Revelation moment - users should feel "I never thought about it that way."
-
-INPUT DATA:
-- Primary persona: {primary_persona}
-- Blind spot insight (persona context): "{blind_spot_text}"
-- Pattern prediction (persona context): "{pattern_prediction_text}"
-- Secondary blind spot (if applicable): "{secondary_blind_spot_text}"
-- User barriers: {barriers_list}
-- User goals: {goals_list}
-
-TASK:
-Write two distinct subsections:
-
-SUBSECTION 1 - "The Pattern You Don't Notice" (80-100 words):
-Transform the blind spot insight into a narrative that reveals an unconscious pattern. Start with a specific scenario the user would recognize. Use the pattern prediction to show where this leads if unchecked.
-
-SUBSECTION 2 - "What This Means for Your Goals" (60-80 words):
-Connect the blind spot directly to the user's stated goals and barriers. Show how this hidden pattern has been undermining their specific goals.
-
-RULES:
-1. Never say "blind spot" - show, don't label
-2. Use concrete scenarios, not abstract descriptions
-3. Tone: revelatory but compassionate, never judgmental
-4. Reference specific user goals/barriers naturally
-5. Simple English. No clinical language.
-6. Write in second person.
-
-OUTPUT FORMAT:
-Return two subsections with their headings. No bullet points.
-- Fit tier: {fit_tier} (Classic/Core/Adaptive/Emerging)
-- Blend strength: {blend_strength} (Pure/Tendencies/Strong Influence)
-- Secondary persona (if blend != Pure): {secondary_persona}
-
-
-7. Slide 4: Success Blueprint
-7.1 Content Elements
-ElementDescriptionSourceSuccess Conditions2 success_condition recommendations with persona contextPI seriesStrength Insights2 strength_insight recommendations with persona contextPI series7.2 Data Sources
-Recommendation Master v1.7, filtered to: type = success_condition OR strength_insight, pillar = mental_wellness, category = persona_insights. Each persona has exactly 1 success_condition and 1 strength_insight in the PI series.
-7.3 Selection Logic
-Same pattern as Slide 3. Filter PI series by primary persona and type. Resolve persona context column. Optionally include secondary persona's success_condition if blend_ratio < 1.5.
-7.4 AI Synthesis Prompt
-AI SYNTHESIS PROMPT
-You are writing the "Success Blueprint" section. This is the Hope + Curiosity moment - users should feel excited about their natural advantages.
-
-INPUT DATA:
-- Primary persona: {primary_persona}
-- Success condition (persona context): "{success_condition_text}"
-- Strength insight (persona context): "{strength_insight_text}"
-- Secondary success condition (if applicable): "{secondary_success_text}"
-- User goals: {goals_list}
-
-TASK:
-Write two distinct subsections:
-
-SUBSECTION 1 - "What Works for You" (80-100 words):
-Transform the success condition into a concrete picture of what their ideal wellness setup looks like. Be specific about environments, timing, social context, and structure. This should feel like a prescription, not generic advice.
-
-SUBSECTION 2 - "Your Natural Advantage" (60-80 words):
-Reframe the strength insight as a genuine competitive advantage. Show how this trait, which they may take for granted, is actually rare and powerful in a wellness context.
-
-RULES:
-1. Be specific and concrete - "train in the early morning with a fixed 3-day schedule" not "find what works for you"
-2. Connect to user's stated goals
-3. Tone: empowering, specific, slightly surprising
-4. Simple English. No jargon.
-5. Write in second person.
-
-OUTPUT FORMAT:
-Return two subsections with their headings. No bullet points.
-- Fit tier: {fit_tier} (Classic/Core/Adaptive/Emerging)
-- Blend strength: {blend_strength} (Pure/Tendencies/Strong Influence)
-- Secondary persona (if blend != Pure): {secondary_persona}
-
-
-8. Slide 5: Where You Stand
-8.1 Content Elements
-ElementDescriptionSourceFit TitleFull persona title with tier and blendDerived (Section 4.2)Fit ScorePercentage match to primary personaAssessment engineTrait Deviation Cards1-2 traits where user differs from centroidDerived (see 8.3)Radar Chart5-axis OCEAN comparison: user vs centroidAssessment data + centroidsPersona DistributionBar/pie showing % match to all 6 personasSoftmax percentages8.2 Radar Chart Data
-Two data series plotted on a 5-axis radar: (1) User's OCEAN scores (1-7), (2) Primary persona centroid values (1-7). The chart is generated client-side or pre-rendered as an image. No AI synthesis needed for the chart itself.
-8.3 Trait Deviation Logic
-For each of the 5 OCEAN traits, calculate: deviation = |user_score - centroid_score|. Select traits where deviation > 0.8. Maximum 2 deviations shown. If more than 2 qualify, take the 2 largest deviations.
-ComponentFormulaNoteDirectionuser_score > centroid ? "higher" : "lower"Determines narrative framingMagnitudeRound deviation to 1 decimalShown in cardTrait LabelMap OCEAN letter to user-friendly nameO=Openness, C=Discipline, E=Social Energy, A=Agreeableness, N=Stress Sensitivity8.4 AI Synthesis Prompt (Deviation Narratives Only)
-AI SYNTHESIS PROMPT
-You are writing trait deviation narratives for the "Where You Stand" section. Each deviation card needs a short explanatory paragraph.
-
-INPUT DATA:
-- Primary persona: {primary_persona}
-- Deviation 1: {trait_name_1} is {magnitude_1} points {direction_1} than typical {persona_name}
-- Deviation 2 (if any): {trait_name_2} is {magnitude_2} points {direction_2} than typical {persona_name}
-
-TASK:
-For each deviation, write a 2-sentence explanation (30-40 words) that:
-1. First sentence: What this means practically for their wellness behavior
-2. Second sentence: How this makes them different from a typical member of their persona
-
-RULES:
-1. Never use OCEAN trait names directly - translate to behavioral language
-2. Frame deviations as interesting differences, not problems
-3. Use "you" language
-4. Be specific about behavioral implications
-
-EXAMPLE:
-For a Steady Elephant with Extraversion 1.5 points higher than centroid:
-"You draw more energy from social settings than most people with your planning style. Group fitness, workout partners, or social accountability may work better for you than solo routines."
-
-OUTPUT FORMAT:
-Return one paragraph per deviation, separated by a blank line.
-- Fit tier: {fit_tier} (Classic/Core/Adaptive/Emerging)
-- Blend strength: {blend_strength} (Pure/Tendencies/Strong Influence)
-- Secondary persona (if blend != Pure): {secondary_persona}
-
-
-9. Slide 6: High-Impact Opportunities
-9.1 Content Elements
-ElementDescriptionSourceOpportunity Card 1Highest-scoring cross-pillar recommendationScoring engine outputOpportunity Card 2Second highest from different pillarScoring engine outputOpportunity Card 3Third highest from different pillarScoring engine output9.2 Selection Logic
-After the full scoring pipeline runs (Filter > Score > Rank), select the top 3 recommendations across all pillars with these constraints:
-RuleDescriptionReason1Exclude PI series (category != persona_insights)PI recs belong to Slides 3-42Exclude type = safety_guidanceSafety goes to Slide 103Each card must be from a different pillarEnsure breadth4Prefer type = do or first_actionActionable > reflective for this section5Strength must be core or supportingOnly high-conviction recs6Use persona context column text, not rec columnUser-facing language9.3 Card Structure
-Each opportunity card contains:
-FieldDescriptionSourcePillar IconVisual indicator of pillarAsset libraryPillar Labele.g., "NUTRITION"Pillar columnHeadlineOne-line action statementAI synthesized from persona context textWhy It Matters2-3 sentences connecting to personaAI synthesisImpact LevelHigh / Very HighDerived from score (>120 = Very High, >100 = High)9.4 AI Synthesis Prompt
-AI SYNTHESIS PROMPT
-You are writing the 3 High-Impact Opportunity cards for a wellness report.
-
-INPUT DATA:
-- Primary persona: {primary_persona}
-- Opportunity 1: Pillar={pillar_1}, Score={score_1}, Persona context text="{context_1}", Category={cat_1}
-- Opportunity 2: Pillar={pillar_2}, Score={score_2}, Persona context text="{context_2}", Category={cat_2}
-- Opportunity 3: Pillar={pillar_3}, Score={score_3}, Persona context text="{context_3}", Category={cat_3}
-- User goals: {goals_list}
-- User barriers: {barriers_list}
-
-TASK:
-For each opportunity, generate:
-1. HEADLINE (max 10 words): A compelling, specific action statement derived from the persona context text. Not generic. Example: "Switch to morning workouts before decision fatigue hits" not "Exercise at the right time."
-2. WHY IT MATTERS (2-3 sentences, 40-50 words): Connect the recommendation to the user's persona patterns and stated goals. Explain why THIS person specifically benefits from THIS action.
-
-RULES:
-1. Headlines must be specific and actionable - a reader should know exactly what to do
-2. "Why It Matters" must reference persona-specific behavioral patterns
-3. Do NOT repeat the persona context text verbatim - synthesize it into a headline + explanation
-4. Vary sentence structure across the 3 cards
-5. Simple English. No jargon.
-6. Write in second person.
-
-OUTPUT FORMAT (strict):
-CARD 1:
-Headline: [text]
-Why It Matters: [text]
-
-CARD 2:
-Headline: [text]
-Why It Matters: [text]
-
-CARD 3:
-Headline: [text]
-Why It Matters: [text]
-- Fit tier: {fit_tier} (Classic/Core/Adaptive/Emerging)
-- Blend strength: {blend_strength} (Pure/Tendencies/Strong Influence)
-- Secondary persona (if blend != Pure): {secondary_persona}
-
-
-10. Slides 7-8: 4-Pillar Action Plan
-10.1 Content Structure
-Two slides, each covering 2 pillars. Slide 7: Nutrition + Physical Activity. Slide 8: Sleep + Mental Wellness. Each pillar section contains:
-ComponentContentSelectionFocus Area1 mindset_shift rec (persona context)Highest-scoring mindset_shift for this pillar4 Do's4 do-type recs with persona-specific "why"Top 4 do recs by score2 Don'ts2 dont-type recs with persona-specific "why"Top 2 dont recs by score10.2 Selection Logic Per Pillar
-StepActionResult1From scored & ranked recs for this pillar, exclude PI series and safety_guidanceBase pool2Select highest-scoring rec where type = mindset_shiftFocus Area (1 rec)3Select top 4 recs where type = do OR first_action, deduplicating by categoryDo's (4 recs)4Select top 2 recs where type = dontDon'ts (2 recs)5For each selected rec, resolve persona context columnUser-facing text6If persona context is empty, fall back to rec columnFallback10.3 Do/Don't Format Logic
-Each Do/Don't is displayed as: "[action/behavior] -- [persona-specific why]". The action comes from the persona context column. The "why" is AI-synthesized to connect the recommendation to the user's persona patterns.
-10.4 AI Synthesis Prompt (Per Pillar)
-AI SYNTHESIS PROMPT
-You are writing the Action Plan section for the {pillar_name} pillar.
-
-INPUT DATA:
-- Primary persona: {primary_persona}
-- Focus Area (mindset_shift persona context): "{mindset_shift_text}"
-- Do 1 (persona context): "{do_1_text}" [category: {do_1_cat}]
-- Do 2 (persona context): "{do_2_text}" [category: {do_2_cat}]
-- Do 3 (persona context): "{do_3_text}" [category: {do_3_cat}]
-- Do 4 (persona context): "{do_4_text}" [category: {do_4_cat}]
-- Don't 1 (persona context): "{dont_1_text}" [category: {dont_1_cat}]
-- Don't 2 (persona context): "{dont_2_text}" [category: {dont_2_cat}]
-- User goals relevant to this pillar: {relevant_goals}
-- User barriers relevant to this pillar: {relevant_barriers}
-
-TASK:
-Generate content for all 7 items:
-
-1. FOCUS AREA (1 sentence, max 15 words): Distill the mindset_shift persona context into a single powerful reframe. This is the most important shift for this pillar for this person.
-
-2. FOR EACH DO (4 items): Generate two parts:
-   - Action (max 12 words): A clear, specific action derived from the persona context. Start with a verb.
-   - Why (max 20 words): A persona-specific reason this action matters for THIS user. Reference their behavioral patterns.
-
-3. FOR EACH DON'T (2 items): Generate two parts:
-   - Behavior (max 12 words): The specific behavior to avoid, derived from the persona context. Start with a verb (e.g., "Skip meals when..." not "Don't skip meals...").
-   - Why (max 20 words): Why this behavior is particularly harmful for THIS persona type.
-
-RULES:
-1. Do NOT repeat persona context text verbatim - synthesize it
-2. Actions must be concrete enough to do tomorrow
-3. "Why" must reference persona-specific patterns, not generic health reasons
-4. No jargon. Simple English.
-5. Write in second person.
-
-OUTPUT FORMAT (strict):
-FOCUS AREA: [text]
-
-DO 1:
-Action: [text]
-Why: [text]
-
-DO 2:
-Action: [text]
-Why: [text]
-
-DO 3:
-Action: [text]
-Why: [text]
-
-DO 4:
-Action: [text]
-Why: [text]
-
-DONT 1:
-Behavior: [text]
-Why: [text]
-
-DONT 2:
-Behavior: [text]
-Why: [text]
-- Fit tier: {fit_tier} (Classic/Core/Adaptive/Emerging)
-- Blend strength: {blend_strength} (Pure/Tendencies/Strong Influence)
-- Secondary persona (if blend != Pure): {secondary_persona}
-NOTE: This prompt runs 4 times (once per pillar). Each pillar gets its own independent set of Do/Don't recommendations from the scored pool.
-
-
-11. Slide 9: Wellness Launchpad
-11.1 Content Elements
-CategoryContentSourceStart Here (Category 1)2 first_action recs - easiest winsHighest-scoring first_action recsEnvironment Setup (Category 2)2 environment_change recsHighest-scoring environment_change recsRecovery Rules (Category 3)2 recovery_rule recsHighest-scoring recovery_rule recs11.2 Selection Logic
-For each category, select top 2 recommendations by score from across all pillars. Resolve persona context column for user-facing text. These are meant to be the immediate, low-friction actions the user takes in week 1.
-CategoryFilterSelectionStart Heretype = first_action, strength = core or supportingTop 2 by score, cross-pillarEnvironment Setuptype = environment_changeTop 2 by score, cross-pillarRecovery Rulestype = recovery_ruleTop 2 by score, cross-pillar11.3 AI Synthesis Prompt
-AI SYNTHESIS PROMPT
-You are writing the "Wellness Launchpad" section - the user's immediate action plan for their first week.
-
-INPUT DATA:
-- Primary persona: {primary_persona}
-- Start Here actions (persona context):
-  1. "{first_action_1}" [pillar: {fa1_pillar}]
-  2. "{first_action_2}" [pillar: {fa2_pillar}]
-- Environment changes (persona context):
-  1. "{env_change_1}" [pillar: {ec1_pillar}]
-  2. "{env_change_2}" [pillar: {ec2_pillar}]
-- Recovery rules (persona context):
-  1. "{recovery_1}" [pillar: {rr1_pillar}]
-  2. "{recovery_2}" [pillar: {rr2_pillar}]
-
-TASK:
-For each of the 6 items, generate:
-- Action (max 15 words): A specific, immediately doable action. Must be completable this week.
-- Context (max 12 words): One line explaining when or how to do this.
-
-RULES:
-1. These must be the easiest possible entry points - zero friction
-2. "Start Here" items should be doable TODAY
-3. "Environment Setup" items should be one-time changes
-4. "Recovery Rules" should be simple if-then rules
-5. No jargon. Simple English.
-
-OUTPUT FORMAT (strict):
-START HERE:
-1. Action: [text] | Context: [text]
-2. Action: [text] | Context: [text]
-
-ENVIRONMENT SETUP:
-1. Action: [text] | Context: [text]
-2. Action: [text] | Context: [text]
-
-RECOVERY RULES:
-1. Action: [text] | Context: [text]
-2. Action: [text] | Context: [text]
-- Fit tier: {fit_tier} (Classic/Core/Adaptive/Emerging)
-- Blend strength: {blend_strength} (Pure/Tendencies/Strong Influence)
-- Secondary persona (if blend != Pure): {secondary_persona}
-
-
-12. Slide 10: Coaching Guide
-12.1 Content Elements
-ElementDescriptionSourceKey StrengthThe user's primary wellness advantagePI series (strength_insight) + persona contextKey RiskThe user's primary consistency riskPI series (blind_spot) + barriersCoaching Guidance3-4 coaching-style notesDerived from PI series + persona context columnsSafety Notes1-2 safety_guidance recs if applicableFiltered from master: type = safety_guidance12.2 Coaching Notes Derivation
-Coach Notes are NOT a separate recommendation type. They are synthesized from the PI series (all 4 types for the user's primary persona) combined with the persona context columns of the top-scoring recommendations. The AI distills these into 3-4 coaching-style observations.
-12.3 Safety Guidance Selection
-Filter recommendation master: type = safety_guidance, persona matches user's primary or all_personas. Include all matching safety recs (do not limit count). If no safety recs match, omit the safety section from this slide.
-12.4 AI Synthesis Prompt
-AI SYNTHESIS PROMPT
-You are writing the Coaching Guide - the final page of a wellness report. This should leave the user feeling confident and supported.
-
-INPUT DATA:
-- Primary persona: {primary_persona}
-- Persona title: {persona_title}
-- Strength insight (persona context): "{strength_insight_text}"
-- Blind spot (persona context): "{blind_spot_text}"
-- Top barriers: {barriers_list}
-- PI series for this persona (all 4 persona context texts):
-  - Blind spot: "{pi_blind_spot}"
-  - Pattern prediction: "{pi_pattern}"
-  - Success condition: "{pi_success}"
-  - Strength insight: "{pi_strength}"
-- Top 5 recommendations by score (persona context texts):
-  1. "{top_rec_1}" [pillar: {pillar_1}]
-  2. "{top_rec_2}" [pillar: {pillar_2}]
-  3. "{top_rec_3}" [pillar: {pillar_3}]
-  4. "{top_rec_4}" [pillar: {pillar_4}]
-  5. "{top_rec_5}" [pillar: {pillar_5}]
-- Safety guidance recs (if any): {safety_recs_list}
-
-TASK:
-Generate 4 sections:
-
-1. KEY STRENGTH (2 sentences, 30-40 words):
-Your single biggest wellness advantage. Derived from the strength insight. Frame it as something the user can lean on.
-
-2. KEY RISK (2 sentences, 30-40 words):
-The single biggest threat to their consistency. Derived from the blind spot. Frame it as something to watch for, not a flaw.
-
-3. COACHING NOTES (3-4 bullet points, each 15-25 words):
-Distill the PI series and top recommendations into coaching-style observations. Each note should be a specific, actionable insight that a wellness coach would share. Format: "[Observation]. [Action or reframe]."
-
-4. SAFETY NOTES (only if safety recs provided):
-Rewrite each safety_guidance rec in clear, non-alarming language. Keep each to 1 sentence.
-
-RULES:
-1. Tone: confident, warm, coach-like. This is the closing page - end on trust.
-2. Key Strength and Key Risk should feel like two sides of the same coin
-3. Coaching notes should feel like a coach's private observations, not textbook advice
-4. No jargon. Simple English.
-5. Write in second person.
-
-OUTPUT FORMAT (strict):
-KEY STRENGTH: [text]
-
-KEY RISK: [text]
-
-COACHING NOTES:
-- [note 1]
-- [note 2]
-- [note 3]
-- [note 4]
-
-SAFETY NOTES (if applicable):
-- [note 1]
-- [note 2]
-- Fit tier: {fit_tier} (Classic/Core/Adaptive/Emerging)
-- Blend strength: {blend_strength} (Pure/Tendencies/Strong Influence)
-- Secondary persona (if blend != Pure): {secondary_persona}
-
-
-13. AI Synthesis Engine Specifications
-13.1 System Prompt
-SYSTEM PROMPT (SET ONCE PER REPORT GENERATION)
-You are Pausibl's wellness report writer. You compose personalized wellness reports from pre-analyzed data. Your role is NOT to personalize generic advice - the data you receive is already personalized. Your role is to compose and structure this pre-personalized content into a coherent, emotionally intelligent narrative.
-
-CORE PRINCIPLES:
-1. You are a perceptive, warm wellness coach writing a report for one specific person.
-2. Every statement should feel like it was written specifically for THIS user.
-3. Use simple English understandable by any adult. No academic jargon. No western wellness buzzwords.
-4. Never mention OCEAN, personality traits by technical names, or persona animal names.
-5. Never use motivational fluff ("You've got this!", "Stay positive!", "Believe in yourself!").
-6. Be behaviorally specific. "Walk for 20 minutes after dinner" not "Be more active."
-7. Frame weaknesses as patterns to notice, not character flaws.
-8. Frame strengths as genuine advantages, not consolation prizes.
-
-TONE: Warm, insightful, slightly surprising. The user should feel understood, not lectured.
-
-EMOTIONAL ARC ACROSS SECTIONS:
-Slide 2: Pride + Recognition ("I see you clearly")
-Slide 3: Revelation ("I never thought of it that way")
-Slide 4: Hope + Curiosity ("This could actually work for me")
-Slide 5: Clarity ("Now I understand where I stand")
-Slide 6: Excitement ("These are genuinely useful")
-Slides 7-8: Confidence ("I know exactly what to do")
-Slide 9: Momentum ("I can start right now")
-Slide 10: Trust ("I'm in good hands")
-
-FIT TIER ADJUSTMENTS:
-You will receive a fit_tier parameter with each section prompt. Adjust your language:
-- Classic: Write with full confidence. "You naturally..." / "You always..."
-- Core: Write with soft confidence. "You tend to..." / "Your pattern suggests..."
-- Adaptive: Write with exploration. "You may find..." / "People like you often..."
-- Emerging: Write with invitation. "Some of your responses suggest..." / "Consider whether..."
-
-BLEND STRENGTH ADJUSTMENTS:
-You will receive a blend_strength parameter. Adjust content:
-- Pure: Never mention a secondary persona. Write as if the user is purely one type.
-- Tendencies: Include one sentence per section acknowledging the secondary influence.
-- Strong Influence: Dedicate substantive content to the blend. Show how two sides interact.
-13.2 Model Configuration
-ParameterValueRationaleModelGPT-4o or Claude Sonnet (latest)Quality > speed for reportsTemperature0.7Balance creativity with consistencyMax Tokens500 per section promptPrevents over-generationTop-p0.9Standard for natural text13.3 Execution Order
-Sections can be generated in parallel since each prompt is independent. However, if sequential generation is preferred for consistency:
-OrderSectionDependency Note1Slide 2: Personality NarrativeSets the voice and persona understanding2Slide 3: Blind SpotsBuilds on personality framing3Slide 4: Success BlueprintCounterbalances Slide 34Slide 5: Deviation NarrativesIndependent, data-driven5Slide 6: High-Impact CardsIndependent, score-driven6Slides 7-8: Action Plans (x4)Independent per pillar7Slide 9: LaunchpadDepends on scored recs8Slide 10: Coaching GuideSynthesizes everything, generated last13.4 Token Budget
-Total AI generation per report: approximately 8-10 API calls (1 system + 8-10 section prompts). Estimated total output: 1,500-2,000 words across all sections. At 500 max tokens per call, total generation cost is approximately 4,000-5,000 output tokens per report.
-
-
-14. Content Quality Checks
-14.1 Pre-Generation Validation
-CheckConditionAction if FailedAssessment completenessAll 90 OCEAN questions answeredBlock reportPersona assignmentPrimary and secondary personas computedBlock reportScoring pipelineAt least 50 recs scored > 0 for this userWarning if < 50PI series coverageAll 4 PI types exist for primary personaBlock reportPersona context coveragePrimary persona column populated for selected recsFallback to rec column14.2 Post-Generation Validation
-CheckConditionActionWord count per sectionWithin specified range (e.g., 150-200 for personality)Regenerate if outside rangePersona name leakNo animal names in user-facing textStrip and regenerateOCEAN trait name leakNo "Openness", "Neuroticism" etc. in textStrip and regenerateJargon checkNo terms from blocklist (biohacking, mitochondrial, etc.)Strip and regenerateMotivational fluffNo empty encouragement phrasesStrip and regenerateDuplicate contentNo sentence repeated across sectionsFlag for reviewSecond-person consistencyAll text uses "you/your", not "they/the user"Fix automaticallyRecommendation traceabilityEvery action maps to a rec ID in the masterLog for audit14.3 Blocklist (Terms to Never Use in Reports)
-* biohacking, mitochondrial, metabolic adaptation, circadian optimization
-* stay motivated, stay disciplined, push through, no excuses
-* OCEAN, Openness, Conscientiousness, Extraversion, Agreeableness, Neuroticism
-* Steady Elephant, Pack Wolf, Watchful Deer, Curious Fox, Steadfast Bear, Shielded Turtle
-* centroid, Euclidean distance, softmax, scoring pipeline
-* persona, archetype, personality type, MBTI, Big Five
-14.4 Emotional Arc Verification
-After full report generation, review the narrative flow across all sections. The report should build through this emotional sequence: Pride > Recognition > Revelation > Hope > Curiosity > Excitement > Clarity > Confidence > Trust. If any section breaks the arc (e.g., Slide 4 feels deflating instead of hopeful), regenerate that section with adjusted temperature or additional emphasis in the prompt.

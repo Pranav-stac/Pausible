@@ -436,7 +436,7 @@ export function ResultsBentoSummary({
         {personaAnalysis && primaryKey ? (
           <BentoCard delay={3} className="flex flex-col items-center justify-center p-6 md:col-span-6 lg:col-span-5">
             <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">Where you stand</p>
-            <h2 className="mt-1 text-lg font-black text-slate-950">OCEAN radar</h2>
+            <h2 className="mt-1 text-lg font-black text-slate-950">Wellness profile</h2>
             <div className="mt-4">
               <OceanRadarChart
                 userScores={personaAnalysis.traitAverages}

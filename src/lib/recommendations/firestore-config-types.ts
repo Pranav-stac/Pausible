@@ -69,7 +69,10 @@ export type RawRecommendationRow = {
   barrierFit: string[];
   excludeIf: string[];
   strength: string;
+  oceanTraitTags?: string[];
+  oceanCategoryTags?: string[];
   oceanFit?: string[];
+  effortLevel?: string;
   notes: string;
   personaContext?: Partial<Record<string, string>>;
 };
@@ -91,6 +94,8 @@ const TYPES: RecommendationType[] = [
   "strength_insight",
 ];
 
+const EFFORT_LEVELS = new Set(["low", "medium", "high"]);
+
 export function normalizeRecommendationRow(raw: RawRecommendationRow): RecommendationRow {
   const pillar =
     PILLARS.find((p) => p.toLowerCase() === raw.pillar.trim().toLowerCase()) ?? "Mental Wellness";
@@ -99,6 +104,11 @@ export function normalizeRecommendationRow(raw: RawRecommendationRow): Recommend
     : "supporting";
   const typeNorm = raw.type.trim().toLowerCase().replace(/\s+/g, "_");
   const type = TYPES.includes(typeNorm as RecommendationType) ? (typeNorm as RecommendationType) : "do";
+
+  const oceanTraitTags = raw.oceanTraitTags?.length
+    ? raw.oceanTraitTags
+    : (raw.oceanFit ?? []);
+  const effortRaw = (raw.effortLevel ?? "low").trim().toLowerCase();
 
   return {
     id: raw.id.trim(),
@@ -112,7 +122,10 @@ export function normalizeRecommendationRow(raw: RawRecommendationRow): Recommend
     barrierFit: raw.barrierFit ?? [],
     excludeIf: raw.excludeIf ?? [],
     strength,
-    oceanFit: raw.oceanFit ?? [],
+    oceanTraitTags,
+    oceanCategoryTags: raw.oceanCategoryTags ?? [],
+    oceanFit: oceanTraitTags,
+    effortLevel: EFFORT_LEVELS.has(effortRaw) ? (effortRaw as "low" | "medium" | "high") : "low",
     notes: raw.notes?.trim() ?? "",
     personaContext: raw.personaContext ?? {},
   };

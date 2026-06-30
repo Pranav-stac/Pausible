@@ -5,7 +5,7 @@ import {
   resolveTraitAverages,
 } from "@/lib/scoring/normalize-persona";
 import type { PersonaAnalysis, PersonaKey, TraitKey } from "@/lib/scoring/persona-types";
-import { TRAIT_LABELS } from "@/lib/scoring/persona-types";
+import { userFacingTraitLabel } from "@/lib/results/trait-labels";
 
 const WELLNESS_STYLE: Record<PersonaKey, string> = {
   self_regulated_planner: "Structured & Self-Regulated",
@@ -79,12 +79,5 @@ export function buildQuickProfile(
 }
 
 export function friendlyTraitLabel(trait: TraitKey): string {
-  const map: Record<TraitKey, string> = {
-    openness: "Openness to new approaches",
-    conscientiousness: "Discipline",
-    extraversion: "Social Energy",
-    agreeableness: "Cooperation",
-    neuroticism: "Stress Sensitivity",
-  };
-  return map[trait] ?? TRAIT_LABELS[trait];
+  return userFacingTraitLabel(trait);
 }

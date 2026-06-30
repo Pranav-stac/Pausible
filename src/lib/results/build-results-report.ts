@@ -5,6 +5,7 @@ import {
 import { PERSONA_DISPLAY } from "@/lib/scoring/persona-defaults";
 import { PERSONA_KEYS, type PersonaKey } from "@/lib/scoring/persona-types";
 import { personaAnimal, personaLabel } from "@/lib/results/persona-display";
+import { sanitizePersonaSummaryText } from "@/lib/results/trait-labels";
 import { dimensionRowsForAttempt, type DimensionRow } from "@/lib/results/dimension-rows";
 import type { AssessmentDefinition } from "@/types/models";
 import type { SerializedAttempt } from "@/lib/local/attempts";
@@ -106,7 +107,7 @@ export function buildResultsReportModel(args: {
     fitScore: persona?.fitScore ?? null,
     fitTier: persona?.fitTier ?? null,
     blendStrength: persona?.blendStrength ?? null,
-    primarySummary: primaryCopy?.summary ?? "",
+    primarySummary: sanitizePersonaSummaryText(primaryCopy?.summary ?? ""),
     primaryBullets: primaryCopy?.bullets ?? [],
     animalName: animal?.name ?? null,
     animalEmoji: animal?.emoji ?? null,

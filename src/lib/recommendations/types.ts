@@ -20,6 +20,8 @@ export type RecommendationType =
 
 export type PillarName = "Nutrition" | "Physical Activity" | "Sleep & Recovery" | "Mental Wellness";
 
+export type EffortLevel = "low" | "medium" | "high";
+
 export type RecommendationRow = {
   id: string;
   pillar: PillarName;
@@ -32,9 +34,14 @@ export type RecommendationRow = {
   barrierFit: string[];
   excludeIf: string[];
   strength: RecommendationStrength;
+  /** Col T — trait-level tags for scoring (O_low … N_high). */
+  oceanTraitTags: string[];
+  /** Col L — facet-level tags for clustering (not scoring). */
+  oceanCategoryTags: string[];
+  /** @deprecated Alias for oceanTraitTags — kept for cached Firestore rows. */
   oceanFit: string[];
+  effortLevel: EffortLevel;
   notes: string;
-  /** Persona-specific user-facing text keyed by animal alias (e.g. steady_elephant). */
   personaContext: Partial<Record<string, string>>;
 };
 
@@ -52,6 +59,10 @@ export type UserProfile = {
   barriers: string[];
   context: string[];
   exclusions: string[];
+  /** Facet-level OCEAN category tags from assessment (col L clustering). */
+  oceanCategoryTags: string[];
+  /** True when DR11 goal-preference bridge applies (FIT037). */
+  goalPreferenceBridge: boolean;
 };
 
 export type ScoreBreakdown = {
@@ -60,6 +71,7 @@ export type ScoreBreakdown = {
   goals: number;
   context: number;
   ocean: number;
+  effort: number;
   strength: number;
   total: number;
   primaryPersonaMatch: boolean;
@@ -80,6 +92,8 @@ export type RecommendationCluster = {
   key: string;
   category: string;
   mainBarrier: string | null;
+  /** Tertiary cluster key — shared OCEAN category tag (col L). */
+  oceanAlignment: string | null;
   clusterScore: number;
   rows: ScoredRecommendation[];
 };
@@ -263,6 +277,8 @@ export type PlanPhaseOutput = {
   intent: string;
   approx_duration_weeks: string;
   anchor_habit: PlanRecommendationItem;
+  /** §21.9 Curious Fox secondary — alternate anchor option. */
+  anchor_habit_alternate?: PlanRecommendationItem | null;
   daily_rhythm: PlanRecommendationItem[];
   weekly_rhythm: PlanRecommendationItem[];
   readiness_signal: PlanReadinessSignal;
@@ -281,6 +297,8 @@ export type PlanOutput = {
   progression_style: string;
   phases: PlanPhaseOutput[];
   generation_notes: string;
+  /** PDA §21.10 — overwhelm hides phases 2+ from upfront overview. */
+  show_all_phases: boolean;
 };
 
 export type IntegratedPlanPhaseSynthesis = {

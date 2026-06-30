@@ -37,10 +37,13 @@ import {
   buildSystemPrompt,
   resolveFitBlend,
 } from "@/lib/recommendations/gemini-section-prompts";
+import { validatePostSynthesis } from "@/lib/recommendations/report-validation";
+import { PDA_REPORT_PILLAR_ORDER } from "@/lib/recommendations/scoring-constants";
+import { resolvePrimaryPersonaKey } from "@/lib/scoring/normalize-persona";
 import { buildQuickProfile, friendlyTraitLabel } from "@/lib/results/quick-profile";
 import type { PersonaAnalysis, TraitKey } from "@/lib/scoring/persona-types";
 
-const PILLARS: PillarName[] = ["Nutrition", "Physical Activity", "Sleep & Recovery", "Mental Wellness"];
+const PILLARS: PillarName[] = [...PDA_REPORT_PILLAR_ORDER];
 
 function formatAnswerList(raw: unknown): string | null {
   if (Array.isArray(raw) && raw.length) return raw.join(", ");
@@ -54,7 +57,9 @@ function topBarrierLabel(ctx: GeminiSynthesisContext): string | undefined {
 
 function buildGoalsFallbackBody(selection: ActionPlanSelection, input?: BuildProfileInput): string {
   const goalsRaw = formatAnswerList(input?.answers?.wc_wellness_goals);
-  const barrierRaw = formatAnswerList(input?.answers?.wc_biggest_barrier);
+  const barrierRaw =
+    formatAnswerList(input?.answers?.wc_wellness_barriers) ||
+    formatAnswerList(input?.answers?.wc_biggest_barrier);
   const goals =
     goalsRaw ??
     (selection.profile.goals.length ? selection.profile.goals.map((g) => g.replace(/_/g, " ")).join(", ") : null);
@@ -219,6 +224,13 @@ function applyOpportunityCardFallbacks(cards: OpportunityCard[]): OpportunityCar
 function mergePriorityCards(
   base: OpportunityCard[],
   parsed: {
+    priority_cards?: {
+      pillar: string;
+      rank: number;
+      headline: string;
+      why_it_matters: string;
+      first_step: string;
+    }[];
     priorityCards?: {
       pillar: string;
       rank: number;
@@ -228,15 +240,20 @@ function mergePriorityCards(
     }[];
   } | null,
 ): OpportunityCard[] {
-  if (!parsed?.priorityCards?.length) return base;
+  const cards = parsed?.priority_cards ?? parsed?.priorityCards;
+  if (!cards?.length) return base;
   return base.map((card) => {
-    const hit = parsed.priorityCards?.find((c) => c.rank === card.rank) ?? parsed.priorityCards?.[card.rank - 1];
+    const hit = cards.find((c) => c.rank === card.rank) ?? cards[card.rank - 1];
     if (!hit) return card;
+    const why =
+      ("why_it_matters" in hit ? hit.why_it_matters : hit.whyItMatters)?.trim() || card.whyItMatters;
+    const step =
+      ("first_step" in hit ? hit.first_step : hit.startThisWeek)?.trim() || card.startThisWeek;
     return {
       ...card,
       headline: hit.headline?.trim() || card.headline,
-      whyItMatters: hit.whyItMatters?.trim() || card.whyItMatters,
-      startThisWeek: hit.startThisWeek?.trim() || card.startThisWeek,
+      whyItMatters: why,
+      startThisWeek: step,
     };
   });
 }
@@ -265,7 +282,7 @@ export async function synthesizeActionPlanWithLlm(
 
   const emptySection = (): GeminiSectionResult => ({ text: "", tokenUsage: null });
 
-  const call = (
+  const callOnce = (
     userPrompt: string,
     maxOutputTokens: number = SECTION_OUTPUT_TOKENS.default,
   ): Promise<GeminiSectionResult> => {
@@ -276,33 +293,82 @@ export async function synthesizeActionPlanWithLlm(
     return callGeminiSection({ apiKey, model, systemPrompt, userPrompt, json: true, maxOutputTokens });
   };
 
+  /** §25 — retry once on invalid JSON before fallback. */
+  const call = async (
+    userPrompt: string,
+    maxOutputTokens: number = SECTION_OUTPUT_TOKENS.default,
+    validate?: (parsed: unknown) => boolean,
+  ): Promise<GeminiSectionResult> => {
+    const first = await callOnce(userPrompt, maxOutputTokens);
+    if (!userPrompt.trim()) return first;
+    if (first.error) return first;
+    const parsed = parseSectionJson(first.text);
+    if (!validate || validate(parsed)) return first;
+    const retry = await callOnce(userPrompt, maxOutputTokens);
+    return retry.text.trim() ? retry : first;
+  };
+
   // Guide §13.3 — Primary first, then parallel sections, priorities after pillars.
   const primaryRes =
     persona && input
-      ? await call(buildPrimaryPatternPrompt(selection, ctx, input, fb), SECTION_OUTPUT_TOKENS.primaryPattern)
+      ? await call(
+          buildPrimaryPatternPrompt(selection, ctx, input, fb),
+          SECTION_OUTPUT_TOKENS.primaryPattern,
+          (p) => Boolean((p as PrimaryPatternSection | null)?.personaNarrative?.trim()),
+        )
       : emptySection();
   tokenParts.push(primaryRes.tokenUsage);
   if (primaryRes.error) errors.push(`primary_pattern: ${primaryRes.error}`);
 
-  const [blindRes, secondaryRes, nutritionRes, physicalRes, sleepRes, mentalRes] = await Promise.all([
-    call(buildBlindSpotsPrompt(selection, ctx, fb), SECTION_OUTPUT_TOKENS.blindSpots),
-    call(buildSecondaryPatternPrompt(selection, ctx, fb), SECTION_OUTPUT_TOKENS.secondaryPattern),
-    call(buildPillarPrompt("Nutrition", selection.pillarPlans.Nutrition, ctx, fb), SECTION_OUTPUT_TOKENS.pillar),
+  const [blindRes, secondaryRes, sleepRes, nutritionRes, physicalRes, mentalRes] = await Promise.all([
     call(
-      buildPillarPrompt("Physical Activity", selection.pillarPlans["Physical Activity"], ctx, fb),
-      SECTION_OUTPUT_TOKENS.pillar,
+      buildBlindSpotsPrompt(selection, ctx, fb),
+      SECTION_OUTPUT_TOKENS.blindSpots,
+      (p) => {
+        const j = p as { pattern_you_do_not_notice?: string; patternBody?: string } | null;
+        return Boolean(j?.pattern_you_do_not_notice?.trim() || j?.patternBody?.trim());
+      },
     ),
+    call(buildSecondaryPatternPrompt(selection, ctx, fb), SECTION_OUTPUT_TOKENS.secondaryPattern),
     call(
       buildPillarPrompt("Sleep & Recovery", selection.pillarPlans["Sleep & Recovery"], ctx, fb),
       SECTION_OUTPUT_TOKENS.pillar,
+      (p) => {
+        const j = p as { headline?: string; do_items?: unknown[]; doItems?: unknown[] } | null;
+        const dos = j?.do_items ?? j?.doItems;
+        return Boolean(j?.headline?.trim() || (dos?.length ?? 0) > 0);
+      },
+    ),
+    call(
+      buildPillarPrompt("Nutrition", selection.pillarPlans.Nutrition, ctx, fb),
+      SECTION_OUTPUT_TOKENS.pillar,
+      (p) => {
+        const j = p as { headline?: string; do_items?: unknown[]; doItems?: unknown[] } | null;
+        const dos = j?.do_items ?? j?.doItems;
+        return Boolean(j?.headline?.trim() || (dos?.length ?? 0) > 0);
+      },
+    ),
+    call(
+      buildPillarPrompt("Physical Activity", selection.pillarPlans["Physical Activity"], ctx, fb),
+      SECTION_OUTPUT_TOKENS.pillar,
+      (p) => {
+        const j = p as { headline?: string; do_items?: unknown[]; doItems?: unknown[] } | null;
+        const dos = j?.do_items ?? j?.doItems;
+        return Boolean(j?.headline?.trim() || (dos?.length ?? 0) > 0);
+      },
     ),
     call(
       buildPillarPrompt("Mental Wellness", selection.pillarPlans["Mental Wellness"], ctx, fb),
       SECTION_OUTPUT_TOKENS.pillar,
+      (p) => {
+        const j = p as { headline?: string; do_items?: unknown[]; doItems?: unknown[] } | null;
+        const dos = j?.do_items ?? j?.doItems;
+        return Boolean(j?.headline?.trim() || (dos?.length ?? 0) > 0);
+      },
     ),
   ]);
 
-  for (const res of [blindRes, secondaryRes, nutritionRes, physicalRes, sleepRes, mentalRes]) {
+  for (const res of [blindRes, secondaryRes, sleepRes, nutritionRes, physicalRes, mentalRes]) {
     tokenParts.push(res.tokenUsage);
     if (res.error) errors.push(res.error);
   }
@@ -310,6 +376,10 @@ export async function synthesizeActionPlanWithLlm(
   const prioritiesRes = await call(
     buildHighImpactPrioritiesPrompt(selection.opportunityCards, ctx, fb),
     SECTION_OUTPUT_TOKENS.priorities,
+    (p) => {
+      const j = p as { priority_cards?: unknown[]; priorityCards?: unknown[] } | null;
+      return Boolean((j?.priority_cards ?? j?.priorityCards)?.length);
+    },
   );
   tokenParts.push(prioritiesRes.tokenUsage);
   if (prioritiesRes.error) errors.push(`priorities: ${prioritiesRes.error}`);
@@ -318,9 +388,21 @@ export async function synthesizeActionPlanWithLlm(
   if (primaryRes.text.trim() && !primaryJson?.personaNarrative?.trim()) {
     errors.push("primary_pattern: response was not valid JSON or missing personaNarrative");
   }
-  const blindJson = parseSectionJson<{ patternBody?: string; goalsBody?: string }>(blindRes.text);
+  const blindJson = parseSectionJson<{
+    patternBody?: string;
+    goalsBody?: string;
+    pattern_you_do_not_notice?: string;
+    what_this_means_for_your_goals?: string;
+  }>(blindRes.text);
   const secondaryJson = parseSectionJson<SecondaryPatternSection>(secondaryRes.text);
   const prioritiesJson = parseSectionJson<{
+    priority_cards?: {
+      pillar: string;
+      rank: number;
+      headline: string;
+      why_it_matters: string;
+      first_step: string;
+    }[];
     priorityCards?: {
       pillar: string;
       rank: number;
@@ -333,18 +415,20 @@ export async function synthesizeActionPlanWithLlm(
   const pillarJsonByName: Record<
     PillarName,
     {
+      headline?: string;
       mindsetShift?: string;
+      do_items?: PillarSynthesisDo[];
       doItems?: PillarSynthesisDo[];
-      dontItems?: (PillarSynthesisDont & { behaviour?: string })[];
       dont_items?: (PillarSynthesisDont & { behaviour?: string })[];
+      dontItems?: (PillarSynthesisDont & { behaviour?: string })[];
       focusArea?: string;
       dos?: PillarSynthesisDo[];
       donts?: (PillarSynthesisDont & { behaviour?: string })[];
     } | null
   > = {
+    "Sleep & Recovery": parseSectionJson(sleepRes.text),
     Nutrition: parseSectionJson(nutritionRes.text),
     "Physical Activity": parseSectionJson(physicalRes.text),
-    "Sleep & Recovery": parseSectionJson(sleepRes.text),
     "Mental Wellness": parseSectionJson(mentalRes.text),
   };
 
@@ -376,11 +460,12 @@ export async function synthesizeActionPlanWithLlm(
   for (const pillar of PILLARS) {
     const base = selection.pillarPlans[pillar];
     const parsed = pillarJsonByName[pillar];
-    const dos = parsed?.doItems ?? parsed?.dos;
-    const rawDonts = parsed?.dontItems ?? parsed?.dont_items ?? parsed?.donts;
+    const headline = parsed?.headline?.trim() || parsed?.mindsetShift?.trim() || parsed?.focusArea?.trim();
+    const dos = parsed?.do_items ?? parsed?.doItems ?? parsed?.dos;
+    const rawDonts = parsed?.dont_items ?? parsed?.dontItems ?? parsed?.donts;
     pillarPlans[pillar] = {
-      focusArea: parsed?.mindsetShift?.trim() || parsed?.focusArea?.trim() || base.focusArea,
-      focusReason: parsed?.mindsetShift?.trim() || parsed?.focusArea?.trim() || base.focusReason,
+      focusArea: headline || base.focusArea,
+      focusReason: headline || base.focusReason,
       dos: dos?.length ? dos.map(normalizePillarDo) : fallbackPillarDos(base),
       donts: rawDonts?.length ? rawDonts.map(normalizePillarDont) : fallbackPillarDonts(base),
       sourceIds: base.sourceIds,
@@ -401,8 +486,14 @@ export async function synthesizeActionPlanWithLlm(
     secondaryPattern,
     quickProfile,
     blindSpots: {
-      patternBody: blindJson?.patternBody?.trim() || fallback.reportSections!.blindSpots.patternBody,
-      goalsBody: blindJson?.goalsBody?.trim() || fallback.reportSections!.blindSpots.goalsBody,
+      patternBody:
+        blindJson?.pattern_you_do_not_notice?.trim() ||
+        blindJson?.patternBody?.trim() ||
+        fallback.reportSections!.blindSpots.patternBody,
+      goalsBody:
+        blindJson?.what_this_means_for_your_goals?.trim() ||
+        blindJson?.goalsBody?.trim() ||
+        fallback.reportSections!.blindSpots.goalsBody,
     },
     opportunities: opportunityCards,
   };
@@ -410,19 +501,64 @@ export async function synthesizeActionPlanWithLlm(
   const tokenUsage = mergeTokenUsage(tokenParts, model);
   const llmSucceeded = (tokenUsage?.totalTokens ?? 0) > 0;
 
+  const primaryPersonaKey = persona ? resolvePrimaryPersonaKey(persona) : null;
+  let finalPrimaryPattern = primaryPattern;
+  let finalSecondaryPattern = secondaryPattern;
+  let finalPillarPlans = pillarPlans;
+  let finalOpportunityCards = opportunityCards;
+  let finalBlindSpots = reportSections.blindSpots;
+
+  const postGate = validatePostSynthesis({
+    primaryNarrative: primaryPattern.personaNarrative,
+    secondaryNarrative: secondaryPattern?.secondaryNarrative,
+    blindPattern: reportSections.blindSpots.patternBody,
+    blindGoals: reportSections.blindSpots.goalsBody,
+    pillarFocus: PILLARS.map((p) => pillarPlans[p].focusArea),
+    pillarDos: PILLARS.flatMap((p) => pillarPlans[p].dos.map((d) => d.action)),
+    pillarDonts: PILLARS.flatMap((p) => pillarPlans[p].donts.map((d) => d.behavior)),
+    priorityHeadlines: opportunityCards.map((c) => c.headline ?? ""),
+    priorityBodies: opportunityCards.map((c) => c.whyItMatters ?? ""),
+    behaviouralBoxBodies: primaryPattern.behaviouralBoxes.map((b) => b.content),
+    primaryPersonaKey,
+    pillarSourceIds: PILLARS.map((p) => pillarPlans[p].sourceIds ?? []),
+    piSourceIds: selection.piSeries.sourceIds,
+  });
+
+  if (postGate.warnings.length) {
+    errors.push(...postGate.warnings.map((w) => `post_gate_warn: ${w}`));
+  }
+
+  if (postGate.useFallback) {
+    errors.push(...postGate.violations.map((v) => `post_gate: ${v}`));
+    finalPrimaryPattern =
+      fallback.reportSections?.primaryPattern ?? fallbackPrimaryPattern(selection, persona);
+    finalSecondaryPattern = fallback.reportSections?.secondaryPattern;
+    finalPillarPlans = fallback.pillarPlans;
+    finalOpportunityCards = fallback.opportunityCards;
+    finalBlindSpots = fallback.reportSections?.blindSpots ?? finalBlindSpots;
+  }
+
+  const finalReportSections = {
+    primaryPattern: finalPrimaryPattern,
+    secondaryPattern: finalSecondaryPattern,
+    quickProfile,
+    blindSpots: finalBlindSpots,
+    opportunities: finalOpportunityCards,
+  };
+
   return {
-    opportunityCards,
-    pillarPlans,
+    opportunityCards: finalOpportunityCards,
+    pillarPlans: finalPillarPlans,
     launchpad: { start_here: [], environment_setup: [], recovery_rules: [] },
     coachNotes: {
-      keyStrength: primaryPattern.behaviouralBoxes[1]?.content ?? "",
-      keyRisk: reportSections.blindSpots.patternBody,
+      keyStrength: finalPrimaryPattern.behaviouralBoxes[1]?.content ?? "",
+      keyRisk: finalBlindSpots.patternBody,
       coachingNotes: [],
       sourceIds: selection.piSeries.sourceIds,
     },
     safetyGuidance,
-    reportSections,
-    synthesized: llmSucceeded,
+    reportSections: finalReportSections,
+    synthesized: llmSucceeded && !postGate.useFallback,
     llmProvider: provider,
     synthesisError: errors.length ? errors.join("; ") : null,
     tokenUsage,

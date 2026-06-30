@@ -1,9 +1,9 @@
 /** Character limits for Page 10 AI synthesis (Section 8.2). */
 
 export const PLAN_TEXT_LIMITS = {
-  plan_subtitle: 140,
+  plan_subtitle: 120,
   goal_framing: 100,
-  phase_intent_user: 220,
+  phase_intent_user: 200,
   readiness_signal_user: 150,
   anchor_habit_user: 90,
   rhythm_line: 100,

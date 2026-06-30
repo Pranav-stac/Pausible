@@ -1,7 +1,7 @@
 "use client";
 
+import { radarAxisLines } from "@/lib/results/trait-labels";
 import type { TraitKey } from "@/lib/scoring/persona-types";
-import { TRAIT_LABELS } from "@/lib/scoring/persona-types";
 
 const TRAIT_ORDER: TraitKey[] = [
   "openness",
@@ -82,18 +82,24 @@ export function OceanRadarChart({ userScores, centroidScores, size = 220, accent
         />
         {TRAIT_ORDER.map((trait, i) => {
           const angle = (Math.PI * 2 * i) / n - Math.PI / 2;
-          const p = polarPoint(cx, cy, maxR + 14, angle);
-          const short = TRAIT_LABELS[trait].split(" ")[0];
+          const p = polarPoint(cx, cy, maxR + 16, angle);
+          const lines = radarAxisLines(trait);
+          const lineHeight = 10;
+          const startY = p.y - ((lines.length - 1) * lineHeight) / 2;
           return (
             <text
               key={trait}
               x={p.x}
-              y={p.y}
+              y={startY}
               textAnchor="middle"
               dominantBaseline="middle"
-              className="fill-slate-500 text-[9px] font-semibold"
+              className="fill-slate-500 text-[8px] font-semibold"
             >
-              {short}
+              {lines.map((line, lineIdx) => (
+                <tspan key={line} x={p.x} dy={lineIdx === 0 ? 0 : lineHeight}>
+                  {line}
+                </tspan>
+              ))}
             </text>
           );
         })}

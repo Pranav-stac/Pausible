@@ -11,7 +11,7 @@ export const DEFAULT_SCORING_CONFIG: ScoringConfigDoc = {
   likertMin: 1,
   likertMax: 7,
   traitDeviationThreshold: 0.8,
-  fitTierBands: { classic: 75, core: 50, leaning: 25, exploring: 0 },
+  fitTierBands: { classic: 75, core: 65, leaning: 55, exploring: 0 },
   blendRatioBands: { pure: 2.0, tendencies: 1.3 },
 };
 

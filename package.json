@@ -8,10 +8,13 @@
     "start": "next start",
     "lint": "eslint",
     "generate:recommendation-seed": "node scripts/generate-recommendation-seed.mjs",
+    "import:pda-v1": "node scripts/import-pda-v1.mjs",
     "import:revised-ocean": "node scripts/import-revised-ocean.mjs",
     "import:client-v7": "node scripts/import-client-v7.mjs",
-    "seed:all": "npm run seed:firestore",
-    "seed:firestore": "tsx --env-file=.env scripts/seed-firestore.ts"
+    "seed:all": "npm run import:pda-v1 && npm run seed:firestore",
+    "seed:firestore": "tsx --env-file=.env scripts/seed-firestore.ts",
+    "wipe:firestore": "tsx --env-file=.env scripts/wipe-firestore.ts",
+    "reset:firestore": "npm run wipe:firestore && npm run seed:all"
   },
   "dependencies": {
     "@paypal/checkout-server-sdk": "^1.0.3",

@@ -26,6 +26,47 @@ const TRAIT_CODE_TO_KEY: Record<string, TraitKey> = {
   n: "neuroticism",
 };
 
+/** PDA col T — single-letter trait code for master oceanTraitTags (O_high, C_low, …). */
+const TRAIT_KEY_TO_COL_T_CODE: Record<TraitKey, string> = {
+  openness: "O",
+  conscientiousness: "C",
+  extraversion: "E",
+  agreeableness: "A",
+  neuroticism: "N",
+};
+
+const TRAIT_BANDS = ["low", "medium", "high"] as const;
+
+/** Map analytics trait tag (openness_high) → col T tag (O_high). */
+export function traitTagToColT(traitKey: TraitKey, analyticsTag: string): string | null {
+  const code = TRAIT_KEY_TO_COL_T_CODE[traitKey];
+  if (!code) return null;
+  for (const level of TRAIT_BANDS) {
+    if (analyticsTag === `${traitKey}_${level}`) return `${code}_${level}`;
+  }
+  return null;
+}
+
+/** Map a flat analytics trait tag string to col T when recognized. */
+export function analyticsTraitTagToColT(analyticsTag: string): string | null {
+  for (const key of TRAIT_KEYS) {
+    if (analyticsTag.startsWith(`${key}_`)) {
+      return traitTagToColT(key, analyticsTag);
+    }
+  }
+  return null;
+}
+
+/** Ensure col T trait tags are present (for legacy stored oceanTags). */
+export function ensureColTOceanTags(tags: string[]): string[] {
+  const out = new Set(tags);
+  for (const tag of tags) {
+    const colT = analyticsTraitTagToColT(tag);
+    if (colT) out.add(colT);
+  }
+  return [...out];
+}
+
 const traitTagConfig = traitTagConfigJson as TraitTagRow[];
 const categoryTagByFacet = categoryTagByFacetJson as Record<string, CategoryTagRow>;
 
@@ -41,7 +82,7 @@ export type OceanTagProfile = {
   traitTags: Record<TraitKey, string>;
   /** Facet ID → category tag (e.g. O-NC → nutritional_curiosity_high). */
   categoryTags: Record<string, string>;
-  /** Flat deduped list for storage / analytics pipelines. */
+  /** Flat deduped list: analytics trait tags, col T trait tags (O_high), and category tags. */
   oceanTags: string[];
 };
 
@@ -67,7 +108,17 @@ export function computeOceanTags(
     if (tag) categoryTags[facetId] = tag;
   }
 
-  const oceanTags = [...new Set([...Object.values(traitTags), ...Object.values(categoryTags)])];
+  const colTTraitTags = (Object.entries(traitTags) as [TraitKey, string][])
+    .map(([key, tag]) => traitTagToColT(key, tag))
+    .filter((t): t is string => t != null);
+
+  const oceanTags = [
+    ...new Set([
+      ...Object.values(traitTags),
+      ...colTTraitTags,
+      ...Object.values(categoryTags),
+    ]),
+  ];
 
   return { traitTags, categoryTags, oceanTags };
 }

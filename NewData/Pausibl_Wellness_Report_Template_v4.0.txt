@@ -1,175 +1,0 @@
-
-
-
-
-
-
-
-Pausibl
-Wellness Intelligence Report
-
-Prepared for
-{User Full Name}
-{Date}  |  Report ID: {report_id}
-
-
-
-
-This report is generated using Pausibl's proprietary wellness intelligence engine. It is personalized based on your assessment responses and is intended for your use only.
-
-
-
-Understanding Your Wellness Personality
-Your wellness personality is shaped by how you think, feel, and behave around health decisions. Based on research in behavioral psychology and wellness science, we identify six distinct wellness patterns. Each pattern reflects a unique combination of strengths, tendencies, and risks that influence how you approach nutrition, sleep, fitness, and mental well-being.
-Most people align strongly with one primary pattern and show influence from a secondary pattern. Understanding your pattern helps us personalize every recommendation in this report to match how you actually operate — not how wellness advice assumes you should.
-Steady Elephant
-Consistent, structured, and self-regulated. Thrives on routine and predictable systems. Builds habits slowly but keeps them indefinitely.Steadfast Bear
-Disciplined, driven, and performance-oriented. Pushes hard and values effort. Needs to learn when to scale back to avoid burnout.
-Curious Fox
-Explorative, adaptable, and knowledge-seeking. Loves trying new approaches. Needs structure to channel curiosity into consistent results.Watchful Deer
-Observant, analytical, and emotionally sensitive. Notices subtle patterns. Needs a safe, low-pressure environment to build confidence.
-Pack Wolf
-Social, energetic, and community-driven. Draws motivation from groups and shared goals. Needs solo anchors for when group dynamics shift.Shielded Turtle
-Cautious, self-protective, and deliberate. Takes time before committing. Once the right fit is found, consistency is remarkably strong.
-
-
-
-Your Pattern Match
-You are most closely aligned with the {Primary Persona} pattern, with {Secondary Persona} influence.
-
-{Persona Title — e.g., Core Steady Elephant with Watchful Deer tendencies}
-PATTERN ALIGNMENT
-Steady Elephant  {xx}%Steadfast Bear  {xx}%Curious Fox  {xx}%Watchful Deer  {xx}%Pack Wolf  {xx}%Shielded Turtle  {xx}%
-OCEAN RADAR CHART
-Your five core wellness traits compared to the {Primary Persona} pattern:
-{5-axis radar chart: Openness, Discipline, Social Energy, Agreeableness, Stress Sensitivity}
-{User scores (solid line) vs {Primary Persona} centroid (dashed line), scale 1–7}
-QUICK PROFILE
-Wellness Style{e.g., Structured & Self-Regulated}Energy Pattern{e.g., Steady-paced}Motivation Driver{e.g., Internal discipline}Top Risk Factor{e.g., Perfectionism}Best Environment{e.g., Quiet, low-pressure settings}Persona Fit Score{e.g., 72/100 — Core tier}
-
-{Icon}Your Primary Pattern:
-{Primary Persona Name}
-PERSONA DESCRIPTION
-{AI-generated persona narrative — 2-3 paragraphs, 150-200 words. Describes how this persona approaches wellness. Written in second person. Behavioral descriptions, not trait labels. Must feel like: 'This is exactly how I operate.'}
-BEHAVIORAL TENDENCIES
-{How this persona typically behaves around wellness decisions — routines, preferences, and defaults}WHAT MOTIVATES YOU
-{The conditions, triggers, and incentives that drive this persona to stay consistent with wellness habits}
-WHAT DRAINS YOU
-{The situations, environments, and pressures that deplete this persona's energy and derail consistency}YOUR DEFAULT UNDER STRESS
-{How this persona's wellness habits change when stress, disruption, or overwhelm hits}
-HOW YOU BUILD HABITS
-{The ideal pace, structure, and environment this persona needs to build and maintain lasting habits}YOUR GROWTH PATTERN
-{The typical cycle this persona goes through — momentum, disruption, restart — and how to break it}TRAIT DEVIATIONS
-Where your scores differ meaningfully from the typical {Primary Persona} pattern:
-{Trait Name} — {Higher/Lower} than typical
-{AI-generated 2-sentence explanation of what this deviation means for this persona. Only shown if |user ? centroid| > 0.8. Maximum 2 cards.}{Trait Name} — {Higher/Lower} than typical
-{Second deviation card, if applicable. Otherwise this cell is hidden.}
-
-
-{Icon}Your Secondary Pattern:
-{Secondary Persona Name}
-PERSONA DESCRIPTION
-{AI-generated secondary persona narrative. Explains how this secondary pattern influences the user's behavior alongside their primary pattern. Shorter than primary — 100-150 words. Focuses on what this pattern adds or modifies.}
-HOW YOUR TWO PATTERNS INTERACT
-{AI-generated blend narrative — explains how primary and secondary patterns combine. What strengths they reinforce, what tensions they create, and how this shapes the user's unique wellness approach. 80-120 words.}
-BEHAVIORAL TENDENCIES
-{Secondary persona behavioral tendencies}WHAT MOTIVATES YOU
-{Secondary persona motivation drivers}
-WHAT DRAINS YOU
-{Secondary persona energy drains}YOUR DEFAULT UNDER STRESS
-{Secondary persona stress response}
-HOW YOU BUILD HABITS
-{Secondary persona habit-building approach}YOUR GROWTH PATTERN
-{Secondary persona typical growth/disruption cycle}
-
-
-
-What You Don’t See
-Every wellness personality has patterns that are hard to see from the inside. These are not flaws — they are natural tendencies shaped by how you are wired. Recognising them is the first step to working with them.
-The Pattern You Do Not Notice
-{AI-generated narrative, 80–100 words. Describes a behavioural pattern this persona does not typically notice. Written as a relatable scenario the user recognises. Observational tone, not critical. Based strictly on the blind_spot persona context from the recommendation master. Never uses the words “blind spot”, “weakness”, or “flaw”.}What This Means For Your Goals
-{AI-generated narrative, 60–80 words. Connects the above pattern to the user’s specific goals. Shows how this tendency, if unnoticed, could slow progress. Names the goal explicitly. Based strictly on the pattern_prediction persona context from the recommendation master. Ends with one forward-looking sentence hinting at the actions on the next page.}
-
-
-
-Your Key Actions
-Personalized actions across all four wellness pillars, tailored to your pattern. Each action includes why it matters specifically for you.
-SLEEP & RECOVERY{Mindset shift — single powerful reframe for this pillar}
-DO
-{Do 1: action — persona-specific reason}
-{Do 2: action — persona-specific reason}
-{Do 3: action — persona-specific reason}DON'T
-{Don't 1: behavior — persona-specific reason}
-{Don't 2: behavior — persona-specific reason}
-NUTRITION{Mindset shift — single powerful reframe for this pillar}
-DO
-{Do 1: action — persona-specific reason}
-{Do 2: action — persona-specific reason}
-{Do 3: action — persona-specific reason}DON'T
-{Don't 1: behavior — persona-specific reason}
-{Don't 2: behavior — persona-specific reason}
-PHYSICAL ACTIVITY{Mindset shift — single powerful reframe for this pillar}
-DO
-{Do 1: action — persona-specific reason}
-{Do 2: action — persona-specific reason}
-{Do 3: action — persona-specific reason}DON'T
-{Don't 1: behavior — persona-specific reason}
-{Don't 2: behavior — persona-specific reason}
-MENTAL WELLNESS{Mindset shift — single powerful reframe for this pillar}
-DO
-{Do 1: action — persona-specific reason}
-{Do 2: action — persona-specific reason}
-{Do 3: action — persona-specific reason}DON'T
-{Don't 1: behavior — persona-specific reason}
-{Don't 2: behavior — persona-specific reason}
-
-
-
-Your High-Impact Priorities
-Based on your pattern and goals, these are the areas where small changes will have the largest impact. Start with Priority 1 this week.
-PRIORITY 1  —  {Pillar Name}
-{Headline — max 10 words}
-{Why it matters — 40–50 words connecting to persona pattern and goals}
-First step: {One specific, achievable first step}
-PRIORITY 2  —  {Pillar Name}
-{Headline — max 10 words}
-{Why it matters — 40–50 words}
-First step: {One specific, achievable first step}
-PRIORITY 3  —  {Pillar Name}
-{Headline — max 10 words}
-{Why it matters — 40–50 words}
-First step: {One specific, achievable first step}
-{Priority 4 card shown conditionally — only if the 4th pillar cluster score exceeds the minimum threshold of 20. If shown, uses the same card format as above.}
-
-
-
-
-
-
-Your Integrated Wellness Plan
-xx.
-
-
-
-
-
-
-
-
-
-Pausibl
-Wellness Intelligence Platform
-
-What Comes Next
-This report is your starting point. The recommendations inside are designed to work with your personality, not against it. Start with what feels easiest, build from there, and return to this report whenever you need to recalibrate.
-Start Small
-Pick one action from the Key Actions page and do it this week. Just one.
-Track How You Feel
-Pay attention to what changes when you follow through — energy, mood, sleep quality.
-Revisit in 4 Weeks
-Come back to this report after 4 weeks and notice which recommendations became habits.
-
-This report contains general wellness information personalized to your assessment results. It is not a substitute for professional medical, nutritional, or psychological advice. If you have specific health conditions or concerns, consult a qualified professional before making changes.
-pausibl.com
-Pausibl Wellness Intelligence Report  |  Confidential  |  {User Name}
-

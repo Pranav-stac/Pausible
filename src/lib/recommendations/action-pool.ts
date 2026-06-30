@@ -34,10 +34,16 @@ export function primaryPersonaMatchesRow(
 }
 
 export function resolvedText(row: ScoredRecommendation, profile: UserProfile): string {
-  return resolvePersonaContextText(row, profile.primaryPersonaAlias);
+  return resolvePersonaContextText(
+    row,
+    profile.primaryPersonaAlias,
+    profile.secondaryPersonaAlias,
+    undefined,
+    profile.blendStrength,
+  );
 }
 
-/** Plan page persona resolution — primary, then secondary when blend > 15%. */
+/** Plan page persona resolution — primary, secondary when blend > 15%; dual context when Strong Influence. */
 export function resolvedTextForPlan(
   row: ScoredRecommendation,
   profile: UserProfile,
@@ -48,6 +54,7 @@ export function resolvedTextForPlan(
     profile.primaryPersonaAlias,
     profile.secondaryPersonaAlias,
     secondaryBlendPct,
+    profile.blendStrength,
   );
 }
 

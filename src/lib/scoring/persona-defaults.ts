@@ -27,7 +27,7 @@ export const PERSONA_DISPLAY: Record<
     label: "Steady Elephant",
     archetype: "Self-Regulated Planner",
     summary:
-      "High conscientiousness, low neuroticism. Plans methodically and stays consistent with structure and preparation.",
+      "High Discipline, low Stress Sensitivity. Plans methodically and stays consistent with structure and preparation.",
     bullets: [
       "Anchor training and nutrition to calendar blocks.",
       "Use checklists for travel or high-stress weeks.",
@@ -37,7 +37,7 @@ export const PERSONA_DISPLAY: Record<
     label: "Pack Wolf",
     archetype: "Social Motivator",
     summary:
-      "High extraversion and agreeableness. Thrives in groups and stays motivated through social energy and accountability.",
+      "High Social Energy and Agreeableness. Thrives in groups and stays motivated through social energy and accountability.",
     bullets: [
       "Book partner sessions or group classes ahead of time.",
       "Name one accountability buddy for hard weeks.",
@@ -47,7 +47,7 @@ export const PERSONA_DISPLAY: Record<
     label: "Watchful Deer",
     archetype: "Stress-Sensitive",
     summary:
-      "High neuroticism, lower extraversion. Easily overwhelmed and needs safe, low-pressure environments to sustain wellness.",
+      "High Stress Sensitivity, lower Social Energy. Easily overwhelmed and needs safe, low-pressure environments to sustain wellness.",
     bullets: [
       "Scale load when sleep or stress spikes.",
       "Prefer shorter sessions over full skips.",
@@ -57,7 +57,7 @@ export const PERSONA_DISPLAY: Record<
     label: "Curious Fox",
     archetype: "Curious Explorer",
     summary:
-      "High openness and extraversion. Seeks variety, learns quickly, and bores easily with rigid routines.",
+      "High Openness and Social Energy. Seeks variety, learns quickly, and bores easily with rigid routines.",
     bullets: [
       "Rotate one new modality per season with guardrails.",
       "Pilot habits in 4-week experiments.",
@@ -67,7 +67,7 @@ export const PERSONA_DISPLAY: Record<
     label: "Steadfast Bear",
     archetype: "Resilient Performer",
     summary:
-      "High conscientiousness, low neuroticism and extraversion. Gritty, self-reliant, and disciplined under pressure.",
+      "High Discipline, low Stress Sensitivity and Social Energy. Gritty, self-reliant, and disciplined under pressure.",
     bullets: [
       "Keep a minimum viable routine for chaotic weeks.",
       "Review weekly trends, not single bad days.",
@@ -77,7 +77,7 @@ export const PERSONA_DISPLAY: Record<
     label: "Shielded Turtle",
     archetype: "Brittle/Avoidant",
     summary:
-      "High neuroticism with lower scores elsewhere. Withdraws under pressure; small, low-friction wins rebuild momentum.",
+      "High Stress Sensitivity with lower scores elsewhere. Withdraws under pressure; small, low-friction wins rebuild momentum.",
     bullets: [
       "Start with 10-minute movement anchors.",
       "Pair new habits with existing cues you already do daily.",
@@ -85,48 +85,48 @@ export const PERSONA_DISPLAY: Record<
   },
 };
 
-/** Persona Plan v7 benchmark centroids (columns F–K). */
+/** PDA v1.0 authoritative centroids (§8.1). */
 export const DEFAULT_PERSONA_CENTROIDS: PersonaCentroidTable = {
   self_regulated_planner: {
     openness: 3.5,
     conscientiousness: 6.5,
-    extraversion: 4.6,
-    agreeableness: 5.5,
+    extraversion: 4.5,
+    agreeableness: 5.3,
     neuroticism: 1.5,
   },
   social_motivator: {
     openness: 4.5,
     conscientiousness: 5.2,
-    extraversion: 6.5,
+    extraversion: 6.6,
     agreeableness: 6.0,
     neuroticism: 2.8,
   },
   stress_sensitive: {
     openness: 4.5,
     conscientiousness: 2.8,
-    extraversion: 2.8,
-    agreeableness: 5.0,
+    extraversion: 2.9,
+    agreeableness: 5.2,
     neuroticism: 6.0,
   },
   curious_explorer: {
     openness: 6.5,
     conscientiousness: 2.5,
     extraversion: 5.5,
-    agreeableness: 4.0,
+    agreeableness: 4.1,
     neuroticism: 2.5,
   },
   resilient_performer: {
     openness: 3.0,
     conscientiousness: 5.8,
-    extraversion: 3.0,
-    agreeableness: 5.0,
+    extraversion: 2.8,
+    agreeableness: 4.8,
     neuroticism: 2.0,
   },
   brittle_avoidant: {
     openness: 2.5,
     conscientiousness: 2.5,
     extraversion: 2.0,
-    agreeableness: 4.0,
+    agreeableness: 3.9,
     neuroticism: 6.5,
   },
 };

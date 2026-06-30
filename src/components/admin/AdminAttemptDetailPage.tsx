@@ -9,6 +9,7 @@ import { AttemptActionPlanCacheOverview } from "@/components/admin/AttemptAction
 import { AttemptAnswersView } from "@/components/admin/AttemptAnswersView";
 import { AttemptLlmContextPanel } from "@/components/admin/AttemptLlmContextPanel";
 import { AttemptPersonaDetail } from "@/components/admin/AttemptPersonaDetail";
+import { AttemptPdaEnginePanel } from "@/components/admin/AttemptPdaEnginePanel";
 import { AttemptScoresOverview } from "@/components/admin/AttemptScoresOverview";
 import { AttemptSelectedPlanOverview } from "@/components/admin/AttemptSelectedPlanOverview";
 import { getWellnessContextQuestionnaire, wellnessContextAssessmentId } from "@/data/wellness-context-questionnaire";
@@ -24,7 +25,7 @@ import type { ActionPlanSynthesis } from "@/lib/recommendations/types";
 import type { PersonaAnalysis } from "@/lib/scoring/persona-types";
 import type { AssessmentDefinition, AttemptScores } from "@/types/models";
 
-type DetailTab = "answers" | "overview" | "wellness" | "calculation" | "llm" | "coach-guide";
+type DetailTab = "answers" | "overview" | "wellness" | "calculation" | "pda-engine" | "llm" | "coach-guide";
 
 type AttemptRecord = Record<string, unknown>;
 
@@ -37,6 +38,7 @@ const TABS: { id: DetailTab; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "wellness", label: "Wellness values" },
   { id: "calculation", label: "Calculation" },
+  { id: "pda-engine", label: "PDA engine" },
   { id: "llm", label: "Prompts & responses" },
   { id: "coach-guide", label: "Coach guide" },
 ];
@@ -248,8 +250,8 @@ function CalculationTab({
         <div className="border-b border-slate-100 px-4 py-3">
           <h4 className="text-sm font-semibold text-slate-900">Ranked recommendations ({ranked.length})</h4>
           <p className="mt-1 text-[11px] text-slate-500">
-            Scoring formula: primary +25, secondary +15, all_personas +10, barrier +12 (cap 36), goal +8 (cap 24),
-            context +3 (cap 15), OCEAN +4 (cap 20), strength bonus. Max 155.
+            PDA §14 scoring — per-pillar rank with tier-scaled persona, blend secondary, caps. Max internal score{" "}
+            {155}. See <strong>PDA engine</strong> tab for full breakdown.
           </p>
         </div>
         <div className="max-h-[480px] overflow-auto">
@@ -565,6 +567,7 @@ export function AdminAttemptDetailPage({ attemptId }: Props) {
             ) : null}
             {tab === "wellness" ? <WellnessValuesTab context={llmContext} /> : null}
             {tab === "calculation" ? <CalculationTab persona={persona} context={llmContext} /> : null}
+            {tab === "pda-engine" ? <AttemptPdaEnginePanel attemptId={attemptId} api={api} /> : null}
             {tab === "llm" ? (
               <AttemptLlmContextPanel
                 attemptId={attemptId}

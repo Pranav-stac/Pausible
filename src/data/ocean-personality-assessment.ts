@@ -1,4 +1,5 @@
 import type { AssessmentDefinition, AssessmentQuestion, AssessmentSection } from "@/types/models";
+import { userFacingTraitTitle } from "@/lib/results/trait-labels";
 import questionBankRaw from "../../question.json";
 
 type Item = {
@@ -48,8 +49,8 @@ export function buildOceanPersonalityAssessment(): AssessmentDefinition {
 
     sections.push({
       id: traitKey(trait),
-      title: trait,
-      description: `Movement, nutrition & recovery tendencies linked to ${trait}.`,
+      title: userFacingTraitTitle(trait),
+      description: `Movement, nutrition & recovery tendencies linked to ${userFacingTraitTitle(trait)}.`,
       questionIds: traitRows.map((r) => r.code),
     });
 

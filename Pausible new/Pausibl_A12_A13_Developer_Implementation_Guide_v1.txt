@@ -1,60 +1,0 @@
-Pausibl Recommendation Engine
-A12-A13 Developer Implementation Guide
-Recommendation Selection Logic + Scoring Framework
-FieldDetailsVersionv1.0Input master filev1.3_A07A11_TaggingValidationQA_Pausibl_RecommendationsMaster.xlsxPurposeTranslate the scoring and selection framework into build-ready developer stepsOutput targetPage 6: Personalized Wellness Action Plan
-
-1. Build Objective
-Build a deterministic recommendation engine that filters, scores, ranks, clusters, and prepares curated recommendations for AI synthesis. AI should only synthesize approved recommendations; it must not invent new advice.
-2. End-to-End Processing Pipeline
-StepStageDeveloper instruction1Load recommendation masterRead the validated master table and tag columns.2Load user profileBring in personas, goals, barriers, and contextual tags from the assessment.3Apply exclusionsRemove unsafe or unsuitable recommendations before scoring.4Score remaining rowsAssign points based on persona, barriers, goals, context, and strength.5Rank recommendationsSort from highest to lowest score.6Cluster recommendationsGroup related high-scoring rows by category and shared barriers.7Select Page 6 contentPick recommendations for each report section.8AI synthesizeGenerate summaries and focus areas from selected source rows only.9Store source IDsKeep selected recommendation IDs for audit and explainability.3. Required Inputs
-InputExampleNotesPrimary personashielded_turtleHighest persona result from assessment.Secondary personawatchful_deerSecond-highest persona result.Goal tagsgoal_fat_loss; goal_energyFrom user goal questions.Barrier tagsbarrier_low_activation_energy; barrier_lack_of_timeFrom user barriers.Context tagswork_desk_based; stress_high; sleep_quality_poorFrom contextual questionnaire.Health/safety tagsexclude_injury, etc.Derived from safety questions when applicable.4. Step 1 - Filtering Before Scoring
-Filtering happens before scoring. If a recommendation is unsafe or clearly unsuitable, remove it from the candidate pool. Do not simply lower its score when a hard exclusion applies.
-RuleActionExampleExclude If matches user safety tagRemove recommendation completelyexclude_injury matches user injury flag.exclude_noneKeep recommendationNo suppression condition exists.safety_guidance typeDo not remove automaticallySafety guidance should be evaluated separately for conditional display.Beginner + advanced exclusionRemove advanced training recommendationexclude_beginner_advanced_training matched.Poor sleep + high intensityRemove or suppress high-intensity recommendationexclude_poor_sleep_high_intensity matched.5. Step 2 - Scoring Formula
-Score every remaining recommendation using transparent points. Barriers and personas carry more weight than goals because they better explain what will actually work for the user.
-ComponentPoint ruleCapWhy it mattersPrimary persona match+2525Captures the user’s dominant success style.Secondary persona match+1515Captures secondary behavior pattern.all_personas match+1010Allows universal recommendations without overpowering personalized ones.Barrier match+12 per matched barrier36Barriers explain why the user is stuck.Goal match+8 per matched goal24Goals show what the user wants to achieve.Context match+3 per matched context15Context shows what is realistic.Strength: core+1010Core recommendations should rank higher.Strength: supporting+55Useful but secondary.Strength: optional+00No priority boost.Strength: conditional-5-5Only relevant under specific conditions.Maximum normal score = 125. This is not shown to the user; it is used only for internal ranking.
-6. Step 3 - Caps and Inflation Controls
-AreaCapReasonPersona score40Prevents broad persona tags from dominating.Barrier score36Prevents many barrier tags from inflating score.Goal score24Keeps goals important but not dominant.Context score15Prevents context-heavy rows from ranking unfairly.7. Step 4 - Ranking and Tie-Breakers
-Sort all candidate recommendations by score. If scores are equal or very close, apply tie-breakers in this order:
-1. Higher recommendation strength
-2. Higher barrier match count
-3. Primary persona match over secondary persona match
-4. Less duplication with already selected recommendations
-5. Better pillar balance for Page 6
-8. Step 5 - Page 6 Selection Logic
-Page 6 sectionSource rowsSelection ruleAI synthesisOutputHigh-Impact Wellness OpportunitiesTop 20 scored recommendations overallCluster and select top 3 clustersYes3 opportunity titles + short summaries.Nutrition Action PlanNutrition rows onlyTop rows by score within pillarYes1 focus area, 4 Do’s, 2 Don’ts.Physical Activity Action PlanPhysical Activity rows onlyTop rows by score within pillarYes1 focus area, 4 Do’s, 2 Don’ts.Sleep & Recovery Action PlanSleep & Recovery rows onlyTop rows by score within pillarYes1 focus area, 4 Do’s, 2 Don’ts.Mental Wellness Action PlanMental Wellness rows onlyTop rows by score within pillarYes1 focus area, 4 Do’s, 2 Don’ts.Wellness Launchpadfirst_action, environment_change, mindset_shiftTop 6 preparatory actions across all pillarsLight synthesisGrouped under Remove Friction, Build Awareness, Create Support & Structure.Coach Notescoach_note and relevant mindset_shift rowsTop 3-4 coach-useful rowsYesKey strength, key risk, coaching guidance.Safety & Recovery Guidancesafety_guidance rowsShow only if triggered; max 3No hidden synthesisStandalone visible guidance.9. Step 6 - Clustering Logic for AI Synthesis
-Clustering keeps the output from becoming a raw checklist. Use simple rules; do not use complex machine learning for V1.
-Clustering layerHow to groupUse casePrimaryRecommendation CategoryGroup similar behavioral ideas, e.g., sleep_timing or meal_planning.SecondaryShared Barrier FitIdentify why the user needs this group, e.g., poor sleep or low activation.Cluster scoreAverage of top 5 recommendation scores in clusterRank clusters for High-Impact Wellness Opportunities.De-duplicationAvoid selecting two clusters with same category and same main barrierPrevents repetitive opportunities.10. Step 7 - AI Synthesis Rules
-AI is a synthesizer, not a recommendation generator. It receives only selected source recommendations and rewrites them into coherent guidance.
-RuleDeveloper instructionInput to AIRecommendation IDs, recommendation text, category, type, score, persona, goals, barriers, and context.AllowedSummarize, group, simplify, and explain selected recommendations.Not allowedInvent new advice, add medical claims, prescribe treatment, or introduce actions not in source rows.Preserve source IDsStore recommendation IDs internally for every synthesized paragraph.ToneClear, supportive, practical, non-judgmental.Opportunity length50-75 words per opportunity.Pillar focus length40-60 words per pillar.Coach notes length50-75 words total or compact bullets.Safety guidanceNever hide inside synthesis; show standalone if triggered.11. Step 8 - Explainability Logic
-Every focus area should include a simple reason. Do not show internal scores or raw tag names to users.
-Show to userDo not showPlain-language reasons: your stress level, barriers, goals, and persona pattern.Internal score, formulas, raw tags, database fields, or technical ranking logic.Example user-facing explanation: Recommended because your profile shows high stress, low activation energy, and a need for lower-friction routines.
-12. Worked Example
-Hypothetical user profile: Primary persona = shielded_turtle; Secondary persona = watchful_deer; Goals = goal_fat_loss, goal_energy, goal_sustainable_routines; Barriers = barrier_low_activation_energy, barrier_lack_of_time, barrier_poor_sleep; Context = work_desk_based, stress_high, activity_sedentary, time_10_20_min, sleep_quality_poor.
-Scoring itemMatchPointsPrimary personashielded_turtle match+25Secondary personawatchful_deer match+15Barrierslow_activation_energy + lack_of_time+24Goalsfat_loss + energy+16Contextdesk_based + sedentary+6Strengthcore+10Total96This recommendation would rank highly because it matches the user’s persona, barriers, goals, and realistic context.
-13. Developer Implementation Checklist
-1. Create user_profile object with persona, goal, barrier, context, and exclusion tags.
-2. Load all recommendations from the master table.
-3. Apply hard exclusion filtering.
-4. Calculate scores using the scoring table and caps.
-5. Sort recommendations by score.
-6. Apply tie-breakers where needed.
-7. Cluster top recommendations by category and shared barriers.
-8. Generate High-Impact Wellness Opportunities from top clusters.
-9. Generate pillar action plans from top rows per pillar.
-10. Generate Wellness Launchpad from first_action, environment_change, and mindset_shift rows.
-11. Show safety guidance separately when triggered.
-12. Pass selected source rows to AI synthesis with strict no-new-advice instruction.
-13. Store selected recommendation IDs behind every generated section for audit.
-14. Risks and Safeguards
-RiskSafeguardToo many recommendations from one pillarUse Page 6 section rules and pillar-specific action plans.AI invents adviceAI receives source rows only and must preserve source IDs.Barrier tags dominate too muchUse barrier score cap of 36.Generic all_personas rows rank too highall_personas gets +10 only, below primary and secondary persona matches.Safety guidance gets hiddenAlways render safety guidance separately.Outputs feel repetitiveUse clustering and de-duplication before synthesis.15. Final Recommended Framework
-Use the following production logic for V1:
-* Filter unsafe rows first.
-* Score all remaining recommendations transparently.
-* Rank using score and tie-breakers.
-* Cluster top rows before synthesis.
-* Use AI only to synthesize approved source rows.
-* Keep Do’s and Don’ts visible.
-* Show Safety Guidance separately.
-* Store source recommendation IDs for audit and future debugging.
-Pausibl Recommendation Engine | A12-A13 Developer Implementation Guide | v1.0
-

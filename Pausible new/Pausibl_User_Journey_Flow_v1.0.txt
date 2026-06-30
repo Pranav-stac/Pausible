@@ -1,27 +1,0 @@
-PAUSIBL WELLNESS INTELLIGENCE PLATFORM
-User Journey Flow
-Developer Reference Document
-Version 1.0  |  June 2026  |  Internal / Engineering
-1. User Journey Flow
-The flow below is the complete user journey from landing page to report delivery. Each step is a distinct screen or page that the developer needs to build.
-StepScreen / PageWhat Happens1Landing PageAttractive marketing page with a clear "Get Started" CTA. Do not use "Take Assessment" here — user should not expect to start answering questions immediately.2Login / RegisterTwo options: Google OAuth login, or email/password with a register link. Keep this minimal — no unnecessary form fields at this stage. If the user is already logged in, skip this step and move to step 3 directly.3Assessment IntroBrief page explaining: what the assessment measures, how long it takes (~15-20 min), and what the user will receive. Set expectations and establish the Pausibl voice. No form fields on this page — this is purely orientation.4Payment PageShown after login, before the assessment intro. Display pricing, what the user gets, and process payment. This page is disabled (auto-skipped) during the free launch period. Build a feature flag to toggle it.5Profile FormCollect minimal personal info: name, email (pre-filled if logged in), age, gender. Keep it short — max 4-5 fields. User clicks "Start Assessment" to proceed.6Persona Assessment (OCEAN)90 assessment questions that keep scrolling down. In the event the page is closed abruptly, User’s last recorded response must be remembered and the session must resume where he/she had to drop off the last time.7Transition ScreenBrief screen between persona and contextual questionnaires: "Personality assessment complete. Now a few quick questions about your current situation (2-3 minutes)." Resets user expectations and prevents fatigue.8Contextual QuestionnaireQuestions about current situation: stress level, sleep quality, available time, goals, barriers, etc. User clicks "Submit" when done.9Report Building PageAnimated loading screen with staged progress updates. Show teaser messages as each stage completes:
-  - "Analyzing your personality patterns..."
-  - "Identifying your blind spots..."
-  - "Matching recommendations to your profile..."
-  - "Building your personalized action plan..."
-This is an emotional setup moment — prime the user for what they are about to see.10DashboardSummary view showing: persona name, persona illustration, fit score, fit tier, top 3 insights, and radar chart. Prominent "Download Full Report" button on the right side (floating module). Report is also auto-emailed to the user.
-2. Key Design Decisions
-CTA on Landing Page:  "Get Started" — not "Take Assessment." User should expect a setup flow, not immediate questions.
-Intro and Profile are Separate Pages:  Intro sets the tone (no forms). Profile collects data (no marketing text). Mixing them dilutes both.
-90 Questions Split into 5 Sections:  Prevents overwhelm. Each section maps to one OCEAN trait. Progress bar gives forward momentum.
-Transition Screen Between Questionnaires:  Resets expectations. Without it, users hit "more questions" after 90 and feel trapped.
-Report Building Page with Staged Reveals:  Builds anticipation instead of dead wait time. Each stage primes the user for report content.
-Dashboard = Summary, Report = Full Deliverable:  Dashboard shows the highlights. Full report (PPTX/PDF) is the premium deliverable — downloadable and auto-emailed.
-Auto-Email Report:  Send report to user email immediately after generation. Ensures permanent access even if tab is closed.
-3. Post-Report Considerations
-Returning Users:  When a logged-in user returns, land them on their dashboard — not the assessment flow. Show their existing report with a "Retake Assessment" option if needed.
-Report Persistence:  Store generated reports server-side. Users should be able to re-download from the dashboard at any time.
-Session Recovery:  If a user drops off mid-assessment (closes tab, loses connection), save progress. When they log back in, resume from where they left off.
-4. Flow Summary
-Landing Page  ?  Login/Register  ?  Assessment Intro  ? Payment  ?  Profile Form  ?  Persona Assessment (5 sections × 18 Qs)  ?  Transition Screen  ?  Contextual Questionnaire  ?  Report Building (animated)  ?  Dashboard + Downloadable Report  ?  Auto-Email Report
-Total screens: 10 (11 with payment enabled)

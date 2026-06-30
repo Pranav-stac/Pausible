@@ -145,7 +145,7 @@ OUTPUT JSON:
 {
   "personaDescription": "string",
   "secondaryInfluence": "string",
-  "traitDeviationNarratives": [{"trait": "Curiosity", "narrative": "string"}],
+  "traitDeviationNarratives": [{"trait": "Openness", "narrative": "string"}],
   "motivates": ["string"],
   "drains": ["string"]
 }`;

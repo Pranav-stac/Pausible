@@ -1,28 +1,11 @@
+/** PLAN_PAGE user prompt (§20.9). System prompt: `buildSystemPrompt()` from gemini-section-prompts (§18.1), wired in synthesize-plan-page.ts. */
+
 import type { OpportunityCard, PlanOutput, UserProfile } from "@/lib/recommendations/types";
 import { formatPhaseWeekLabel } from "@/lib/recommendations/plan/plan-phase-display";
 import { PERSONA_DISPLAY } from "@/lib/scoring/persona-defaults";
 import { fitTierLabel } from "@/lib/scoring/persona-fit";
 
-export const PLAN_PAGE_SYSTEM_PROMPT = `You are a wellness plan writer for Pausibl. Write like a concise coach — direct, specific, and actionable. Every line should tell the user exactly what to do.
-
-VOICE (match the approved sample):
-- Short imperative actions: "Do any 10-minute workout on 3 fixed days this week."
-- Phase intents: 1–2 plain sentences. No fluff. Example: "Establish the minimum viable routine. Nothing ambitious — just proof that consistency is possible."
-- Readiness lines start with "When …" Example: "When 3 sessions/week feels like a default, not a decision."
-- Daily rhythm = things done most days. Weekly rhythm = a few times per week or weekly setup.
-- Include specifics when the engine item has them (minutes, days, times).
-
-RULES:
-- Write in second person ("you", "your").
-- plan_subtitle: ONE complete sentence, max 140 characters. Name the primary persona pattern only (e.g. Watchful Deer). Do NOT mention secondary patterns here — put those in plan_built_narrative. Example: "A phased approach that builds your wellness routine layer by layer — shaped by your Watchful Deer personality."
-- plan_built_narrative: ONE paragraph, 4–6 sentences. Persona pattern names ARE allowed here. Must mention Wellness Intelligence assessment, fit score/tier, secondary pattern if blend > 0, main barrier, goals, gradual phasing, and 2–3 priority actions by name.
-- Never use OCEAN trait names. Use: Openness, Discipline, Social Energy, Agreeableness, Stress Sensitivity.
-- Never use engine jargon (activation energy, readiness signal, pillar distribution, fit tier as a label, blend ratio).
-- Never use motivational clichés ("crush your goals", "transform your life").
-- Do NOT invent new advice. Distill ONLY from the engine items provided for each phase. Move mis-bucketed items to the correct rhythm list.
-- If goals imply intensity misaligned with the pattern, acknowledge the goal and frame the plan as building toward it in stages. Never call a goal unrealistic.
-
-Return valid JSON only.`;
+export { buildSystemPrompt } from "@/lib/recommendations/gemini-section-prompts";
 
 function formatGoalsList(goals: string[]): string {
   if (!goals.length) return "General wellness";
@@ -109,6 +92,13 @@ Return JSON:
    - daily_rhythm_user: exactly 2–3 imperative lines, max 85 chars each.
    - weekly_rhythm_user: exactly 2–3 imperative lines, max 85 chars each.
 4. plan_built_narrative — one paragraph (4–6 sentences, max 600 chars). Flowing prose under "How This Plan Was Built". Name persona patterns, fit score/tier, barrier, goals, gradual phasing, and 2–3 priority actions.
+
+GOAL–PERSONA MISALIGNMENT (apply when relevant):
+"If the user's stated goals imply intensity or timelines that are misaligned with their behavioural
+pattern, acknowledge the goal positively and frame the plan as building toward it in stages.
+Example: 'Your goal of muscle gain is achievable with your pattern - your plan builds the foundation
+first, so that when structured training begins in Phase 2, it sticks.' Never reject or label a goal
+as unrealistic."
 
 Keys: plan_subtitle, goal_framing, phases, plan_built_narrative.`;
 }

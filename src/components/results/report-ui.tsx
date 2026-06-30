@@ -12,6 +12,7 @@ import type { FitTier, BlendStrength, PersonaAnalysis } from "@/lib/scoring/pers
 import { DEFAULT_PERSONA_CENTROIDS } from "@/lib/scoring/persona-defaults";
 import type { OpportunityCard, IntegratedPlanSynthesis, PillarName, PillarSynthesisDo, PillarSynthesisDont, PlanOutput } from "@/lib/recommendations/types";
 import { normalizePillarDo, normalizePillarDont } from "@/lib/recommendations/pillar-display";
+import { PDA_REPORT_PILLAR_ORDER } from "@/lib/recommendations/scoring-constants";
 import type { WellnessReportSections } from "@/lib/recommendations/types";
 import type { DualSectionPart } from "@/lib/results/report-section-split";
 import { formatPlanDurationTitle } from "@/lib/recommendations/plan/plan-phase-display";
@@ -153,7 +154,7 @@ export function CoverSlide({
   refId: string;
   totalPages: number;
 }) {
-  const oneLiner = model.primaryKey ? PERSONA_DISPLAY[model.primaryKey].summary : model.primarySummary;
+  const oneLiner = model.primarySummary;
   const primaryAnimal = model.primaryKey ? personaAnimal(model.primaryKey) : null;
 
   return (
@@ -288,7 +289,7 @@ export function PatternMatchSlide({
             <PersonaDistribution mix={model.personaMix} />
           </ContentBlock>
           {personaAnalysis && primaryKey ? (
-            <ContentBlock title="OCEAN radar chart">
+            <ContentBlock title="Wellness profile chart">
               <p className="mb-2 text-xs text-slate-600">
                 Your five core wellness traits compared to the {model.animalName ?? model.primaryLabel} pattern.
               </p>
@@ -446,7 +447,7 @@ export function KeyActionsSlide({
   totalPages: number;
   refId: string;
 }) {
-  const pillars: PillarName[] = ["Sleep & Recovery", "Nutrition", "Physical Activity", "Mental Wellness"];
+  const pillars: PillarName[] = [...PDA_REPORT_PILLAR_ORDER];
   const colors: Record<PillarName, string> = {
     "Sleep & Recovery": "border-teal-200 bg-teal-50",
     Nutrition: "border-emerald-200 bg-emerald-50",

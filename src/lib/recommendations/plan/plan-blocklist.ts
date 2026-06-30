@@ -1,23 +1,15 @@
-/** Global + plan-specific blocklist enforcement for Page 10 AI synthesis. */
+/** Global + plan-specific blocklist enforcement for Page 10 AI synthesis (§24). */
 
-const GLOBAL_REPLACEMENTS: [RegExp, string][] = [
+const TECHNICAL_TRAIT_REPLACEMENTS: [RegExp, string][] = [
   [/\bconscientiousness\b/gi, "Discipline"],
   [/\bneuroticism\b/gi, "Stress Sensitivity"],
   [/\bextraversion\b/gi, "Social Energy"],
   [/\bOCEAN\b/g, "your profile"],
-  [/\bfits?\s+score\b/gi, "pattern match"],
-  [/\bblend\s+ratio\b/gi, "pattern blend"],
-  [/\bcentroid\b/gi, "typical pattern"],
-  [/\bpersona\b/gi, "pattern"],
-  [/\bturtle\b/gi, "your cautious pattern"],
-  [/\bdeer\b/gi, "your watchful pattern"],
-  [/\bfox\b/gi, "your curious pattern"],
-  [/\bwolf\b/gi, "your social pattern"],
-  [/\bbear\b/gi, "your disciplined pattern"],
-  [/\belephant\b/gi, "your systematic pattern"],
 ];
 
-const PLAN_SPECIFIC_REPLACEMENTS: [RegExp, string][] = [
+/** Rhythm/action lines — strip engine jargon only; persona names allowed in narrative fields. */
+const RHYTHM_LINE_REPLACEMENTS: [RegExp, string][] = [
+  ...TECHNICAL_TRAIT_REPLACEMENTS,
   [/\bactivation\s+energy\b/gi, ""],
   [/\breadiness\s+signal\b/gi, "You'll know you're ready when"],
   [/\bpillar\s+distribution\b/gi, "Your plan covers sleep, nutrition, movement, and mental wellness"],
@@ -26,6 +18,13 @@ const PLAN_SPECIFIC_REPLACEMENTS: [RegExp, string][] = [
   [/\brecommendation\s+master\b/gi, ""],
   [/\bscoring\s+formula\b/gi, ""],
   [/\b(core|supporting|optional|conditional)\s+(recommendation|strength)\b/gi, "recommendation"],
+];
+
+/** Subtitle + plan rationale — technical traits only (§20.9 allows persona + fit score). */
+const NARRATIVE_REPLACEMENTS: [RegExp, string][] = [
+  ...TECHNICAL_TRAIT_REPLACEMENTS,
+  [/\bactivation\s+energy\b/gi, ""],
+  [/\bblend\s+ratio\b/gi, "pattern blend"],
 ];
 
 export type BlocklistViolation = {
@@ -47,18 +46,6 @@ export type IntegratedPlanSanitizeInput = {
   plan_built_narrative: string;
   plan_notes: string[];
 };
-
-/** Lighter scrub for subtitle + meta narrative — keeps persona pattern names. */
-const NARRATIVE_REPLACEMENTS: [RegExp, string][] = [
-  [/\bconscientiousness\b/gi, "Discipline"],
-  [/\bneuroticism\b/gi, "Stress Sensitivity"],
-  [/\bextraversion\b/gi, "Social Energy"],
-  [/\bOCEAN\b/g, "your profile"],
-  [/\bactivation\s+energy\b/gi, ""],
-  [/\breadiness\s+signal\b/gi, "readiness cues"],
-  [/\bfits?\s+score\b/gi, "pattern match"],
-  [/\bblend\s+ratio\b/gi, "pattern blend"],
-];
 
 export function sanitizePlanMetaText(text: string): { text: string; violations: string[] } {
   const violations: string[] = [];
@@ -85,16 +72,14 @@ function applyReplacements(text: string, replacements: [RegExp, string][]): stri
 
 export function sanitizePlanPageText(text: string): { text: string; violations: string[] } {
   const violations: string[] = [];
-  const combined = [...GLOBAL_REPLACEMENTS, ...PLAN_SPECIFIC_REPLACEMENTS];
-
-  for (const [pattern] of combined) {
+  for (const [pattern] of RHYTHM_LINE_REPLACEMENTS) {
     if (pattern.test(text)) {
       violations.push(pattern.source);
     }
   }
 
   return {
-    text: applyReplacements(text, combined),
+    text: applyReplacements(text, RHYTHM_LINE_REPLACEMENTS),
     violations,
   };
 }

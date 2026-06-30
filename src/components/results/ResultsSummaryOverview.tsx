@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { PERSONA_DISPLAY } from "@/lib/scoring/persona-defaults";
 import { fitTierLabel } from "@/lib/scoring/persona-fit";
 import type { FitTier } from "@/lib/scoring/persona-types";
 import type { ResultsReportModel } from "@/lib/results/build-results-report";
@@ -26,8 +25,8 @@ export function ResultsSummaryOverview({
 }: Props) {
   const primaryAnimal = personaAnimal(model.primaryKey ?? undefined);
   const secondaryAnimal = model.secondaryKey ? personaAnimal(model.secondaryKey) : null;
-  const summary = model.primaryKey ? PERSONA_DISPLAY[model.primaryKey].summary : model.primarySummary;
-  const bullets = model.primaryKey ? PERSONA_DISPLAY[model.primaryKey].bullets : model.primaryBullets;
+  const summary = model.primarySummary;
+  const bullets = model.primaryBullets;
 
   return (
     <div className="scheme-light min-h-screen bg-linear-to-b from-slate-50 via-white to-slate-100 pb-16 text-slate-900">

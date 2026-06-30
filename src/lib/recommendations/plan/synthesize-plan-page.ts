@@ -15,9 +15,9 @@ import { PLAN_TEXT_LIMITS } from "@/lib/recommendations/plan/plan-text-limits";
 import { isSelfTalkOrMantra } from "@/lib/recommendations/plan/plan-rhythm-cadence";
 import {
   buildIntegratedPlanPrompt,
-  PLAN_PAGE_SYSTEM_PROMPT,
   type IntegratedPlanPromptJson,
 } from "@/lib/recommendations/plan/plan-synthesis-prompts";
+import { buildSystemPrompt } from "@/lib/recommendations/gemini-section-prompts";
 import { enforceIntegratedPlanLimits, isCompleteSentence } from "@/lib/recommendations/plan/plan-text-limits";
 import type { ReportLlmProvider } from "@/lib/recommendations/report-llm-types";
 import { SECTION_OUTPUT_TOKENS } from "@/lib/recommendations/section-output-limits";
@@ -244,7 +244,7 @@ export async function synthesizeIntegratedPlanPage(
       provider === "gpt"
         ? PLAN_PAGE_OPENAI_MODEL
         : process.env.GEMINI_PLAN_MODEL?.trim() || "gemini-3.5-flash",
-    systemPrompt: PLAN_PAGE_SYSTEM_PROMPT,
+    systemPrompt: buildSystemPrompt(),
     userPrompt,
     json: true,
     maxOutputTokens: SECTION_OUTPUT_TOKENS.integratedPlan,

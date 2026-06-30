@@ -14,7 +14,10 @@ import type { StoredActionPlanCache } from "@/lib/recommendations/action-plan-ca
 import type { SerializedAttempt } from "@/lib/local/attempts";
 import { PausibleCoachGuideReport } from "@/components/results/PausibleCoachGuideReport";
 import { PausibleResultsReport } from "@/components/results/PausibleResultsReport";
-import { ResultsSummaryOverview } from "@/components/results/ResultsSummaryOverview";
+import { ResultsBentoSummary } from "@/components/results/ResultsBentoSummary";
+import { buildStoryPoster } from "@/lib/results/build-story-poster";
+import { sanitizePersonaSummaryText } from "@/lib/results/trait-labels";
+import { PERSONA_DISPLAY } from "@/lib/scoring/persona-defaults";
 import { buildResultsReportModel } from "@/lib/results/build-results-report";
 import { useAppSettings } from "@/lib/hooks/useAppSettings";
 import { computeAttemptScores } from "@/lib/scoring/compute-attempt-scores";
@@ -183,6 +186,23 @@ export function ResultsClient() {
     return `${window.location.origin}/share/${attempt.shareToken}`;
   }, [attempt]);
 
+  const storyPoster = useMemo(() => {
+    if (!reportModel) return null;
+    return buildStoryPoster(reportModel);
+  }, [reportModel]);
+
+  const primaryCopy = useMemo(() => {
+    if (!reportModel?.primaryKey) return null;
+    const d = PERSONA_DISPLAY[reportModel.primaryKey];
+    return { label: d.label, summary: reportModel.primarySummary, bullets: d.bullets };
+  }, [reportModel]);
+
+  const secondaryCopy = useMemo(() => {
+    if (!reportModel?.secondaryKey) return null;
+    const d = PERSONA_DISPLAY[reportModel.secondaryKey];
+    return { label: d.label, summary: sanitizePersonaSummaryText(d.summary), bullets: d.bullets };
+  }, [reportModel]);
+
   const copyShare = useCallback(async () => {
     if (!shareUrl) return;
     try {
@@ -343,14 +363,33 @@ export function ResultsClient() {
         ) : (
           <div className="p-10 text-center text-sm text-slate-600">Loading report configuration…</div>
         )
-      ) : (
-        <ResultsSummaryOverview
-          model={reportModel}
+      ) : storyPoster && primaryCopy ? (
+        <ResultsBentoSummary
+          attempt={attempt}
           attemptId={attemptId}
-          onOpenReport={() => setShowFullReport(true)}
-          onOpenCoachGuide={() => setShowCoachGuide(true)}
+          primaryPersona={reportModel.primaryKey}
+          personaTitle={reportModel.personaTitle}
+          fitScore={reportModel.fitScore}
+          fitTier={reportModel.fitTier}
+          personaAnalysis={attempt.scores?.persona ?? null}
+          secondaryPersona={reportModel.secondaryKey}
+          secondaryPct={reportModel.secondaryPct}
+          primaryCopy={primaryCopy}
+          secondaryCopy={secondaryCopy}
+          personaMix={reportModel.personaMix}
+          dimensionRows={reportModel.dimensions}
+          storyPoster={storyPoster}
+          shareUrl={shareUrl}
           history={history}
+          hasGoogleIdentity={hasGoogleIdentity}
+          user={user}
+          onCopyShare={() => void copyShare()}
+          onOpenReport={() => setShowFullReport(true)}
+          hasReport
+          onActionPlanCached={handleActionPlanCached}
         />
+      ) : (
+        <div className="p-10 text-center text-sm text-slate-600">Preparing your results…</div>
       )}
     </div>
   );

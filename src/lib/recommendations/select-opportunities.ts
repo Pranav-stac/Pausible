@@ -1,5 +1,6 @@
 import { isActionPlanPoolRow, resolvedText } from "@/lib/recommendations/action-pool";
-import { A12_CLUSTER_TOP_ROWS_FOR_AVG } from "@/lib/recommendations/scoring-constants";
+import { clusterRecommendations } from "@/lib/recommendations/cluster";
+import { PDA_CLUSTER_TOP_ROWS_FOR_AVG } from "@/lib/recommendations/scoring-constants";
 import type {
   OpportunityCard,
   PillarActionPlan,
@@ -13,9 +14,17 @@ const MIN_CLUSTER_SCORE = 20;
 const MIN_PRIORITIES = 3;
 const MAX_PRIORITIES = 4;
 
-function pillarClusterScore(ranked: ScoredRecommendation[], pillar: PillarName): number {
+function pillarClusterScore(
+  ranked: ScoredRecommendation[],
+  pillar: PillarName,
+  profile: UserProfile,
+): number {
+  const clusters = clusterRecommendations(ranked, profile);
+  const pillarClusters = clusters.filter((c) => c.rows.some((r) => r.pillar === pillar));
+  if (pillarClusters.length) return pillarClusters[0]!.clusterScore;
+
   const pool = ranked.filter((r) => r.pillar === pillar && isActionPlanPoolRow(r));
-  const top = pool.slice(0, A12_CLUSTER_TOP_ROWS_FOR_AVG);
+  const top = pool.slice(0, PDA_CLUSTER_TOP_ROWS_FOR_AVG);
   if (!top.length) return 0;
   return top.reduce((sum, row) => sum + row.score.total, 0) / top.length;
 }
@@ -43,7 +52,7 @@ function impactLevel(score: number): "High" | "Very High" {
   return score > 80 ? "Very High" : "High";
 }
 
-/** Page 8 — High-Impact Priorities (Content Logic Guide v2.0 §11). */
+/** Page 8 — High-Impact Priorities (PDA §20.8). */
 export function selectHighImpactPriorities(
   ranked: ScoredRecommendation[],
   profile: UserProfile,
@@ -51,7 +60,7 @@ export function selectHighImpactPriorities(
 ): OpportunityCard[] {
   const entries = PILLARS.map((pillar) => {
     const plan = pillarPlans[pillar];
-    const clusterScore = pillarClusterScore(ranked, pillar);
+    const clusterScore = pillarClusterScore(ranked, pillar, profile);
     const topDo = topDoFromPlan(plan, ranked);
     return { pillar, clusterScore, topDo, plan };
   })

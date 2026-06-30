@@ -10,7 +10,7 @@ import type { BuildProfileInput } from "@/lib/recommendations/build-user-profile
 import { resolvePrimaryCentroidVector, resolvePrimaryPersonaKey, resolveTraitAverages } from "@/lib/scoring/normalize-persona";
 import type { PersonaAnalysis, TraitKey } from "@/lib/scoring/persona-types";
 import { personaLabel } from "@/lib/results/persona-display";
-import { friendlyTraitLabel } from "@/lib/results/quick-profile";
+import { userFacingTraitLabel } from "@/lib/results/trait-labels";
 
 const BEHAVIOURAL_BOX_TITLES = [
   "Behavioural Tendencies",
@@ -34,43 +34,32 @@ export type SectionFitBlend = {
   secondaryPersona: string;
 };
 
-export function buildSystemPrompt(templates: ReportTemplatesDoc = DEFAULT_REPORT_TEMPLATES): string {
-  const fitTones = Object.entries(templates.geminiFitTierTone)
-    .map(([k, v]) => `- ${k}: ${v}`)
-    .join("\n");
-  const blendRules = Object.entries(templates.geminiBlendRules)
-    .map(([k, v]) => `- ${k}: ${v}`)
-    .join("\n");
+export function buildSystemPrompt(_templates?: ReportTemplatesDoc): string {
+  return `You are Pausibl's wellness report writer. You COMPOSE and STRUCTURE pre-personalised content into
+warm, clear, emotionally intelligent text for ONE specific person. You never invent advice; all
+substantive content is provided in the input.
 
-  return `You are Pausibl's wellness report writer. You compose personalized wellness reports from pre-analyzed data. Your role is NOT to personalize generic advice — the data you receive is already personalized. Your role is to compose and structure this pre-personalized content into a coherent, emotionally intelligent narrative.
-
-CORE PRINCIPLES:
-1. You are a perceptive, warm wellness coach writing a report for one specific person.
-2. Every statement should feel like it was written specifically for THIS user.
-3. Use simple English understandable by any adult. No academic jargon. No western wellness buzzwords.
-4. Never mention OCEAN, personality traits by technical names, or persona animal names.
-5. OCEAN user-facing labels: Openness, Discipline (not Conscientiousness), Social Energy (not Extraversion), Agreeableness, Stress Sensitivity (not Neuroticism).
-6. Fit tier names: Classic, Core, Leaning, Exploring. Never use Adaptive or Emerging.
-7. Never use motivational fluff ("You've got this!", "Stay positive!", "Believe in yourself!").
-8. Be behaviorally specific. "Walk for 20 minutes after dinner" not "Be more active."
-9. Frame weaknesses as patterns to notice, not character flaws.
-10. Frame strengths as genuine advantages, not consolation prizes.
-
-TONE: Warm, insightful, slightly surprising. The user should feel understood, not lectured.
-
-EMOTIONAL ARC ACROSS SECTIONS:
-Page 3: Pride and Recognition
-Page 4: Deep Understanding
-Page 5: Nuance
-Page 6: Revelation
-Page 7: Confidence
-Page 8: Excitement
-
-FIT TIER ADJUSTMENTS:
-${fitTones}
-
-BLEND STRENGTH ADJUSTMENTS:
-${blendRules}`;
+1. SCOPE: wellness guidance only - no sets/reps/weights/calorie targets/macros/meal plans as the
+   basis of advice. Acknowledge ambitious goals positively and frame progress in stages; never call
+   a goal unrealistic.
+2. TRACE: use only facts in the input. Every sentence must trace to an input field. Invent nothing.
+3. SECOND PERSON ('you'/'your').
+4. TRAIT LABELS: use only Openness, Discipline, Social Energy, Agreeableness, Stress Sensitivity.
+   Never output Conscientiousness, Extraversion, Neuroticism, 'OCEAN', or any trait number.
+5. PERSONA NAMES: permitted where the section calls for them (titles, plan subtitle/rationale);
+   in behavioural prose, centre the person rather than repeating the animal name.
+6. FIT SCORE may be shown as 'NN/100 - <Tier> tier' where the section calls for it.
+7. NEVER output engine internals (activation energy, blend ratio, scoring, centroid, softmax, cluster,
+   rec IDs, strength labels, 'readiness signal', 'pillar distribution') or motivational cliches.
+8. TONE by {fit_tier}: Classic confident / Core soft / Leaning exploratory / Exploring invitational.
+9. SECONDARY content by {blend_strength}: Pure single-pattern / Tendencies one acknowledging line /
+   Strong substantive dual-pattern.
+10. Bridge framing (if a goal-preference bridge item is present): present the preferred activity as
+    the base and the added modality as a small, honest addition; never tell the user their preferred
+    activity is wrong.
+11. OUTPUT: strict valid JSON matching the section schema. No text outside JSON. Respect every length
+    limit (tighten, never truncate mid-sentence). If a required input is empty, follow the section's
+    FALLBACK; never fabricate.`;
 }
 
 function fitBlendFooter(fb: SectionFitBlend): string {
@@ -95,7 +84,7 @@ function deviationLines(persona: PersonaAnalysis, primaryLabel: string): string 
   return (persona.traitDeviations ?? [])
     .slice(0, 2)
     .map((d, i) => {
-      const name = friendlyTraitLabel(d.trait as TraitKey);
+      const name = userFacingTraitLabel(d.trait as TraitKey);
       const direction = d.direction === "above" ? "higher" : "lower";
       return `- Deviation ${i + 1}: ${name} is ${Math.abs(d.deviation).toFixed(1)} points ${direction} than typical ${primaryLabel}`;
     })
@@ -242,7 +231,12 @@ RULES:
 3. Tone: observational, revelatory.
 
 OUTPUT FORMAT (strict JSON):
-{ "patternBody": "string", "goalsBody": "string" }
+{
+  "pattern_you_do_not_notice": "string(80-100w)",
+  "what_this_means_for_your_goals": "string(60-80w)"
+}
+
+(Legacy keys patternBody/goalsBody are also accepted.)
 
 ${fitBlendFooter(fb)}`;
 }
@@ -281,9 +275,9 @@ DO NOT (2 items): behaviour max 12 words, why max 20 words.
 OUTPUT FORMAT (strict JSON):
 {
   "pillar": "${pillar}",
-  "mindsetShift": "string",
-  "doItems": [{ "action": "string", "why": "string" } x 3],
-  "dontItems": [{ "behaviour": "string", "why": "string" } x 2]
+  "headline": "string (max 15 words)",
+  "do_items": [{ "action": "string", "why": "string" } x 3],
+  "dont_items": [{ "behaviour": "string", "why": "string" } x 2]
 }
 
 ${fitBlendFooter(fb)}`;
@@ -325,12 +319,12 @@ RULES:
 
 OUTPUT FORMAT (strict JSON):
 {
-  "priorityCards": [{
+  "priority_cards": [{
     "pillar": "string",
     "rank": number,
     "headline": "string",
-    "whyItMatters": "string",
-    "startThisWeek": "string"
+    "why_it_matters": "string",
+    "first_step": "string"
   }]
 }
 

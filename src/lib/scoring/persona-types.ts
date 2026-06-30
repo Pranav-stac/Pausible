@@ -20,6 +20,7 @@ export const TRAIT_KEYS = [
 
 export type TraitKey = (typeof TRAIT_KEYS)[number];
 
+/** Engine / admin-only trait names — never show in user-facing report UI (use §4.2 via trait-labels.ts). */
 export const TRAIT_LABELS: Record<TraitKey, string> = {
   openness: "Openness",
   conscientiousness: "Conscientiousness",

@@ -13,10 +13,12 @@ import {
   type SectionFitBlend,
 } from "@/lib/recommendations/gemini-section-prompts";
 import { filterRecommendations } from "@/lib/recommendations/filter";
+import { injectGoalPreferenceBridge } from "@/lib/recommendations/goal-preference-bridge";
 import { loadRecommendationConfig } from "@/lib/recommendations/load-recommendation-config";
 import type { ReportLlmProvider } from "@/lib/recommendations/report-llm-types";
 import { reportLlmModel } from "@/lib/recommendations/report-llm-types";
 import { scoreAll } from "@/lib/recommendations/score";
+import { PDA_REPORT_PILLAR_ORDER } from "@/lib/recommendations/scoring-constants";
 import { selectActionPlan } from "@/lib/recommendations/select-action-plan";
 import type { ActionPlanSelection, ActionPlanSynthesis, OpportunityCard, PillarName } from "@/lib/recommendations/types";
 import { loadReportLlmProviderAdmin } from "@/lib/server/report-llm-config";
@@ -141,12 +143,10 @@ function buildSections(args: {
   const { selection, ctx, input, templates, persona } = args;
   const fb = resolveFitBlend(ctx, templates);
 
-  const pillars: { pillar: PillarName; slide: string }[] = [
-    { pillar: "Nutrition", slide: "07" },
-    { pillar: "Physical Activity", slide: "07" },
-    { pillar: "Sleep & Recovery", slide: "07" },
-    { pillar: "Mental Wellness", slide: "07" },
-  ];
+  const pillars: { pillar: PillarName; slide: string }[] = PDA_REPORT_PILLAR_ORDER.map((pillar) => ({
+    pillar,
+    slide: "07",
+  }));
 
   return [
     section({
@@ -255,7 +255,8 @@ export async function buildAttemptLlmContextPackage(input: BuildProfileInput): P
 
   const profile = buildUserProfile(input, config);
   const filtered = filterRecommendations(config.recommendations, profile);
-  const ranked = scoreAll(filtered, profile);
+  const scored = scoreAll(filtered, profile);
+  const ranked = injectGoalPreferenceBridge(scored, profile, scored);
   const selection = selectActionPlan(ranked, profile);
   const ctx = buildGeminiSynthesisContext(input, config, selection);
   const fitBlend = resolveFitBlend(ctx, templates);

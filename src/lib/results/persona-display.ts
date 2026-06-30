@@ -1,4 +1,5 @@
 import { PERSONA_ANIMAL, PERSONA_DISPLAY, personaImagePath } from "@/lib/scoring/persona-defaults";
+import { sanitizePersonaSummaryText } from "@/lib/results/trait-labels";
 import type { PersonaAnalysis, PersonaKey } from "@/lib/scoring/persona-types";
 import type { AttemptScores } from "@/types/models";
 import { personaCatalogEntry } from "@/lib/data/persona-catalog-client";
@@ -12,10 +13,11 @@ export function personaLabel(key?: string | null): string {
 export function personaCopy(key?: string | null) {
   if (!key) return null;
   const cat = personaCatalogEntry(key);
-  if (cat) {
-    return { label: cat.label, archetype: cat.archetype, summary: cat.summary, bullets: cat.bullets };
-  }
-  return PERSONA_DISPLAY[key as PersonaKey] ?? null;
+  const raw = cat
+    ? { label: cat.label, archetype: cat.archetype, summary: cat.summary, bullets: cat.bullets }
+    : PERSONA_DISPLAY[key as PersonaKey];
+  if (!raw) return null;
+  return { ...raw, summary: sanitizePersonaSummaryText(raw.summary) };
 }
 
 export function personaAnimal(key?: string | null) {

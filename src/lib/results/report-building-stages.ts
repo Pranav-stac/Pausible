@@ -1,7 +1,7 @@
 export const REPORT_BUILDING_STAGES = [
   {
     label: "Analyzing your personality patterns…",
-    detail: "Mapping your OCEAN traits to your wellness persona fit.",
+    detail: "Mapping your core wellness traits to your persona fit.",
     image: "/report-building/report-stage-personality.png",
     accent: "from-sky-500 to-indigo-500",
     ring: "ring-sky-200/80",

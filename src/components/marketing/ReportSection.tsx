@@ -1,6 +1,7 @@
 import Image from "next/image";
 
 import { LABEL_CLASS } from "@/components/marketing/marketing-brand";
+import { USER_FACING_TRAIT_LIST } from "@/lib/results/trait-labels";
 
 const FEATURES = [
   {
@@ -15,7 +16,7 @@ const FEATURES = [
   },
   {
     title: "Behavioral Traits Breakdown",
-    body: "See how Openness, Conscientiousness, Extraversion, Agreeableness, and Neuroticism shape your habits.",
+    body: `See how ${USER_FACING_TRAIT_LIST} shape your habits.`,
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
         <path d="M4 20V10M10 20V4M16 20v-8M22 20V14" strokeLinecap="round" />
@@ -56,7 +57,7 @@ const FEATURES = [
 const PILLARS = [
   {
     title: "Psychologically personalized",
-    body: "Every insight is mapped to your OCEAN personality profile — not a one-size-fits-all template.",
+    body: "Every insight is mapped to your wellness personality profile — not a one-size-fits-all template.",
   },
   {
     title: "Behaviorally actionable",
@@ -132,7 +133,7 @@ export function ReportSection() {
                   </div>
                   <div className="min-w-0 flex-1 space-y-2.5">
                     <TraitBar label="Discipline" value={88} />
-                    <TraitBar label="Curiosity" value={62} />
+                    <TraitBar label="Openness" value={62} />
                     <TraitBar label="Social Energy" value={45} />
                   </div>
                 </div>
@@ -188,8 +189,8 @@ export function ReportSection() {
             Built on behavioral science, not trends.
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-pretty text-[15px] leading-relaxed text-[#4D4D4D] sm:text-base">
-            Pausibl uses the OCEAN personality framework — one of the most validated models in psychology — to map how
-            you think, feel, and act. Your report isn&apos;t a horoscope. It&apos;s a behavioral profile you can use.
+            Pausibl uses a validated five-trait wellness model to map how you think, feel, and act. Your
+            report isn&apos;t a horoscope. It&apos;s a behavioral profile you can use.
           </p>
 
           <div className="mt-10 grid gap-5 sm:grid-cols-3 sm:gap-6">

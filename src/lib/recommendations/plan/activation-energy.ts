@@ -1,43 +1,36 @@
-import type { RecommendationRow } from "@/lib/recommendations/types";
+import type { EffortLevel, RecommendationRow } from "@/lib/recommendations/types";
 
-/** Classify activation energy (1–5) from recommendation type and category. */
-export function classifyActivationEnergy(row: Pick<RecommendationRow, "type" | "category" | "text">): number {
+/** Map Effort Level (col U) → activation energy 1–5 (PDA §21.4). */
+export function classifyActivationEnergy(
+  row: Pick<RecommendationRow, "type" | "category" | "text" | "effortLevel">,
+): number {
+  const effort: EffortLevel = row.effortLevel ?? "medium";
   const category = row.category.toLowerCase();
   const text = row.text.toLowerCase();
 
-  switch (row.type) {
-    case "environment_change":
+  if (effort === "low") {
+    if (row.type === "environment_change") return 1;
+    if (
+      row.type === "first_action" &&
+      (category.includes("environment") || text.includes("environment") || text.includes("setup"))
+    ) {
       return 1;
-    case "first_action":
-      if (category.includes("environment") || text.includes("environment") || text.includes("setup")) {
-        return 1;
-      }
-      return 2;
-    case "do":
-      if (
-        category.includes("structured") ||
-        category.includes("training") ||
-        category.includes("split") ||
-        text.includes("3-day") ||
-        text.includes("progressive")
-      ) {
-        return 4;
-      }
-      if (category.includes("routine") || category.includes("regular") || text.includes("every day")) {
-        return 3;
-      }
-      return 2;
-    case "dont":
-      return 3;
-    case "mindset_shift":
-    case "recovery_rule":
-      return 4;
-    case "success_condition":
-    case "strength_insight":
-    case "blind_spot":
-    case "pattern_prediction":
-      return 5;
-    default:
-      return 3;
+    }
+    if (row.type === "mindset_shift") return 1;
+    return 2;
   }
+
+  if (effort === "medium") return 3;
+
+  if (row.type === "success_condition" || row.type === "strength_insight") return 5;
+  if (
+    row.type === "do" &&
+    (category.includes("structured") ||
+      category.includes("training") ||
+      text.includes("progressive") ||
+      text.includes("3-day"))
+  ) {
+    return 5;
+  }
+  return 4;
 }

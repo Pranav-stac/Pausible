@@ -1,4 +1,7 @@
 import { isActionPlanPoolRow } from "@/lib/recommendations/action-pool";
+import { hasBarrierOverride } from "@/lib/recommendations/barrier-override-tags";
+import { GOAL_PREFERENCE_BRIDGE_REC_ID } from "@/lib/recommendations/goal-preference-bridge";
+import { compareScored, passesPlanScoreGate } from "@/lib/recommendations/score";
 import { classifyActivationEnergy } from "@/lib/recommendations/plan/activation-energy";
 import { buildPhaseReadinessDescription } from "@/lib/recommendations/plan/build-readiness-signal";
 import {
@@ -136,10 +139,8 @@ function hasHighNeuroticismPersona(persona: PersonaKey): boolean {
   return persona === "brittle_avoidant" || persona === "stress_sensitive";
 }
 
-function secondaryInfluenceActive(profile: UserProfile, secondaryBlendPct?: number): boolean {
-  if (profile.blendStrength === "pure") return false;
-  if (typeof secondaryBlendPct === "number") return secondaryBlendPct > 15;
-  return profile.blendStrength === "strong_influence";
+function secondaryInfluenceActive(_profile: UserProfile, secondaryBlendPct?: number): boolean {
+  return typeof secondaryBlendPct === "number" && secondaryBlendPct > 15;
 }
 
 function resolvePhases(profile: UserProfile, fitTier: FitTier): ResolvedPhase[] {
@@ -190,12 +191,14 @@ function itemCountsForPhase(
   profile: UserProfile,
   fitTier: FitTier,
   phaseNumber: number,
+  secondaryPersona: PersonaKey | null,
+  secondaryActive: boolean,
 ): { daily: number; weekly: number } {
   const config = PERSONA_PHASE_CONFIG[profile.primaryPersona];
   let daily = config.dailyItems.max;
   let weekly = config.weeklyItems.max;
 
-  if (profile.barriers.includes("barrier_overwhelm") && phaseNumber === 1) {
+  if (hasBarrierOverride(profile, "overwhelm") && phaseNumber === 1) {
     daily = Math.max(1, daily - 1);
     weekly = Math.max(1, weekly - 1);
   }
@@ -207,6 +210,16 @@ function itemCountsForPhase(
   if (fitTier === "exploring") {
     daily = Math.max(1, Math.min(3, daily - 1));
     weekly = Math.max(1, weekly - 1);
+  }
+
+  if (secondaryActive && secondaryPersona === "resilient_performer" && phaseNumber === 1) {
+    if (profile.primaryPersona !== "resilient_performer") {
+      daily += 1;
+    }
+  }
+
+  if (secondaryActive && secondaryPersona === "curious_explorer") {
+    weekly += 1;
   }
 
   return { daily, weekly };
@@ -229,7 +242,11 @@ function adjustActivationCap(
     cap -= 1;
   }
 
-  if (profile.barriers.includes("barrier_starting_difficulty") && phaseNumber === 1) {
+  if (hasBarrierOverride(profile, "starting_difficulty") && phaseNumber === 1) {
+    cap = Math.min(cap, 2);
+  }
+
+  if (hasBarrierOverride(profile, "lack_of_time") && phaseNumber === 1) {
     cap = Math.min(cap, 2);
   }
 
@@ -240,8 +257,9 @@ function applySecondarySignalOverride(
   phase: ResolvedPhase,
   secondaryPersona: PersonaKey | null,
   secondaryActive: boolean,
+  primaryPersona: PersonaKey,
 ): { primary: ReadinessSignalType; secondary: ReadinessSignalType } {
-  let primary = phase.primarySignal;
+  const primary = phase.primarySignal;
   let secondary = phase.secondarySignal;
 
   if (!secondaryActive || !secondaryPersona) {
@@ -256,7 +274,9 @@ function applySecondarySignalOverride(
       if (phase.phaseNumber === 1) secondary = "recovery";
       break;
     case "social_motivator":
-      if (phase.phaseNumber >= 2) secondary = "social_embedding";
+      if (phase.phaseNumber >= 2 && primaryPersona !== "social_motivator") {
+        secondary = "social_embedding";
+      }
       break;
     default:
       break;
@@ -306,21 +326,215 @@ function toPlanItem(row: ScoredRecommendation): PlanRecommendationItem {
   };
 }
 
+function isStructuredRec(row: ScoredRecommendation): boolean {
+  return classifyActivationEnergy(row) >= 4;
+}
+
+function isFallbackRec(row: ScoredRecommendation): boolean {
+  return (
+    row.type === "recovery_rule" ||
+    row.strength === "conditional" ||
+    /backup|fallback|if you miss|when you miss|shorter|short version|scale down|lighter session/i.test(
+      row.text,
+    )
+  );
+}
+
+/** §21.5 R6 — place conditional recs in the phase where trigger context is most relevant. */
+function bestPhaseForConditional(
+  row: ScoredRecommendation,
+  totalPhases: number,
+  profile: UserProfile,
+): number {
+  if (row.id === GOAL_PREFERENCE_BRIDGE_REC_ID && profile.goalPreferenceBridge) {
+    return Math.min(2, totalPhases);
+  }
+
+  const ctx = row.score.matchedContext;
+  if (ctx.some((t) => t.startsWith("barrier_"))) return 1;
+  if (ctx.some((t) => t.includes("sleep") || t.includes("stress") || t === "time_under_15_min")) {
+    return Math.min(2, totalPhases);
+  }
+  if (ctx.some((t) => t.includes("advanced") || t.includes("experienced"))) {
+    return totalPhases;
+  }
+  if (row.type === "recovery_rule") return Math.min(2, totalPhases);
+  return Math.min(Math.max(2, Math.ceil(totalPhases / 2)), totalPhases);
+}
+
+function shouldAssignConditionalInPhase(
+  row: ScoredRecommendation,
+  phaseNumber: number,
+  totalPhases: number,
+  profile: UserProfile,
+): boolean {
+  if (row.strength !== "conditional") return true;
+  return phaseNumber === bestPhaseForConditional(row, totalPhases, profile);
+}
+
 function passesBarrierFilters(row: ScoredRecommendation, profile: UserProfile, phaseNumber: number): boolean {
   if (phaseNumber !== 1) return true;
 
-  if (profile.barriers.includes("barrier_lack_of_time")) {
+  if (hasBarrierOverride(profile, "lack_of_time")) {
+    if (classifyActivationEnergy(row) > 2) return false;
     const text = row.text.toLowerCase();
     if (text.includes("hour") && !text.includes("15 min") && !text.includes("10 min")) {
       return false;
     }
   }
 
-  if (profile.barriers.includes("barrier_emotional_eating") && row.pillar === "Nutrition" && row.type === "do") {
-    return true;
+  return true;
+}
+
+function phaseItemsIncludeType(
+  pool: ScoredRecommendation[],
+  anchor: ScoredRecommendation | null,
+  daily: PlanRecommendationItem[],
+  weekly: PlanRecommendationItem[],
+  predicate: (row: ScoredRecommendation) => boolean,
+): boolean {
+  const ids = new Set(
+    [anchor?.id, ...daily.map((d) => d.id), ...weekly.map((w) => w.id)].filter(Boolean) as string[],
+  );
+  return pool.some((r) => ids.has(r.id) && predicate(r));
+}
+
+function injectBarrierRhythmItems(
+  pool: ScoredRecommendation[],
+  profile: UserProfile,
+  phaseNumber: number,
+  daily: PlanRecommendationItem[],
+  weekly: PlanRecommendationItem[],
+  anchor: ScoredRecommendation | null,
+  used: Set<string>,
+  counts: { daily: number; weekly: number },
+): ScoredRecommendation | null {
+  let currentAnchor = anchor;
+
+  if (hasBarrierOverride(profile, "inconsistency")) {
+    const hasRecovery =
+      phaseNumber === 1 &&
+      phaseItemsIncludeType(pool, currentAnchor, daily, weekly, (r) => r.type === "recovery_rule");
+    if (!hasRecovery) {
+      const recovery = pool
+        .filter((r) => !used.has(r.id) && r.type === "recovery_rule")
+        .sort(comparePlanRhythmCandidates)[0];
+      if (recovery && assignRhythmItem(recovery, daily, weekly, counts, true)) {
+        used.add(recovery.id);
+      }
+    }
+
+    const hasFallback = phaseItemsIncludeType(pool, currentAnchor, daily, weekly, isFallbackRec);
+    if (!hasFallback) {
+      const fallback = pool
+        .filter((r) => !used.has(r.id) && isFallbackRec(r))
+        .sort(comparePlanRhythmCandidates)[0];
+      if (fallback && assignRhythmItem(fallback, daily, weekly, counts, true)) {
+        used.add(fallback.id);
+      }
+    }
   }
 
-  return true;
+  if (phaseNumber === 1 && hasBarrierOverride(profile, "emotional_eating")) {
+    const hasEmotional = phaseItemsIncludeType(
+      pool,
+      currentAnchor,
+      daily,
+      weekly,
+      (r) => r.category === "emotional_eating",
+    );
+    if (!hasEmotional) {
+      const hit = pool
+        .filter((r) => !used.has(r.id) && r.category === "emotional_eating")
+        .sort(comparePlanRhythmCandidates)[0];
+      if (hit && assignRhythmItem(hit, daily, weekly, counts, true)) {
+        used.add(hit.id);
+      }
+    }
+  }
+
+  if (phaseNumber === 1 && hasBarrierOverride(profile, "lack_of_time") && currentAnchor) {
+    if (classifyActivationEnergy(currentAnchor) > 2) {
+      const micro = pool
+        .filter(
+          (r) =>
+            !used.has(r.id) &&
+            classifyActivationEnergy(r) <= 2 &&
+            PLAN_RHYTHM_TYPES.has(r.type) &&
+            isValidAnchorCandidate(r),
+        )
+        .sort(compareAnchorCandidates)[0];
+      if (micro) {
+        used.delete(currentAnchor.id);
+        currentAnchor = micro;
+        used.add(micro.id);
+      }
+    }
+  }
+
+  return currentAnchor;
+}
+
+/** §21.10 barrier_lack_of_time — pair micro backup/short-version with each structured rec. */
+function injectLackOfTimeShortVersions(
+  pool: ScoredRecommendation[],
+  profile: UserProfile,
+  daily: PlanRecommendationItem[],
+  weekly: PlanRecommendationItem[],
+  anchor: ScoredRecommendation | null,
+  used: Set<string>,
+  counts: { daily: number; weekly: number },
+): void {
+  if (!hasBarrierOverride(profile, "lack_of_time")) return;
+
+  const assignedIds = new Set([
+    ...(anchor ? [anchor.id] : []),
+    ...daily.map((d) => d.id),
+    ...weekly.map((w) => w.id),
+  ]);
+  const structured = pool.filter((r) => assignedIds.has(r.id) && isStructuredRec(r));
+  const pairedBackupIds = new Set(
+    pool.filter((r) => assignedIds.has(r.id) && !isStructuredRec(r) && classifyActivationEnergy(r) <= 2).map((r) => r.id),
+  );
+
+  for (const structuredRec of structured) {
+    const backup = pool
+      .filter(
+        (r) =>
+          !used.has(r.id) &&
+          !pairedBackupIds.has(r.id) &&
+          r.id !== structuredRec.id &&
+          classifyActivationEnergy(r) <= 2 &&
+          PLAN_RHYTHM_TYPES.has(r.type) &&
+          (r.pillar === structuredRec.pillar ||
+            r.category === structuredRec.category ||
+            /backup|shorter|short|micro|10.?min|5.?min|lighter/i.test(r.text)),
+      )
+      .sort((a, b) => {
+        const pillarA = a.pillar === structuredRec.pillar ? 0 : 1;
+        const pillarB = b.pillar === structuredRec.pillar ? 0 : 1;
+        if (pillarA !== pillarB) return pillarA - pillarB;
+        return comparePlanRhythmCandidates(a, b);
+      })[0];
+
+    if (backup && assignRhythmItem(backup, daily, weekly, counts, true)) {
+      used.add(backup.id);
+      pairedBackupIds.add(backup.id);
+    }
+  }
+}
+
+function applyBarrierCapacityOverrides(
+  capacity: PhaseCapacity,
+  phaseNumber: number,
+  profile: UserProfile,
+): PhaseCapacity {
+  if (hasBarrierOverride(profile, "inconsistency") && phaseNumber === 1) {
+    const eligibleTypes = new Set(capacity.eligibleTypes);
+    eligibleTypes.add("recovery_rule");
+    return { ...capacity, eligibleTypes };
+  }
+  return capacity;
 }
 
 function isEligibleForPhase(
@@ -333,10 +547,14 @@ function isEligibleForPhase(
   if (!passesBarrierFilters(row, profile, phaseNumber)) return false;
 
   const ae = classifyActivationEnergy(row);
-  if (ae > capacity.activationEnergyCap) return false;
+  const poorSleepPromote =
+    phaseNumber === 1 &&
+    hasBarrierOverride(profile, "poor_sleep") &&
+    row.pillar === "Sleep & Recovery";
+  if (!poorSleepPromote && ae > capacity.activationEnergyCap) return false;
 
   if (
-    profile.barriers.includes("barrier_perfectionism") &&
+    hasBarrierOverride(profile, "perfectionism") &&
     phaseNumber === 1 &&
     row.type === "mindset_shift"
   ) {
@@ -357,20 +575,167 @@ function pickAnchor(
   const candidates = pool
     .filter((r) => !used.has(r.id) && isEligibleForPhase(r, capacity, phaseNumber, profile))
     .filter((r) => PLAN_RHYTHM_TYPES.has(r.type) && isValidAnchorCandidate(r))
+    .filter(
+      (r) =>
+        !hasBarrierOverride(profile, "lack_of_time") ||
+        phaseNumber !== 1 ||
+        classifyActivationEnergy(r) <= 2,
+    )
     .sort(compareAnchorCandidates);
 
-  if (profile.barriers.includes("barrier_poor_sleep") && phaseNumber === 1) {
+  if (hasBarrierOverride(profile, "poor_sleep") && phaseNumber === 1) {
     const sleepHit = candidates.find((r) => r.pillar === "Sleep & Recovery");
     if (sleepHit) return sleepHit;
   }
 
-  if (profile.barriers.includes("barrier_starting_difficulty") && phaseNumber === 1) {
+  if (phaseNumber === 1 && !hasBarrierOverride(profile, "poor_sleep")) {
+    const primaryGoal = profile.goals[0];
+    const goalConfig = primaryGoal ? GOAL_PILLAR_DENSITY[primaryGoal] : null;
+    if (goalConfig?.anchor) {
+      const anchorPillar = goalConfig.anchor as PillarName;
+      const goalHit = candidates.find((r) => r.pillar === anchorPillar);
+      if (goalHit) return goalHit;
+    }
+  }
+
+  if (hasBarrierOverride(profile, "starting_difficulty") && phaseNumber === 1) {
     const firstAction = candidates.find((r) => r.type === "first_action");
     if (firstAction) return firstAction;
   }
 
   const coreHit = candidates.find((r) => r.strength === "core");
   return coreHit ?? candidates[0] ?? null;
+}
+
+function pickAnchorAlternate(
+  pool: ScoredRecommendation[],
+  capacity: PhaseCapacity,
+  phaseNumber: number,
+  profile: UserProfile,
+  used: Set<string>,
+  primaryAnchor: ScoredRecommendation | null,
+  secondaryPersona: PersonaKey | null,
+  secondaryActive: boolean,
+): ScoredRecommendation | null {
+  if (!secondaryActive || secondaryPersona !== "curious_explorer" || !primaryAnchor) return null;
+
+  const candidates = pool
+    .filter((r) => r.id !== primaryAnchor.id && !used.has(r.id))
+    .filter((r) => isEligibleForPhase(r, capacity, phaseNumber, profile))
+    .filter((r) => PLAN_RHYTHM_TYPES.has(r.type) && isValidAnchorCandidate(r))
+    .sort(compareAnchorCandidates);
+
+  return candidates[0] ?? null;
+}
+
+function pairDontRecsWithDo(
+  pool: ScoredRecommendation[],
+  daily: PlanRecommendationItem[],
+  weekly: PlanRecommendationItem[],
+  used: Set<string>,
+  counts: { daily: number; weekly: number },
+  capacity: PhaseCapacity,
+  phaseNumber: number,
+  profile: UserProfile,
+): void {
+  const assignedIds = new Set([...daily.map((d) => d.id), ...weekly.map((w) => w.id)]);
+  const dos = pool.filter(
+    (r) => assignedIds.has(r.id) && (r.type === "do" || r.type === "first_action"),
+  );
+  const pairedDontIds = new Set(
+    pool.filter((r) => assignedIds.has(r.id) && r.type === "dont").map((r) => r.id),
+  );
+
+  for (const anchorDo of dos) {
+    const dont = pool
+      .filter(
+        (r) =>
+          !used.has(r.id) &&
+          !pairedDontIds.has(r.id) &&
+          r.type === "dont" &&
+          isEligibleForPhase(r, capacity, phaseNumber, profile),
+      )
+      .sort((a, b) => {
+        const pillarA = a.pillar === anchorDo.pillar ? 0 : 1;
+        const pillarB = b.pillar === anchorDo.pillar ? 0 : 1;
+        if (pillarA !== pillarB) return pillarA - pillarB;
+        const catA = a.category === anchorDo.category ? 0 : 1;
+        const catB = b.category === anchorDo.category ? 0 : 1;
+        return catA - catB;
+      })[0];
+
+    if (dont && assignRhythmItem(dont, daily, weekly, counts, true)) {
+      used.add(dont.id);
+      pairedDontIds.add(dont.id);
+    }
+  }
+}
+
+function injectSecondaryPersonaItems(
+  pool: ScoredRecommendation[],
+  profile: UserProfile,
+  secondaryPersona: PersonaKey | null,
+  secondaryActive: boolean,
+  phaseNumber: number,
+  daily: PlanRecommendationItem[],
+  weekly: PlanRecommendationItem[],
+  used: Set<string>,
+  counts: { daily: number; weekly: number },
+  capacity: PhaseCapacity,
+): void {
+  if (!secondaryActive || !secondaryPersona) return;
+
+  const tryAdd = (row: ScoredRecommendation | undefined) => {
+    if (!row || used.has(row.id)) return;
+    if (!isEligibleForPhase(row, capacity, phaseNumber, profile)) return;
+    if (assignRhythmItem(row, daily, weekly, counts, true)) {
+      used.add(row.id);
+    }
+  };
+
+  switch (secondaryPersona) {
+    case "curious_explorer": {
+      const variety = pool
+        .filter((r) => !used.has(r.id) && (r.strength === "optional" || r.strength === "supporting"))
+        .sort(comparePlanRhythmCandidates)[0];
+      tryAdd(variety);
+      break;
+    }
+    case "social_motivator":
+      if (phaseNumber >= 2 && profile.primaryPersona !== "social_motivator") {
+        const social = pool.find(
+          (r) =>
+            !used.has(r.id) &&
+            (r.category.includes("social") ||
+              r.contextFit.some((t) => t.includes("social")) ||
+              /accountab|partner|group|buddy/i.test(r.text)),
+        );
+        tryAdd(social);
+      }
+      break;
+    case "stress_sensitive": {
+      const backup = pool.find(
+        (r) =>
+          !used.has(r.id) &&
+          (r.type === "recovery_rule" || r.strength === "conditional" || r.type === "dont"),
+      );
+      tryAdd(backup);
+      break;
+    }
+    case "self_regulated_planner":
+      if (phaseNumber === 1 && profile.primaryPersona !== "self_regulated_planner") {
+        const tracking = pool.find(
+          (r) =>
+            !used.has(r.id) &&
+            (r.type === "success_condition" ||
+              /track|log|record|check.?in|journal/i.test(r.text)),
+        );
+        tryAdd(tracking);
+      }
+      break;
+    default:
+      break;
+  }
 }
 
 function assignPhaseItems(
@@ -381,6 +746,7 @@ function assignPhaseItems(
   used: Set<string>,
   density: Record<PillarName, number>,
   counts: { daily: number; weekly: number },
+  totalPhases: number,
   secondaryBlendPct?: number,
 ): { daily: PlanRecommendationItem[]; weekly: PlanRecommendationItem[]; anchor: ScoredRecommendation | null } {
   const anchorRow = pickAnchor(pool, capacity, phaseNumber, profile, used);
@@ -415,6 +781,7 @@ function assignPhaseItems(
 
     const maxStrength = strengthPhaseCutoff === 1 ? 0 : strengthPhaseCutoff === 2 ? 1 : 2;
     if (strengthRank(row) > maxStrength && row.strength !== "conditional") continue;
+    if (!shouldAssignConditionalInPhase(row, phaseNumber, totalPhases, profile)) continue;
 
     const pillarTarget = density[row.pillar] ?? 25;
     const currentPillarShare = pillarCounts[row.pillar] / Math.max(1, assigned);
@@ -430,7 +797,10 @@ function assignPhaseItems(
   // R3 — at least one item per pillar where possible
   for (const pillar of PILLARS) {
     if (pillarCounts[pillar] > 0) continue;
-    const filler = candidates.find((r) => !used.has(r.id) && r.pillar === pillar);
+    const filler = candidates.find(
+      (r) =>
+        !used.has(r.id) && r.pillar === pillar && shouldAssignConditionalInPhase(r, phaseNumber, totalPhases, profile),
+    );
     if (!filler) continue;
 
     if (assigned >= targetTotal && !extendedOnce) {
@@ -458,7 +828,35 @@ function assignPhaseItems(
 
   rebalanceRhythmBuckets(daily, weekly);
 
-  return { daily, weekly, anchor: anchorRow };
+  pairDontRecsWithDo(pool, daily, weekly, used, counts, capacity, phaseNumber, profile);
+
+  injectSecondaryPersonaItems(
+    pool,
+    profile,
+    secondaryInfluenceActive(profile, secondaryBlendPct) ? profile.secondaryPersona : null,
+    secondaryInfluenceActive(profile, secondaryBlendPct),
+    phaseNumber,
+    daily,
+    weekly,
+    used,
+    counts,
+    capacity,
+  );
+
+  const adjustedAnchor = injectBarrierRhythmItems(
+    pool,
+    profile,
+    phaseNumber,
+    daily,
+    weekly,
+    anchorRow,
+    used,
+    counts,
+  );
+
+  injectLackOfTimeShortVersions(pool, profile, daily, weekly, adjustedAnchor, used, counts);
+
+  return { daily, weekly, anchor: adjustedAnchor };
 }
 
 /** Move daily-labelled items out of weekly (and vice versa) when slots were filled in order. */
@@ -517,7 +915,7 @@ export function generatePlanOutput(args: {
   planId?: string;
   secondaryBlendPct?: number;
 }): PlanOutput | null {
-  const { ranked, profile } = args;
+  const { profile } = args;
   const fitTier = profile.fitTier;
   const secondaryActive = secondaryInfluenceActive(profile, args.secondaryBlendPct);
   const secondaryPersona = secondaryActive ? profile.secondaryPersona : null;
@@ -525,12 +923,29 @@ export function generatePlanOutput(args: {
   const resolvedPhases = resolvePhases(profile, fitTier);
   if (resolvedPhases.length === 0) return null;
 
-  const pool = ranked.filter((r) => isActionPlanPoolRow(r)).sort(compareCandidates);
+  const totalPhases = resolvedPhases.length;
+  const pool = args.ranked
+    .filter(
+      (r) =>
+        isActionPlanPoolRow(r) &&
+        (passesPlanScoreGate(r) ||
+          (profile.goalPreferenceBridge && r.id === GOAL_PREFERENCE_BRIDGE_REC_ID)),
+    )
+    .sort((a, b) => compareScored(a, b));
   const used = new Set<string>();
   const phases: PlanPhaseOutput[] = [];
 
+  let showAllPhases = !hasBarrierOverride(profile, "overwhelm");
+  if (
+    secondaryActive &&
+    secondaryPersona === "self_regulated_planner" &&
+    profile.primaryPersona !== "self_regulated_planner"
+  ) {
+    showAllPhases = true;
+  }
+
   for (const phase of resolvedPhases) {
-    const counts = itemCountsForPhase(profile, fitTier, phase.phaseNumber);
+    const counts = itemCountsForPhase(profile, fitTier, phase.phaseNumber, secondaryPersona, secondaryActive);
     const aeCap = adjustActivationCap(
       phase.activationEnergyCap,
       fitTier,
@@ -540,19 +955,23 @@ export function generatePlanOutput(args: {
       secondaryActive,
     );
 
-    const signals = applySecondarySignalOverride(phase, secondaryPersona, secondaryActive);
+    const signals = applySecondarySignalOverride(phase, secondaryPersona, secondaryActive, profile.primaryPersona);
     if (fitTier === "exploring") {
       signals.secondary = "emotional_comfort";
     }
 
-    const capacity: PhaseCapacity = {
-      dailyCount: counts.daily,
-      weeklyCount: counts.weekly,
-      activationEnergyCap: aeCap,
-      eligibleTypes: new Set(phase.eligibleTypes),
-      primarySignal: signals.primary,
-      secondarySignal: signals.secondary,
-    };
+    const capacity: PhaseCapacity = applyBarrierCapacityOverrides(
+      {
+        dailyCount: counts.daily,
+        weeklyCount: counts.weekly,
+        activationEnergyCap: aeCap,
+        eligibleTypes: new Set(phase.eligibleTypes),
+        primarySignal: signals.primary,
+        secondarySignal: signals.secondary,
+      },
+      phase.phaseNumber,
+      profile,
+    );
 
     const density = pillarDensityForPhase(profile, phase.phaseNumber);
     const assigned = assignPhaseItems(
@@ -563,6 +982,7 @@ export function generatePlanOutput(args: {
       used,
       density,
       counts,
+      totalPhases,
       args.secondaryBlendPct,
     );
 
@@ -603,12 +1023,18 @@ export function generatePlanOutput(args: {
     const dailyRhythm = assigned.daily.filter((d) => d.id !== anchor?.id);
     const weeklyRhythm = assigned.weekly;
 
+    const anchorAlternateRow =
+      secondaryActive && secondaryPersona === "curious_explorer"
+        ? pickAnchorAlternate(pool, capacity, phase.phaseNumber, profile, used, anchor, secondaryPersona, secondaryActive)
+        : null;
+
     phases.push({
       phase_number: phase.phaseNumber,
       name: phase.name,
       intent: phase.intent,
       approx_duration_weeks: phase.durationWeeks,
       anchor_habit: anchorHabit,
+      anchor_habit_alternate: anchorAlternateRow ? toPlanItem(anchorAlternateRow) : null,
       daily_rhythm: dailyRhythm,
       weekly_rhythm: weeklyRhythm,
       readiness_signal: {
@@ -642,5 +1068,6 @@ export function generatePlanOutput(args: {
     progression_style: PERSONA_PHASE_CONFIG[profile.primaryPersona].progressionStyle,
     phases,
     generation_notes: buildGenerationNotes(profile, fitTier, secondaryActive, args.secondaryBlendPct),
+    show_all_phases: showAllPhases,
   };
 }
