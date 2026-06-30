@@ -77,3 +77,38 @@ export function scanTextForBlocklist(text: string, field = "text"): { field: str
   const hit = containsBlocklistTerm(text);
   return hit ? [{ field, term: hit }] : [];
 }
+
+/** PDA §25 — replace forbidden terms instead of failing the whole report. Longer phrases first. */
+const BLOCKLIST_REPLACEMENTS: [RegExp, string][] = [
+  [/\bdo not push through\b/gi, "do not ignore"],
+  [/\bdon't push through\b/gi, "don't ignore"],
+  [/\bpush through\b/gi, "work through"],
+  [/\byou've got this\b/gi, "you can build this steadily"],
+  [/\bcrush your goals\b/gi, "reach your goals"],
+  [/\bunleash your potential\b/gi, "grow at your pace"],
+  [/\btransform your life\b/gi, "change your habits"],
+  [/\bstay positive\b/gi, "stay steady"],
+  [/\bbelieve in yourself\b/gi, "trust your process"],
+  [/\bno excuses\b/gi, "no delays"],
+  [/\bstay disciplined\b/gi, "stay consistent"],
+  [/\bstay motivated\b/gi, "stay engaged"],
+  [/\bconscientiousness\b/gi, "Discipline"],
+  [/\bextraversion\b/gi, "Social Energy"],
+  [/\bneuroticism\b/gi, "Stress Sensitivity"],
+  [/\bactivation energy\b/gi, ""],
+  [/\bblend ratio\b/gi, "pattern blend"],
+  [/\breadiness signal\b/gi, "You'll know you're ready when"],
+  [/\bpillar distribution\b/gi, "your plan across sleep, nutrition, movement, and mental wellness"],
+  [/\bdensity weighting\b/gi, ""],
+  [/\bphase assignment\b/gi, ""],
+  [/\bscoring pipeline\b/gi, ""],
+  [/\bscoring formula\b/gi, ""],
+];
+
+export function scrubBlocklistTerms(text: string): string {
+  let out = text;
+  for (const [pattern, replacement] of BLOCKLIST_REPLACEMENTS) {
+    out = out.replace(pattern, replacement);
+  }
+  return out.replace(/\s{2,}/g, " ").replace(/\s+([,.])/g, "$1").trim();
+}

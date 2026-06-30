@@ -386,7 +386,6 @@ export function ResultsClient() {
           onCopyShare={() => void copyShare()}
           onOpenReport={() => setShowFullReport(true)}
           hasReport
-          onActionPlanCached={handleActionPlanCached}
         />
       ) : (
         <div className="p-10 text-center text-sm text-slate-600">Preparing your results…</div>

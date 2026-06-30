@@ -4,7 +4,6 @@ import type { CSSProperties, ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { User } from "firebase/auth";
-import { WellnessActionPlan } from "@/components/results/WellnessActionPlan";
 import { ResultsStoryPosterSection } from "@/components/results/ResultsStoryPosterSection";
 import { OceanRadarChart } from "@/components/results/OceanRadarChart";
 import { personaAnimal, personaLabel } from "@/lib/results/persona-display";
@@ -13,7 +12,6 @@ import type { PersonaAnalysis, PersonaKey } from "@/lib/scoring/persona-types";
 import { fitTierLabel } from "@/lib/scoring/persona-fit";
 import { PERSONA_REPORT_THEME } from "@/lib/results/persona-report-theme";
 import type { DimensionRow } from "@/lib/results/dimension-rows";
-import type { StoredActionPlanCache } from "@/lib/recommendations/action-plan-cache";
 import type { SerializedAttempt } from "@/lib/local/attempts";
 import {
   formatAttemptListDate,
@@ -189,7 +187,6 @@ export function ResultsBentoSummary({
   onCopyShare,
   onOpenReport,
   hasReport,
-  onActionPlanCached,
 }: {
   attempt: SerializedAttempt;
   attemptId: string;
@@ -212,7 +209,6 @@ export function ResultsBentoSummary({
   onCopyShare: () => void;
   onOpenReport: () => void;
   hasReport: boolean;
-  onActionPlanCached?: (cache: StoredActionPlanCache) => void;
 }) {
   const primaryLabel = personaLabel(primaryPersona);
   const animal = personaAnimal(primaryPersona);
@@ -486,11 +482,6 @@ export function ResultsBentoSummary({
             ))}
           </ul>
         </BentoCard>
-
-        {/* Personalized wellness action plan */}
-        <div className="md:col-span-6 lg:col-span-12">
-          <WellnessActionPlan attempt={attempt} accent={accent} onActionPlanCached={onActionPlanCached} />
-        </div>
 
         {/* POSTER */}
         <div className="md:col-span-6 lg:col-span-12">

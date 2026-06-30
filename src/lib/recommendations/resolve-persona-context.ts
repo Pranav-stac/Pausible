@@ -1,4 +1,5 @@
 import { isPiSeries } from "@/lib/recommendations/action-pool";
+import { scrubBlocklistTerms } from "@/lib/recommendations/content-blocklist";
 import type { RecommendationRow } from "@/lib/recommendations/types";
 import type { BlendStrength } from "@/lib/scoring/persona-types";
 
@@ -31,16 +32,16 @@ export function resolvePersonaContextText(
     fromPrimary !== fromSecondary;
 
   if (dualStrongInfluence) {
-    return `${fromPrimary} ${fromSecondary}`;
+    return scrubBlocklistTerms(`${fromPrimary} ${fromSecondary}`);
   }
 
-  if (fromPrimary) return fromPrimary;
+  if (fromPrimary) return scrubBlocklistTerms(fromPrimary);
 
-  if (fromSecondary) return fromSecondary;
+  if (fromSecondary) return scrubBlocklistTerms(fromSecondary);
 
   if (isPiSeries(row)) {
     return "Your pattern insight is being prepared for this section.";
   }
 
-  return row.text.trim();
+  return scrubBlocklistTerms(row.text.trim());
 }

@@ -225,7 +225,9 @@ export function PausibleResultsReport({
                 <p className="text-[10px] text-slate-500">
                   {synthesis.synthesized
                     ? `${reportLlmProviderLabel(planMeta.llmProvider ?? synthesis.llmProvider ?? reportLlmProvider)} · ${synthesis.tokenUsage?.model ?? reportLlmModel}${planMeta.cached ? " · cached" : " · freshly generated"}`
-                    : `Template copy only — ${reportLlmProviderLabel(reportLlmProvider)} did not run`}
+                    : (synthesis.tokenUsage?.totalTokens ?? 0) > 0
+                      ? `Quality check used template copy — ${reportLlmProviderLabel(planMeta.llmProvider ?? synthesis.llmProvider ?? reportLlmProvider)} output was adjusted`
+                      : `Template copy only — ${reportLlmProviderLabel(reportLlmProvider)} did not run`}
                 </p>
                 {!synthesis.synthesized && synthesis.synthesisError ? (
                   <p className="text-[10px] leading-snug text-amber-800">{synthesis.synthesisError}</p>

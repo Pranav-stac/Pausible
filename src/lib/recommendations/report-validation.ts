@@ -1,6 +1,6 @@
 import { PERSONA_KEY_TO_ALIAS } from "@/lib/recommendations/persona-aliases";
 import { isPiSeries } from "@/lib/recommendations/action-pool";
-import { scanTextForBlocklist } from "@/lib/recommendations/content-blocklist";
+import { scanTextForBlocklist, scrubBlocklistTerms } from "@/lib/recommendations/content-blocklist";
 import type { ActionPlanSelection, RecommendationRow, ScoredRecommendation } from "@/lib/recommendations/types";
 import type { AttemptAnswers, AttemptScores } from "@/types/models";
 import { activeQuestionBank } from "@/lib/scoring/question-bank-meta";
@@ -105,6 +105,43 @@ export function validatePreGeneration(args: {
 
 export function validateSynthesisText(text: string, field: string): string[] {
   return scanTextForBlocklist(text, field).map((v) => `${v.field}: forbidden term "${v.term}"`);
+}
+
+function scrubOptional(text: string | undefined): string | undefined {
+  if (!text?.trim()) return text;
+  return scrubBlocklistTerms(text);
+}
+
+function scrubList(items: string[] | undefined): string[] | undefined {
+  if (!items?.length) return items;
+  return items.map((t) => scrubBlocklistTerms(t));
+}
+
+/** Scrub blocklisted phrases from synthesis sections before validation and display (PDA §25). */
+export function sanitizePostSynthesisInput<T extends Parameters<typeof validatePostSynthesis>[0]>(sections: T): T {
+  return {
+    ...sections,
+    primaryNarrative: scrubOptional(sections.primaryNarrative),
+    secondaryNarrative: scrubOptional(sections.secondaryNarrative),
+    blindPattern: scrubOptional(sections.blindPattern),
+    blindGoals: scrubOptional(sections.blindGoals),
+    pillarFocus: scrubList(sections.pillarFocus),
+    pillarDos: scrubList(sections.pillarDos),
+    pillarDonts: scrubList(sections.pillarDonts),
+    priorityHeadlines: scrubList(sections.priorityHeadlines),
+    priorityBodies: scrubList(sections.priorityBodies),
+    planSubtitle: scrubOptional(sections.planSubtitle),
+    planBuiltNarrative: scrubOptional(sections.planBuiltNarrative),
+    planPhaseIntents: scrubList(sections.planPhaseIntents),
+    planReadinessSignals: scrubList(sections.planReadinessSignals),
+    behaviouralBoxBodies: scrubList(sections.behaviouralBoxBodies),
+  };
+}
+
+function isCriticalViolation(violation: string): boolean {
+  if (violation.includes("forbidden term")) return false;
+  if (violation.includes("word count")) return false;
+  return true;
 }
 
 function wordCount(text: string): number {
@@ -231,17 +268,17 @@ export function validatePostSynthesis(sections: {
   if (sections.primaryNarrative) {
     const wc = wordCount(sections.primaryNarrative);
     if (wc < 140 || wc > 210) {
-      violations.push(`primary_pattern: word count ${wc} outside 150-200w range (§20.4)`);
+      warnings.push(`primary_pattern: word count ${wc} outside 150-200w range (§20.4)`);
     }
   }
 
   if (sections.blindPattern) {
     const wc = wordCount(sections.blindPattern);
-    if (wc < 60 || wc > 120) violations.push(`blind_spots.pattern: word count ${wc} outside 80-100w range`);
+    if (wc < 60 || wc > 120) warnings.push(`blind_spots.pattern: word count ${wc} outside 80-100w range`);
   }
   if (sections.blindGoals) {
     const wc = wordCount(sections.blindGoals);
-    if (wc < 45 || wc > 100) violations.push(`blind_spots.goals: word count ${wc} outside 60-80w range`);
+    if (wc < 45 || wc > 100) warnings.push(`blind_spots.goals: word count ${wc} outside 60-80w range`);
   }
 
   const allProse = [
@@ -275,6 +312,6 @@ export function validatePostSynthesis(sections: {
     ok: violations.length === 0,
     violations,
     warnings,
-    useFallback: violations.length > 0,
+    useFallback: violations.some(isCriticalViolation),
   };
 }

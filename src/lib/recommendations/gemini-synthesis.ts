@@ -37,13 +37,68 @@ import {
   buildSystemPrompt,
   resolveFitBlend,
 } from "@/lib/recommendations/gemini-section-prompts";
-import { validatePostSynthesis } from "@/lib/recommendations/report-validation";
+import { sanitizePostSynthesisInput, validatePostSynthesis } from "@/lib/recommendations/report-validation";
+import { scrubBlocklistTerms } from "@/lib/recommendations/content-blocklist";
 import { PDA_REPORT_PILLAR_ORDER } from "@/lib/recommendations/scoring-constants";
 import { resolvePrimaryPersonaKey } from "@/lib/scoring/normalize-persona";
 import { buildQuickProfile, friendlyTraitLabel } from "@/lib/results/quick-profile";
 import type { PersonaAnalysis, TraitKey } from "@/lib/scoring/persona-types";
 
 const PILLARS: PillarName[] = [...PDA_REPORT_PILLAR_ORDER];
+
+function scrubCopy(text: string): string {
+  return scrubBlocklistTerms(text);
+}
+
+function scrubPrimaryPattern(pattern: PrimaryPatternSection): PrimaryPatternSection {
+  return {
+    ...pattern,
+    personaNarrative: scrubCopy(pattern.personaNarrative),
+    behaviouralBoxes: pattern.behaviouralBoxes.map((box) => ({
+      ...box,
+      content: scrubCopy(box.content),
+    })),
+  };
+}
+
+function scrubSecondaryPattern(pattern: SecondaryPatternSection | undefined): SecondaryPatternSection | undefined {
+  if (!pattern) return pattern;
+  return {
+    ...pattern,
+    secondaryNarrative: scrubCopy(pattern.secondaryNarrative),
+    blendNarrative: pattern.blendNarrative ? scrubCopy(pattern.blendNarrative) : pattern.blendNarrative,
+    behaviouralBoxes: pattern.behaviouralBoxes.map((box) => ({
+      ...box,
+      content: scrubCopy(box.content),
+    })),
+  };
+}
+
+function scrubPillarPlans(
+  plans: ActionPlanSynthesis["pillarPlans"],
+): ActionPlanSynthesis["pillarPlans"] {
+  const out = { ...plans };
+  for (const pillar of PILLARS) {
+    const plan = out[pillar];
+    out[pillar] = {
+      ...plan,
+      focusArea: scrubCopy(plan.focusArea),
+      focusReason: scrubCopy(plan.focusReason),
+      dos: plan.dos.map((d) => ({ ...d, action: scrubCopy(d.action), why: scrubCopy(d.why) })),
+      donts: plan.donts.map((d) => ({ ...d, behavior: scrubCopy(d.behavior), why: scrubCopy(d.why) })),
+    };
+  }
+  return out;
+}
+
+function scrubOpportunityCards(cards: ActionPlanSynthesis["opportunityCards"]): ActionPlanSynthesis["opportunityCards"] {
+  return cards.map((card) => ({
+    ...card,
+    headline: card.headline ? scrubCopy(card.headline) : card.headline,
+    whyItMatters: card.whyItMatters ? scrubCopy(card.whyItMatters) : card.whyItMatters,
+    startThisWeek: card.startThisWeek ? scrubCopy(card.startThisWeek) : card.startThisWeek,
+  }));
+}
 
 function formatAnswerList(raw: unknown): string | null {
   if (Array.isArray(raw) && raw.length) return raw.join(", ");
@@ -502,40 +557,58 @@ export async function synthesizeActionPlanWithLlm(
   const llmSucceeded = (tokenUsage?.totalTokens ?? 0) > 0;
 
   const primaryPersonaKey = persona ? resolvePrimaryPersonaKey(persona) : null;
-  let finalPrimaryPattern = primaryPattern;
-  let finalSecondaryPattern = secondaryPattern;
-  let finalPillarPlans = pillarPlans;
-  let finalOpportunityCards = opportunityCards;
-  let finalBlindSpots = reportSections.blindSpots;
 
-  const postGate = validatePostSynthesis({
-    primaryNarrative: primaryPattern.personaNarrative,
-    secondaryNarrative: secondaryPattern?.secondaryNarrative,
-    blindPattern: reportSections.blindSpots.patternBody,
-    blindGoals: reportSections.blindSpots.goalsBody,
-    pillarFocus: PILLARS.map((p) => pillarPlans[p].focusArea),
-    pillarDos: PILLARS.flatMap((p) => pillarPlans[p].dos.map((d) => d.action)),
-    pillarDonts: PILLARS.flatMap((p) => pillarPlans[p].donts.map((d) => d.behavior)),
-    priorityHeadlines: opportunityCards.map((c) => c.headline ?? ""),
-    priorityBodies: opportunityCards.map((c) => c.whyItMatters ?? ""),
-    behaviouralBoxBodies: primaryPattern.behaviouralBoxes.map((b) => b.content),
-    primaryPersonaKey,
-    pillarSourceIds: PILLARS.map((p) => pillarPlans[p].sourceIds ?? []),
-    piSourceIds: selection.piSeries.sourceIds,
-  });
+  const scrubbedPrimaryPattern = scrubPrimaryPattern(primaryPattern);
+  const scrubbedSecondaryPattern = scrubSecondaryPattern(secondaryPattern);
+  const scrubbedPillarPlans = scrubPillarPlans(pillarPlans);
+  const scrubbedOpportunityCards = scrubOpportunityCards(opportunityCards);
+  const scrubbedBlindSpots = {
+    patternBody: scrubCopy(reportSections.blindSpots.patternBody),
+    goalsBody: scrubCopy(reportSections.blindSpots.goalsBody),
+  };
+
+  let finalPrimaryPattern = scrubbedPrimaryPattern;
+  let finalSecondaryPattern = scrubbedSecondaryPattern;
+  let finalPillarPlans = scrubbedPillarPlans;
+  let finalOpportunityCards = scrubbedOpportunityCards;
+  let finalBlindSpots = scrubbedBlindSpots;
+
+  const postGate = validatePostSynthesis(
+    sanitizePostSynthesisInput({
+      primaryNarrative: scrubbedPrimaryPattern.personaNarrative,
+      secondaryNarrative: scrubbedSecondaryPattern?.secondaryNarrative,
+      blindPattern: scrubbedBlindSpots.patternBody,
+      blindGoals: scrubbedBlindSpots.goalsBody,
+      pillarFocus: PILLARS.map((p) => scrubbedPillarPlans[p].focusArea),
+      pillarDos: PILLARS.flatMap((p) => scrubbedPillarPlans[p].dos.map((d) => d.action)),
+      pillarDonts: PILLARS.flatMap((p) => scrubbedPillarPlans[p].donts.map((d) => d.behavior)),
+      priorityHeadlines: scrubbedOpportunityCards.map((c) => c.headline ?? ""),
+      priorityBodies: scrubbedOpportunityCards.map((c) => c.whyItMatters ?? ""),
+      behaviouralBoxBodies: scrubbedPrimaryPattern.behaviouralBoxes.map((b) => b.content),
+      primaryPersonaKey,
+      pillarSourceIds: PILLARS.map((p) => scrubbedPillarPlans[p].sourceIds ?? []),
+      piSourceIds: selection.piSeries.sourceIds,
+    }),
+  );
 
   if (postGate.warnings.length) {
     errors.push(...postGate.warnings.map((w) => `post_gate_warn: ${w}`));
   }
+  if (postGate.violations.length) {
+    errors.push(...postGate.violations.map((v) => `post_gate: ${v}`));
+  }
 
   if (postGate.useFallback) {
-    errors.push(...postGate.violations.map((v) => `post_gate: ${v}`));
-    finalPrimaryPattern =
-      fallback.reportSections?.primaryPattern ?? fallbackPrimaryPattern(selection, persona);
-    finalSecondaryPattern = fallback.reportSections?.secondaryPattern;
-    finalPillarPlans = fallback.pillarPlans;
-    finalOpportunityCards = fallback.opportunityCards;
-    finalBlindSpots = fallback.reportSections?.blindSpots ?? finalBlindSpots;
+    finalPrimaryPattern = scrubPrimaryPattern(
+      fallback.reportSections?.primaryPattern ?? fallbackPrimaryPattern(selection, persona),
+    );
+    finalSecondaryPattern = scrubSecondaryPattern(fallback.reportSections?.secondaryPattern);
+    finalPillarPlans = scrubPillarPlans(fallback.pillarPlans);
+    finalOpportunityCards = scrubOpportunityCards(fallback.opportunityCards);
+    finalBlindSpots = {
+      patternBody: scrubCopy(fallback.reportSections?.blindSpots.patternBody ?? finalBlindSpots.patternBody),
+      goalsBody: scrubCopy(fallback.reportSections?.blindSpots.goalsBody ?? finalBlindSpots.goalsBody),
+    };
   }
 
   const finalReportSections = {

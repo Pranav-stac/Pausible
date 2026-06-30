@@ -10,7 +10,7 @@ import { stripUndefinedDeep } from "@/lib/firebase/strip-undefined";
 import type { AttemptAnswers, AttemptScores } from "@/types/models";
 
 /** Bump when prompt/context changes so stale cached plans regenerate. */
-export const ACTION_PLAN_SYNTHESIS_VERSION = "v29-plan-field-coerce";
+export const ACTION_PLAN_SYNTHESIS_VERSION = "v30-blocklist-scrub";
 
 export type StoredActionPlanCache = {
   inputHash: string;
