@@ -134,6 +134,96 @@ function assignRhythmItem(
   return false;
 }
 
+function forceAssignRhythmItem(
+  row: ScoredRecommendation,
+  bucket: "daily" | "weekly",
+  daily: PlanRecommendationItem[],
+  weekly: PlanRecommendationItem[],
+  counts: { daily: number; weekly: number },
+): boolean {
+  const item = toPlanItem(row);
+  const list = bucket === "daily" ? daily : weekly;
+  const cap = bucket === "daily" ? counts.daily : counts.weekly;
+  if (list.length >= cap) return false;
+  list.push(item);
+  return true;
+}
+
+function cadencePrefersBucket(
+  text: string,
+  type: RecommendationType,
+  bucket: "daily" | "weekly",
+): number {
+  const cadence = classifyRhythmCadence(text, type);
+  if (bucket === "daily") {
+    if (cadence === "daily") return 0;
+    if (cadence === "either") return 1;
+    return 2;
+  }
+  if (cadence === "weekly") return 0;
+  if (cadence === "either") return 1;
+  return 2;
+}
+
+function backfillRhythmBuckets(
+  pool: ScoredRecommendation[],
+  daily: PlanRecommendationItem[],
+  weekly: PlanRecommendationItem[],
+  counts: { daily: number; weekly: number },
+  capacity: PhaseCapacity,
+  phaseNumber: number,
+  profile: UserProfile,
+  used: Set<string>,
+  totalPhases: number,
+  anchorId: string | null,
+): void {
+  const skipIds = new Set([anchorId].filter(Boolean) as string[]);
+  const strengthPhaseCutoff = phaseNumber === 1 ? 1 : phaseNumber === 2 ? 2 : 3;
+  const maxStrength = strengthPhaseCutoff === 1 ? 0 : strengthPhaseCutoff === 2 ? 1 : 2;
+
+  const fillBucket = (bucket: "daily" | "weekly", minCount: number, relaxStrength: boolean) => {
+    const list = bucket === "daily" ? daily : weekly;
+    while (list.length < minCount) {
+      const candidates = pool
+        .filter(
+          (r) =>
+            !used.has(r.id) &&
+            !skipIds.has(r.id) &&
+            isEligibleForPhase(r, capacity, phaseNumber, profile) &&
+            PLAN_RHYTHM_TYPES.has(r.type) &&
+            shouldAssignConditionalInPhase(r, phaseNumber, totalPhases, profile),
+        )
+        .sort((a, b) => {
+          const cp = cadencePrefersBucket(a.text, a.type, bucket) - cadencePrefersBucket(b.text, b.type, bucket);
+          if (cp !== 0) return cp;
+          return comparePlanRhythmCandidates(a, b);
+        });
+
+      const row =
+        candidates.find((r) => relaxStrength || strengthRank(r) <= maxStrength || r.strength === "conditional") ??
+        candidates[0];
+      if (!row) break;
+
+      if (assignRhythmItem(row, daily, weekly, counts, true)) {
+        used.add(row.id);
+        continue;
+      }
+      if (forceAssignRhythmItem(row, bucket, daily, weekly, counts)) {
+        used.add(row.id);
+        continue;
+      }
+      break;
+    }
+  };
+
+  fillBucket("daily", counts.daily, false);
+  fillBucket("weekly", counts.weekly, false);
+  if (daily.length < counts.daily || weekly.length < counts.weekly) {
+    fillBucket("daily", counts.daily, true);
+    fillBucket("weekly", counts.weekly, true);
+  }
+}
+
 function hasHighNeuroticismPersona(persona: PersonaKey): boolean {
   return persona === "brittle_avoidant" || persona === "stress_sensitive";
 }
@@ -729,8 +819,8 @@ function assignPhaseItems(
     pillarCounts[anchorRow.pillar] += 1;
   }
 
-  const targetTotal = counts.daily + counts.weekly;
-  let assigned = anchorRow ? 1 : 0;
+  const rhythmTarget = counts.daily + counts.weekly;
+  let rhythmAssigned = 0;
   let extendedOnce = false;
 
   const candidates = pool
@@ -741,21 +831,23 @@ function assignPhaseItems(
   const strengthPhaseCutoff = phaseNumber === 1 ? 1 : phaseNumber === 2 ? 2 : 3;
 
   for (const row of candidates) {
-    if (assigned >= targetTotal) break;
+    if (rhythmAssigned >= rhythmTarget) break;
 
     const maxStrength = strengthPhaseCutoff === 1 ? 0 : strengthPhaseCutoff === 2 ? 1 : 2;
     if (strengthRank(row) > maxStrength && row.strength !== "conditional") continue;
     if (!shouldAssignConditionalInPhase(row, phaseNumber, totalPhases, profile)) continue;
 
     const pillarTarget = density[row.pillar] ?? 25;
-    const currentPillarShare = pillarCounts[row.pillar] / Math.max(1, assigned);
-    if (assigned > 2 && currentPillarShare * 100 > pillarTarget + 15) continue;
+    const rhythmSlots = rhythmAssigned + (anchorRow ? 1 : 0);
+    const currentPillarShare = pillarCounts[row.pillar] / Math.max(1, rhythmSlots);
+    if (rhythmSlots > 2 && currentPillarShare * 100 > pillarTarget + 15) continue;
 
-    if (!assignRhythmItem(row, daily, weekly, counts, false)) continue;
+    const bucketPressure = daily.length >= counts.daily || weekly.length >= counts.weekly;
+    if (!assignRhythmItem(row, daily, weekly, counts, bucketPressure)) continue;
 
     used.add(row.id);
     pillarCounts[row.pillar] += 1;
-    assigned += 1;
+    rhythmAssigned += 1;
   }
 
   // R3 — at least one item per pillar where possible
@@ -767,30 +859,31 @@ function assignPhaseItems(
     );
     if (!filler) continue;
 
-    if (assigned >= targetTotal && !extendedOnce) {
+    if (rhythmAssigned >= rhythmTarget && !extendedOnce) {
       extendedOnce = true;
-    } else if (assigned >= targetTotal) {
+    } else if (rhythmAssigned >= rhythmTarget) {
       continue;
     }
 
     if (!assignRhythmItem(filler, daily, weekly, counts, true)) continue;
 
     used.add(filler.id);
-    pillarCounts[pillar] += 1;
-    assigned += 1;
+    pillarCounts[filler.pillar] += 1;
+    rhythmAssigned += 1;
   }
 
   // R8 — extend once if high-priority items remain
-  if (!extendedOnce && assigned >= targetTotal) {
+  if (!extendedOnce && rhythmAssigned >= rhythmTarget) {
     const leftover = candidates.find(
       (r) => !used.has(r.id) && (r.strength === "core" || r.strength === "supporting"),
     );
     if (leftover && assignRhythmItem(leftover, daily, weekly, { daily: counts.daily + 1, weekly: counts.weekly + 1 }, true)) {
       used.add(leftover.id);
+      rhythmAssigned += 1;
     }
   }
 
-  rebalanceRhythmBuckets(daily, weekly);
+  rebalanceRhythmBuckets(daily, weekly, counts);
 
   pairDontRecsWithDo(pool, daily, weekly, used, counts, capacity, phaseNumber, profile);
 
@@ -820,24 +913,43 @@ function assignPhaseItems(
 
   injectLackOfTimeShortVersions(pool, profile, daily, weekly, adjustedAnchor, used, counts);
 
+  backfillRhythmBuckets(
+    pool,
+    daily,
+    weekly,
+    counts,
+    capacity,
+    phaseNumber,
+    profile,
+    used,
+    totalPhases,
+    adjustedAnchor?.id ?? null,
+  );
+
+  rebalanceRhythmBuckets(daily, weekly, counts);
+
   return { daily, weekly, anchor: adjustedAnchor };
 }
 
-/** Move daily-labelled items out of weekly (and vice versa) when slots were filled in order. */
-function rebalanceRhythmBuckets(daily: PlanRecommendationItem[], weekly: PlanRecommendationItem[]): void {
+/** Move misclassified items between buckets when the destination still has quota. */
+function rebalanceRhythmBuckets(
+  daily: PlanRecommendationItem[],
+  weekly: PlanRecommendationItem[],
+  counts: { daily: number; weekly: number },
+): void {
   for (let i = weekly.length - 1; i >= 0; i--) {
     const item = weekly[i]!;
-    if (classifyRhythmCadence(item.text, "do") === "daily") {
-      daily.push(item);
-      weekly.splice(i, 1);
-    }
+    if (classifyRhythmCadence(item.text, "do") !== "daily") continue;
+    if (daily.length >= counts.daily) continue;
+    daily.push(item);
+    weekly.splice(i, 1);
   }
   for (let i = daily.length - 1; i >= 0; i--) {
     const item = daily[i]!;
-    if (classifyRhythmCadence(item.text, "do") === "weekly") {
-      weekly.push(item);
-      daily.splice(i, 1);
-    }
+    if (classifyRhythmCadence(item.text, "do") !== "weekly") continue;
+    if (weekly.length >= counts.weekly) continue;
+    weekly.push(item);
+    daily.splice(i, 1);
   }
 }
 
