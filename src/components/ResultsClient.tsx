@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { NavAuthActions } from "@/components/NavAuthActions";
 import { useFirebaseAuth } from "@/lib/firebase/auth-context";
@@ -27,6 +27,7 @@ import { fetchPersonaCatalogClient } from "@/lib/data/persona-catalog-client";
 import { personaNeedsRecompute } from "@/lib/scoring/normalize-persona";
 import { shouldForceRegenerateReport } from "@/lib/recommendations/should-force-regenerate-report";
 import { useReportLlmProvider } from "@/lib/hooks/useReportLlmProvider";
+import { buildTestAfterAssessmentHref, isTestAutoPdfRequested } from "@/lib/testing/test-results-query";
 
 function ResultsTopBar() {
   return (
@@ -52,6 +53,8 @@ export function ResultsClient() {
   const params = useParams<{ attemptId: string }>();
   const attemptId = params.attemptId;
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const testAutoPdf = isTestAutoPdfRequested(searchParams);
   const { effectiveUid, ready, hasGoogleIdentity, user } = useFirebaseAuth();
   const mustUseGoogle = isFirebaseConfigured();
   const { requirePayment, loading: settingsLoading } = useAppSettings();
@@ -61,7 +64,7 @@ export function ResultsClient() {
   const [history, setHistory] = useState<SerializedAttempt[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [fetching, setFetching] = useState(true);
-  const [showFullReport, setShowFullReport] = useState(false);
+  const [showFullReport, setShowFullReport] = useState(() => testAutoPdf);
   const [showCoachGuide, setShowCoachGuide] = useState(false);
   const forceRegenerateReport = useMemo(() => shouldForceRegenerateReport(), []);
   const { provider: reportLlmProvider, model: reportLlmModel, ready: reportLlmReady } = useReportLlmProvider();
@@ -238,7 +241,13 @@ export function ResultsClient() {
           <div className="mt-8 flex flex-col items-center gap-3">
             <button
               type="button"
-              onClick={() => router.push(`/after-assessment/${encodeURIComponent(attemptId)}?next=results`)}
+              onClick={() =>
+                router.push(
+                  testAutoPdf
+                    ? buildTestAfterAssessmentHref(attemptId, "results")
+                    : `/after-assessment/${encodeURIComponent(attemptId)}?next=results`,
+                )
+              }
               className="rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-900"
             >
               Sign in to unlock results
@@ -364,6 +373,7 @@ export function ResultsClient() {
             forceRegenerate={forceRegenerateReport}
             reportLlmProvider={reportLlmProvider}
             reportLlmModel={reportLlmModel}
+            autoDownloadPdf={testAutoPdf}
           />
         ) : (
           <div className="p-10 text-center text-sm text-slate-600">Loading report configuration…</div>

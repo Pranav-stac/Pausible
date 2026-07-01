@@ -13,6 +13,7 @@ import { isFirebaseConfigured } from "@/lib/firebase/config";
 import { useFirebaseAuth } from "@/lib/firebase/auth-context";
 import { useAppSettings } from "@/lib/hooks/useAppSettings";
 import { randomShareToken } from "@/lib/share-token";
+import { appendTestAutoPdfToHref, isTestAutoPdfRequested } from "@/lib/testing/test-results-query";
 
 type NextStep = "results" | "checkout";
 
@@ -25,13 +26,15 @@ export function AfterAssessmentGate({ attemptId }: { attemptId: string }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const destPath = useMemo(
-    () =>
+  const testAutoPdf = isTestAutoPdfRequested(params);
+
+  const destPath = useMemo(() => {
+    const base =
       resolvedNext === "checkout"
         ? `/checkout?attemptId=${encodeURIComponent(attemptId)}`
-        : `/results/${encodeURIComponent(attemptId)}`,
-    [attemptId, resolvedNext],
-  );
+        : `/results/${encodeURIComponent(attemptId)}`;
+    return testAutoPdf ? appendTestAutoPdfToHref(base) : base;
+  }, [attemptId, resolvedNext, testAutoPdf]);
 
   const continueAfterGoogle = useCallback(async () => {
     const claimed = await tryClaimAttemptForSession(attemptId);

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import type { ResultsReportModel } from "@/lib/results/build-results-report";
 import { reportAttemptRef } from "@/lib/results/build-results-report";
 import { downloadReportAsPdf, reportPdfFilename } from "@/lib/results/download-report-pdf";
@@ -28,6 +28,8 @@ type Props = {
   forceRegenerate?: boolean;
   reportLlmProvider: ReportLlmProvider;
   reportLlmModel: string;
+  /** Test mode only — download PDF once after the report finishes rendering. */
+  autoDownloadPdf?: boolean;
 };
 
 function responseFromCache(cache: StoredActionPlanCache): ActionPlanApiResponse {
@@ -46,9 +48,11 @@ export function PausibleResultsReport({
   forceRegenerate = false,
   reportLlmProvider,
   reportLlmModel,
+  autoDownloadPdf = false,
 }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const loadedSigRef = useRef<string | null>(null);
+  const autoDownloadedRef = useRef(false);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfErr, setPdfErr] = useState<string | null>(null);
 
@@ -180,6 +184,42 @@ export function PausibleResultsReport({
     };
   }, [model, planData, planLoading]);
 
+  const downloadPdf = useCallback(async () => {
+    const root = rootRef.current;
+    if (!root) return false;
+    setPdfBusy(true);
+    setPdfErr(null);
+    try {
+      await downloadReportAsPdf(root, reportPdfFilename(model.participantName, refId));
+      return true;
+    } catch (e) {
+      setPdfErr(e instanceof Error ? e.message : "Could not create PDF.");
+      return false;
+    } finally {
+      setPdfBusy(false);
+    }
+  }, [model.participantName, refId]);
+
+  useEffect(() => {
+    if (!reportReady || !autoDownloadPdf || autoDownloadedRef.current) return;
+
+    let cancelled = false;
+    autoDownloadedRef.current = true;
+
+    void (async () => {
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      });
+      if (cancelled) return;
+      const ok = await downloadPdf();
+      if (!ok) autoDownloadedRef.current = false;
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [autoDownloadPdf, downloadPdf, reportReady]);
+
   if (!reportReady || !planData || !synthesis) {
     return (
       <ReportPreparingScreen
@@ -191,26 +231,20 @@ export function PausibleResultsReport({
             : null)
         }
         subtitle={
-          planLoading
-            ? "Generating your personalized insights — this usually takes about 15 seconds."
-            : "Loading report visuals…"
+          autoDownloadPdf
+            ? planLoading
+              ? "Generating your report — PDF will download when ready (about 15 seconds)."
+              : "Loading report visuals — PDF will download shortly…"
+            : planLoading
+              ? "Generating your personalized insights — this usually takes about 15 seconds."
+              : "Loading report visuals…"
         }
       />
     );
   }
 
   const handlePdf = async () => {
-    const root = rootRef.current;
-    if (!root) return;
-    setPdfBusy(true);
-    setPdfErr(null);
-    try {
-      await downloadReportAsPdf(root, reportPdfFilename(model.participantName, refId));
-    } catch (e) {
-      setPdfErr(e instanceof Error ? e.message : "Could not create PDF.");
-    } finally {
-      setPdfBusy(false);
-    }
+    await downloadPdf();
   };
 
   return (

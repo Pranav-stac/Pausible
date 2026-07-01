@@ -20,6 +20,7 @@ import { PROFILE_AGE_OPTIONS, PROFILE_GENDER_OPTIONS } from "@/lib/profile/demog
 import { computeAttemptScores } from "@/lib/scoring/compute-attempt-scores";
 import { coerceAnswer, normalizeAnswersForQuestionnaire } from "@/lib/scoring/engine";
 import { randomAnswersForQuestions } from "@/lib/testing/random-assessment-fill";
+import { buildTestAfterAssessmentHref, buildTestResultsHref } from "@/lib/testing/test-results-query";
 import { testRouteAllowed } from "@/lib/testing/test-route";
 import type { AssessmentDefinition, AssessmentQuestion, AttemptAnswers } from "@/types/models";
 
@@ -342,11 +343,11 @@ export function TestAssessmentPage() {
       }
 
       if (isFirebaseConfigured() && !hasGoogleIdentity) {
-        router.push(`/after-assessment/${encodeURIComponent(attemptId)}?next=results`);
+        router.push(buildTestAfterAssessmentHref(attemptId, "results"));
         return;
       }
 
-      router.push(`/results/${encodeURIComponent(attemptId)}`);
+      router.push(buildTestResultsHref(attemptId));
     } catch (e) {
       setSubmitError(e instanceof Error ? e.message : "Submit failed.");
     } finally {
@@ -411,7 +412,7 @@ export function TestAssessmentPage() {
           <h1 className="text-lg font-bold text-slate-900">Automated test assessment</h1>
           <p className="mt-1 text-sm text-slate-600">
             Profile name + {oceanQuestions.length} personality + all {wellnessQuestions.length} wellness context questions on one page.
-            Single submit → results. Sign in with Google above to use the same account as production.
+            Single submit → full report → PDF downloads automatically. Sign in with Google above to use the same account as production.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <button
@@ -521,7 +522,7 @@ export function TestAssessmentPage() {
             onClick={() => void handleSubmit()}
             className="rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white disabled:opacity-40"
           >
-            {submitting ? "Submitting…" : "Submit & open report"}
+            {submitting ? "Submitting…" : "Submit & download report"}
           </button>
         </div>
       </footer>
