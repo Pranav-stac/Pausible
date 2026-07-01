@@ -16,6 +16,7 @@ import { isFirebaseConfigured } from "@/lib/firebase/config";
 import { useAppSettings } from "@/lib/hooks/useAppSettings";
 import { getOrCreateLocalUid } from "@/lib/local/uid";
 import { assessmentShellClass, assessmentShellPadClass, WELLNESS_FRESH_ATTEMPT_KEY } from "@/lib/assessment/layout";
+import { mergeProfileDraftIntoAnswers } from "@/lib/assessment/session-recovery";
 import {
   getWellnessContextQuestionnaire,
   WELLNESS_CONTEXT_PREFIX,
@@ -231,8 +232,11 @@ export function WellnessContextQuestionnaire({
           else if (val !== undefined && val !== null) ocean += 1;
         }
 
+        const withProfile = mergeProfileDraftIntoAnswers(existing);
+        const profileAdded = Object.keys(withProfile).some((key) => withProfile[key] !== existing[key]);
+
         if (freshWellness && !wellnessPrefilled && Object.keys(existing).length === 0) {
-          const cleaned: AttemptAnswers = { ...source };
+          const cleaned: AttemptAnswers = mergeProfileDraftIntoAnswers({ ...source });
           for (const k of Object.keys(cleaned)) {
             if (k.startsWith(WELLNESS_CONTEXT_PREFIX)) delete cleaned[k];
           }
@@ -247,12 +251,25 @@ export function WellnessContextQuestionnaire({
             shareToken: attempt.shareToken ?? null,
             isLatestShareEligible: Boolean(attempt.isLatestShareEligible),
           });
+        } else if (profileAdded) {
+          const mergedAttemptAnswers = mergeProfileDraftIntoAnswers(attempt.answers ?? {});
+          void upsertAttempt({
+            id: attemptId,
+            uid: attempt.uid,
+            assessmentId: attempt.assessmentId,
+            answers: mergedAttemptAnswers,
+            scores: attempt.scores ?? null,
+            personaAnalysis: attempt.personaAnalysis ?? null,
+            paymentStatus: attempt.paymentStatus,
+            shareToken: attempt.shareToken ?? null,
+            isLatestShareEligible: Boolean(attempt.isLatestShareEligible),
+          });
         }
 
         const flat = flattenQuestions(questionnaire);
         setOceanAnswerCount(ocean);
-        setAnswers(existing);
-        setRevealedCount(computeInitialRevealedCount(flat, existing));
+        setAnswers(withProfile);
+        setRevealedCount(computeInitialRevealedCount(flat, withProfile));
         setExpandedPastIndex(null);
         if (ocean < 1) {
           setLoadError("Personality inventory answers are missing. Please complete the main assessment first.");

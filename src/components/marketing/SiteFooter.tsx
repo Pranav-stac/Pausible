@@ -5,7 +5,7 @@ import { siteConfig } from "@/config/site";
 
 export function SiteFooter() {
   return (
-    <footer className="border-t border-slate-100 bg-white px-4 py-12 sm:px-6 sm:py-14">
+    <footer className="border-t border-slate-200/80 bg-white px-4 py-12 sm:px-6 sm:py-14">
       <div className="mx-auto max-w-6xl">
         <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
           <div>

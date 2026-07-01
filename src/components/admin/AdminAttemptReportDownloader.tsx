@@ -5,7 +5,8 @@ import { flushSync } from "react-dom";
 import type { ActionPlanApiResponse } from "@/lib/recommendations/client-types";
 import type { StoredActionPlanCache } from "@/lib/recommendations/action-plan-cache";
 import { buildResultsReportModel, reportAttemptRef } from "@/lib/results/build-results-report";
-import { downloadReportAsPdf } from "@/lib/results/download-report-pdf";
+import { downloadReportAsPdf, reportPdfFilename } from "@/lib/results/download-report-pdf";
+import { resolveParticipantName } from "@/lib/results/resolve-participant-name";
 import { collectReportImageUrls, preloadReportImages } from "@/lib/results/preload-report-images";
 import { WellnessReportSlideStack } from "@/components/results/WellnessReportSlideStack";
 import type { AssessmentDefinition } from "@/types/models";
@@ -78,10 +79,15 @@ export function AdminAttemptReportDownloader({ attemptId, api }: Props) {
       if (!assessmentRes.ok) throw new Error(assessment.error ?? "Could not load assessment");
 
       const attempt = toSerializedAttempt(attemptJson);
+      const participantName = resolveParticipantName({
+        ownerEmail: attemptJson.ownerEmail,
+        answers: attemptJson.answers,
+        fallback: attemptJson.ownerEmail ?? "Your profile",
+      });
       const model = buildResultsReportModel({
         attempt,
         assessment,
-        participantName: attemptJson.ownerEmail ?? null,
+        participantName,
       });
 
       flushSync(() => {
@@ -92,7 +98,7 @@ export function AdminAttemptReportDownloader({ attemptId, api }: Props) {
 
       const root = rootRef.current;
       if (!root) throw new Error("Report renderer not ready");
-      await downloadReportAsPdf(root, `pausible-report-${reportAttemptRef(attemptId)}`);
+      await downloadReportAsPdf(root, reportPdfFilename(model.participantName, reportAttemptRef(attemptId)));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not download report");
     } finally {

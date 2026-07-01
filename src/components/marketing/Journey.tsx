@@ -1,17 +1,24 @@
 import { CheckCircle } from "@/components/marketing/icons";
+import {
+  LABEL_CLASS,
+  MARKETING_BODY,
+  MARKETING_CONTAINER,
+  MARKETING_HEADING,
+  MARKETING_SECTION,
+} from "@/components/marketing/marketing-brand";
 
 const steps = [
   {
-    title: "Structured profile",
-    body: "Focused prompts map motivation, routines, recovery cues, and self-talk—fast, no fluff.",
+    title: "Answer structured prompts",
+    body: "Focused questions map motivation, routines, recovery cues, and how you respond to stress.",
   },
   {
-    title: "Adaptive scoring",
-    body: "Dimensions + a readiness archetype so next steps stay concrete, not mystical.",
+    title: "Get your wellness persona",
+    body: "Dimensional scoring surfaces your primary archetype, trait profile, and behavioral patterns.",
   },
   {
-    title: "Unlock results",
-    body: "Full breakdown when you finish; spotlight sharing only when you decide.",
+    title: "Unlock your action plan",
+    body: "A phased coach guide and wellness report tailored to how you actually operate.",
   },
 ] as const;
 
@@ -19,58 +26,37 @@ const pills = ["Evidence-backed structure", "Dimensional scoring", "Own your dat
 
 export function Journey() {
   return (
-    <section className="relative overflow-hidden bg-white px-4 pb-20 pt-10 sm:px-6 sm:pb-24 sm:pt-11" id="journey">
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.35]"
-        aria-hidden
-        style={{
-          backgroundImage:
-            "linear-gradient(to right, rgb(226 232 240 / 0.9) 1px, transparent 1px), linear-gradient(to bottom, rgb(226 232 240 / 0.9) 1px, transparent 1px)",
-          backgroundSize: "52px 52px",
-          maskImage: "linear-gradient(to bottom, black 0%, black 72%, transparent 100%)",
-        }}
-      />
-
-      <div className="relative mx-auto max-w-4xl">
-        <header className="mb-8 text-center sm:mb-9 sm:text-left">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-slate-500 sm:text-xs">Assessment journey</p>
-          <h2 className="mx-auto mt-3 max-w-xl text-balance text-[1.45rem] font-semibold leading-tight tracking-tight text-slate-950 sm:mx-0 sm:max-w-2xl sm:text-[1.72rem] sm:leading-[1.2] lg:text-[1.92rem]">
-            How{" "}
-            <span className="font-semibold tabular-nums text-[#2b6cbf]">Pausible</span>{" "}
-            <span className="bg-linear-to-r from-sky-600 via-sky-500 to-indigo-500 bg-clip-text font-semibold text-transparent">
-              verifies your profile
-            </span>
+    <section className={`marketing-section-muted ${MARKETING_SECTION}`} id="journey" aria-labelledby="journey-heading">
+      <div className={MARKETING_CONTAINER}>
+        <header className="max-w-2xl">
+          <p className={LABEL_CLASS}>How it works</p>
+          <h2 id="journey-heading" className={`mt-3 text-balance text-3xl sm:text-4xl ${MARKETING_HEADING}`}>
+            Three steps from assessment to action plan
           </h2>
-          <p className="mx-auto mt-3 max-w-lg text-[13px] leading-relaxed text-slate-600 sm:mx-0 sm:text-sm">
-            Three compact beats—transparent scoring, repeatable retakes, and privacy you hold.
+          <p className={`mt-4 max-w-[48ch] ${MARKETING_BODY}`}>
+            Transparent scoring, repeatable retakes, and a report you can share only when you choose.
           </p>
         </header>
 
-        <div className="relative overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white shadow-[0_26px_70px_-40px_rgba(15,23,42,.2)] ring-1 ring-slate-100">
-          <ol className="relative grid divide-y divide-slate-100 sm:grid-cols-3 sm:divide-x sm:divide-slate-100 sm:divide-y-0">
-            {steps.map((s, idx) => (
-              <li key={s.title} className="relative px-5 py-[1.125rem] sm:px-[1.15rem] sm:py-[1.35rem] lg:px-6 lg:py-7">
-                <div className="flex items-start gap-3.5">
-                  <span className="mt-0.5 grid h-[2.25rem] min-w-[2.25rem] place-items-center rounded-xl border border-sky-200 bg-sky-50 text-[12px] font-bold tabular-nums text-sky-900 shadow-sm ring-1 ring-white">
-                    {String(idx + 1).padStart(2, "0")}
-                  </span>
-                  <div className="min-w-0 pt-0.5">
-                    <h3 className="text-[0.9rem] font-semibold leading-snug tracking-tight text-slate-900">{s.title}</h3>
-                    <p className="mt-1.5 text-[11.5px] leading-relaxed text-slate-600 sm:text-[12px]">{s.body}</p>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ol>
-        </div>
+        <ol className="mt-10 grid gap-4 sm:mt-12 lg:grid-cols-3">
+          {steps.map((s, idx) => (
+            <li key={s.title} className="pausable-surface rounded-2xl p-6">
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-[#2D82FF]/10 text-sm font-bold tabular-nums text-[#2D82FF]">
+                {String(idx + 1).padStart(2, "0")}
+              </span>
+              <h3 className="mt-4 text-lg font-semibold tracking-tight text-[#0D1B2A]">{s.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-[#4D4D4D]">{s.body}</p>
+            </li>
+          ))}
+        </ol>
 
-        <div className="mt-8 flex flex-wrap justify-center gap-2 sm:mt-9 sm:justify-start">
+        <div className="mt-8 flex flex-wrap gap-2 sm:mt-10">
           {pills.map((p) => (
             <span
               key={p}
-              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-[0.3125rem] text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-600 shadow-[0_8px_24px_-14px_rgba(15,23,42,0.12)] transition hover:border-sky-300/80 hover:text-slate-800"
+              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-600"
             >
-              <CheckCircle className="h-3.5 w-3.5 shrink-0 text-sky-600" />
+              <CheckCircle className="h-3.5 w-3.5 shrink-0 text-[#00A8A7]" />
               {p}
             </span>
           ))}

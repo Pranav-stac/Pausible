@@ -19,6 +19,7 @@ import { buildStoryPoster } from "@/lib/results/build-story-poster";
 import { sanitizePersonaSummaryText } from "@/lib/results/trait-labels";
 import { PERSONA_DISPLAY } from "@/lib/scoring/persona-defaults";
 import { buildResultsReportModel } from "@/lib/results/build-results-report";
+import { resolveParticipantName } from "@/lib/results/resolve-participant-name";
 import { useAppSettings } from "@/lib/hooks/useAppSettings";
 import { computeAttemptScores } from "@/lib/scoring/compute-attempt-scores";
 import { fetchPersonaScoringConfig } from "@/lib/data/persona-scoring-config-client";
@@ -172,11 +173,15 @@ export function ResultsClient() {
 
   const reportModel = useMemo(() => {
     if (!attempt || !assessment) return null;
-    const name =
-      user?.displayName?.trim() ||
-      attempt.ownerEmail?.split("@")[0]?.replace(/[._+-]+/g, " ") ||
-      user?.email?.split("@")[0] ||
-      "Your profile";
+    const name = resolveParticipantName({
+      ownerEmail: attempt.ownerEmail ?? user?.email,
+      answers: attempt.answers,
+      fallback:
+        user?.displayName?.trim() ||
+        attempt.ownerEmail?.split("@")[0]?.replace(/[._+-]+/g, " ") ||
+        user?.email?.split("@")[0] ||
+        "Your profile",
+    });
     return buildResultsReportModel({ attempt, assessment, participantName: name });
   }, [attempt, assessment, user?.displayName, user?.email]);
 
@@ -386,6 +391,7 @@ export function ResultsClient() {
           onCopyShare={() => void copyShare()}
           onOpenReport={() => setShowFullReport(true)}
           hasReport
+          participantName={reportModel.participantName}
         />
       ) : (
         <div className="p-10 text-center text-sm text-slate-600">Preparing your results…</div>

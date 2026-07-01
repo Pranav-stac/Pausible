@@ -187,6 +187,7 @@ export function ResultsBentoSummary({
   onCopyShare,
   onOpenReport,
   hasReport,
+  participantName,
 }: {
   attempt: SerializedAttempt;
   attemptId: string;
@@ -209,6 +210,7 @@ export function ResultsBentoSummary({
   onCopyShare: () => void;
   onOpenReport: () => void;
   hasReport: boolean;
+  participantName?: string;
 }) {
   const primaryLabel = personaLabel(primaryPersona);
   const animal = personaAnimal(primaryPersona);
@@ -493,10 +495,16 @@ export function ResultsBentoSummary({
             participant={
               hasGoogleIdentity && user
                 ? {
-                    displayName: user.displayName?.trim() || user.email?.split("@")[0] || "Member",
+                    displayName:
+                      participantName?.trim() ||
+                      user.displayName?.trim() ||
+                      user.email?.split("@")[0] ||
+                      "Member",
                     googlePhotoUrl: user.photoURL ?? null,
                   }
-                : null
+                : participantName
+                  ? { displayName: participantName, googlePhotoUrl: null }
+                  : null
             }
           />
         </div>

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRef, useState, useEffect } from "react";
 import type { ResultsReportModel } from "@/lib/results/build-results-report";
 import { reportAttemptRef } from "@/lib/results/build-results-report";
-import { downloadReportAsPdf } from "@/lib/results/download-report-pdf";
+import { downloadReportAsPdf, reportPdfFilename } from "@/lib/results/download-report-pdf";
 import type { ActionPlanApiResponse } from "@/lib/recommendations/client-types";
 import { buildStoredActionPlanCache, hashActionPlanInputs, type StoredActionPlanCache } from "@/lib/recommendations/action-plan-cache";
 import { isActionPlanClientCacheValid } from "@/lib/recommendations/action-plan-client-cache";
@@ -205,7 +205,7 @@ export function PausibleResultsReport({
     setPdfBusy(true);
     setPdfErr(null);
     try {
-      await downloadReportAsPdf(root, `pausible-report-${refId}`);
+      await downloadReportAsPdf(root, reportPdfFilename(model.participantName, refId));
     } catch (e) {
       setPdfErr(e instanceof Error ? e.message : "Could not create PDF.");
     } finally {

@@ -25,6 +25,7 @@ import { getOrCreateLocalUid } from "@/lib/local/uid";
 import {
   clearOceanProgress,
   loadOceanProgress,
+  mergeProfileDraftIntoAnswers,
   saveOceanProgress,
 } from "@/lib/assessment/session-recovery";
 
@@ -190,14 +191,17 @@ export function AssessmentRunner({
 
   useEffect(() => {
     if (!assessment || !attemptUid || !attemptIdRef.current) return;
-    if (Object.keys(answers).length === 0) return;
 
     const id = attemptIdRef.current;
     const claim =
       claimSecretRef.current.length >= 16 ? { claimSecret: claimSecretRef.current } : {};
+    const profileOnly = mergeProfileDraftIntoAnswers({});
+    const hasAnswers = Object.keys(answers).length > 0;
+    if (!hasAnswers && !Object.keys(profileOnly).length) return;
+
     const t = window.setTimeout(() => {
       void (async () => {
-        const payload: AttemptAnswers = { ...answers };
+        const payload: AttemptAnswers = mergeProfileDraftIntoAnswers({ ...answers });
         try {
           const prev = await fetchAttempt(id);
           if (prev?.answers) {
@@ -234,6 +238,7 @@ export function AssessmentRunner({
       if (c === null) return;
       merged[q.id] = c;
     }
+    const withProfile = mergeProfileDraftIntoAnswers(merged);
 
     let saveUid = attemptUid;
     if (isFirebaseConfigured()) {
@@ -255,7 +260,7 @@ export function AssessmentRunner({
         id,
         uid: saveUid,
         assessmentId: assessment.id,
-        answers: merged,
+        answers: withProfile,
         scores: null,
         paymentStatus: "pending",
         shareToken: null,
@@ -282,7 +287,7 @@ export function AssessmentRunner({
       id,
       uid: saveUid,
       assessmentId: assessment.id,
-      answers: merged,
+      answers: withProfile,
       scores,
       personaAnalysis,
       paymentStatus: "pending",
@@ -312,7 +317,7 @@ export function AssessmentRunner({
     const id = attemptIdRef.current;
     if (!id) return;
     void (async () => {
-      let merged: AttemptAnswers = { ...next };
+      let merged: AttemptAnswers = mergeProfileDraftIntoAnswers({ ...next });
       try {
         const prev = await fetchAttempt(id);
         if (prev?.answers) merged = { ...prev.answers, ...next };

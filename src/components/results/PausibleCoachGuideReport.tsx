@@ -8,7 +8,7 @@ import type { ReportLlmProvider } from "@/lib/recommendations/report-llm-types";
 import type { SerializedAttempt } from "@/lib/local/attempts";
 import { patchAttempt } from "@/lib/data/attempt-service";
 import { reportAttemptRef } from "@/lib/results/build-results-report";
-import { downloadReportAsPdf } from "@/lib/results/download-report-pdf";
+import { downloadReportAsPdf, reportPdfFilename } from "@/lib/results/download-report-pdf";
 import { CoachGuideSlideStack } from "@/components/results/CoachGuideSlideStack";
 import { ReportPreparingScreen } from "@/components/results/ReportPreparingScreen";
 import { resolveParticipantFirstName } from "@/lib/results/resolve-participant-name";
@@ -139,7 +139,10 @@ export function PausibleCoachGuideReport({
               if (!rootRef.current) return;
               setPdfBusy(true);
               try {
-                await downloadReportAsPdf(rootRef.current, `pausibl-coach-guide-${refId}.pdf`);
+                await downloadReportAsPdf(
+                  rootRef.current,
+                  reportPdfFilename(displayFirstName, refId, "coach-guide"),
+                );
               } finally {
                 setPdfBusy(false);
               }

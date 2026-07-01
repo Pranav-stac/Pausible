@@ -35,6 +35,21 @@ export async function downloadReportAsPdf(root: HTMLElement, filename: string): 
     pdf.addImage(dataUrl, "JPEG", 0, 0, A4_W_MM, A4_H_MM, undefined, "FAST");
   }
 
-  const safe = filename.replace(/[^\w\-]+/g, "-").slice(0, 48) || "pausible-report";
+  const safe = filename.replace(/\.pdf$/i, "").replace(/[^\w\-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48) || "pausible-report";
   pdf.save(`${safe}.pdf`);
+}
+
+/** Builds a download filename from the participant name, with an optional ref suffix. */
+export function reportPdfFilename(participantName: string, refId?: string, suffix = "wellness-report"): string {
+  const safeName = participantName
+    .trim()
+    .replace(/\.pdf$/i, "")
+    .replace(/[^\w\-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+  const generic = !safeName || safeName === "Your-profile";
+  if (!generic) {
+    return refId ? `${safeName}-${suffix}-${refId}` : `${safeName}-${suffix}`;
+  }
+  return refId ? `pausible-${suffix}-${refId}` : `pausible-${suffix}`;
 }
