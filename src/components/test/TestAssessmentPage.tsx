@@ -23,8 +23,6 @@ import { randomAnswersForQuestions } from "@/lib/testing/random-assessment-fill"
 import { testRouteAllowed } from "@/lib/testing/test-route";
 import type { AssessmentDefinition, AssessmentQuestion, AttemptAnswers } from "@/types/models";
 
-const WELLNESS_PROFILE_SKIP = new Set(["wc_age_range", "wc_gender"]);
-
 function flattenQuestions(def: AssessmentDefinition): AssessmentQuestion[] {
   const order: AssessmentQuestion[] = [];
   for (const sec of def.sections) {
@@ -220,10 +218,7 @@ export function TestAssessmentPage() {
   const oceanDef = useMemo(() => getDefaultAssessment(), []);
   const wellnessDef = useMemo(() => getWellnessContextQuestionnaire(), []);
   const oceanQuestions = useMemo(() => flattenQuestions(oceanDef), [oceanDef]);
-  const wellnessQuestions = useMemo(
-    () => flattenQuestions(wellnessDef).filter((q) => !WELLNESS_PROFILE_SKIP.has(q.id)),
-    [wellnessDef],
-  );
+  const wellnessQuestions = useMemo(() => flattenQuestions(wellnessDef), [wellnessDef]);
   const allQuestions = useMemo(
     () => [...oceanQuestions, ...wellnessQuestions],
     [oceanQuestions, wellnessQuestions],
@@ -233,10 +228,16 @@ export function TestAssessmentPage() {
     queueMicrotask(() => setLocalUid(getOrCreateLocalUid()));
   }, []);
 
+  useEffect(() => {
+    setAnswers((prev) => ({ ...prev, wc_age_range: ageRange, wc_gender: gender }));
+  }, [ageRange, gender]);
+
   const attemptUid = effectiveUid ?? localUid;
 
   const setAnswer = useCallback((qid: string, value: number | string | string[]) => {
     setAnswers((prev) => ({ ...prev, [qid]: value }));
+    if (qid === "wc_age_range" && typeof value === "string") setAgeRange(value);
+    if (qid === "wc_gender" && typeof value === "string") setGender(value);
   }, []);
 
   const profileAnswers = useMemo(
@@ -249,21 +250,18 @@ export function TestAssessmentPage() {
   );
 
   const answeredCount = useMemo(() => {
-    let n = 0;
-    if (displayName.trim()) n += 1;
-    if (ageRange) n += 1;
-    if (gender) n += 1;
+    let n = displayName.trim() ? 1 : 0;
     for (const q of allQuestions) {
       if (coerceAnswer(q, answers[q.id]) !== null) n += 1;
     }
     return n;
-  }, [allQuestions, answers, displayName, ageRange, gender]);
+  }, [allQuestions, answers, displayName]);
 
-  const totalCount = allQuestions.length + 3;
+  const totalCount = allQuestions.length + 1;
   const canSubmit = useMemo(() => {
-    if (!displayName.trim() || !ageRange || !gender) return false;
+    if (!displayName.trim()) return false;
     return allQuestions.every((q) => coerceAnswer(q, answers[q.id]) !== null);
-  }, [allQuestions, answers, displayName, ageRange, gender]);
+  }, [allQuestions, answers, displayName]);
 
   const fillRandom = useCallback(() => {
     setDisplayName("Test User");
@@ -412,7 +410,7 @@ export function TestAssessmentPage() {
         <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50/80 p-4">
           <h1 className="text-lg font-bold text-slate-900">Automated test assessment</h1>
           <p className="mt-1 text-sm text-slate-600">
-            Profile + {oceanQuestions.length} personality + {wellnessQuestions.length} wellness questions on one page.
+            Profile name + {oceanQuestions.length} personality + all {wellnessQuestions.length} wellness context questions on one page.
             Single submit → results. Sign in with Google above to use the same account as production.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
