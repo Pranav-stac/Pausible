@@ -18,8 +18,10 @@ import {
 import { getWellnessContextQuestionnaire } from "@/data/wellness-context-questionnaire";
 import { buildAttemptAnswerBlocks, countAnsweredRows } from "@/lib/admin/format-attempt-answer";
 import { fetchAssessment } from "@/lib/data/assessment-service";
-import { fetchAttempt } from "@/lib/data/attempt-service";
-import type { AssessmentDefinition } from "@/types/models";
+import { fetchAttempt, patchAttempt } from "@/lib/data/attempt-service";
+import { fetchPersonaScoringConfig } from "@/lib/data/persona-scoring-config-client";
+import { computeAttemptScores } from "@/lib/scoring/compute-attempt-scores";
+import type { AssessmentDefinition, AttemptAnswers } from "@/types/models";
 
 const NEXT_STEPS = [
   "Analyze your personality patterns and behavioral tendencies",
@@ -32,11 +34,10 @@ export function SubmissionConfirmationScreen({ attemptId }: { attemptId: string 
   const params = useSearchParams();
   const afterPath =
     params.get("next") ?? `/after-assessment/${encodeURIComponent(attemptId)}?next=results`;
-  const returnPath = `/submission-confirmed/${encodeURIComponent(attemptId)}?next=${encodeURIComponent(afterPath)}`;
   const [checking, setChecking] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [personalityAssessment, setPersonalityAssessment] = useState<AssessmentDefinition | null>(null);
-  const [answers, setAnswers] = useState<Record<string, unknown>>({});
+  const [answers, setAnswers] = useState<AttemptAnswers>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -68,13 +69,15 @@ export function SubmissionConfirmationScreen({ attemptId }: { attemptId: string 
     };
   }, [attemptId, router]);
 
-  const answerBlocks = useMemo(() => {
+  const assessments = useMemo(() => {
     const wellness = getWellnessContextQuestionnaire();
-    const assessments = [personalityAssessment, wellness].filter(
-      (def): def is AssessmentDefinition => def != null,
-    );
-    return buildAttemptAnswerBlocks(assessments, answers);
-  }, [answers, personalityAssessment]);
+    return [personalityAssessment, wellness].filter((def): def is AssessmentDefinition => def != null);
+  }, [personalityAssessment]);
+
+  const answerBlocks = useMemo(
+    () => buildAttemptAnswerBlocks(assessments, answers),
+    [answers, assessments],
+  );
 
   const { answered: answeredCount, total: totalCount } = useMemo(
     () => countAnsweredRows(answerBlocks),
@@ -86,6 +89,21 @@ export function SubmissionConfirmationScreen({ attemptId }: { attemptId: string 
       `/report-building/${encodeURIComponent(attemptId)}?next=${encodeURIComponent(afterPath)}`,
     );
   }, [afterPath, attemptId, router]);
+
+  const handleSaveAnswers = useCallback(
+    async (patch: Record<string, unknown>) => {
+      const nextAnswers: AttemptAnswers = { ...answers, ...patch };
+      const personaConfig = await fetchPersonaScoringConfig();
+      const scores = computeAttemptScores(nextAnswers, personaConfig);
+      await patchAttempt(attemptId, {
+        answers: nextAnswers,
+        scores,
+        personaAnalysis: scores.persona ?? null,
+      });
+      setAnswers(nextAnswers);
+    },
+    [answers, attemptId],
+  );
 
   if (checking) {
     return (
@@ -128,8 +146,9 @@ export function SubmissionConfirmationScreen({ attemptId }: { attemptId: string 
           blocks={answerBlocks}
           answeredCount={answeredCount}
           totalCount={totalCount}
-          attemptId={attemptId}
-          returnPath={returnPath}
+          assessments={assessments}
+          answers={answers}
+          onSaveAnswers={handleSaveAnswers}
         />
 
         <aside className={`${FORM_CARD_CLASS} lg:sticky lg:top-6 p-6 text-left sm:p-7`}>
