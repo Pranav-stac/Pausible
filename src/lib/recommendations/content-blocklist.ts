@@ -17,7 +17,6 @@ export const FORBIDDEN_ENGINE_INTERNALS = [
   "scoring",
   "scoring pipeline",
   "scoring formula",
-  "score",
   "centroid",
   "euclidean",
   "softmax",
@@ -103,6 +102,12 @@ const BLOCKLIST_REPLACEMENTS: [RegExp, string][] = [
   [/\bphase assignment\b/gi, ""],
   [/\bscoring pipeline\b/gi, ""],
   [/\bscoring formula\b/gi, ""],
+  [/\bthis pillar scored highly\b/gi, "this pillar matters strongly"],
+  [/\bscored highly for your profile\b/gi, "matters strongly for your profile"],
+  [/\bcluster score\b/gi, "priority level"],
+  [/\bcluster\b/gi, "priority"],
+  [/\b(?:total )?score\b/gi, "fit level"],
+  [/\bscored\b/gi, "ranked"],
 ];
 
 export function scrubBlocklistTerms(text: string): string {

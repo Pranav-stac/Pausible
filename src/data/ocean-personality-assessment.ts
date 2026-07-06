@@ -1,5 +1,6 @@
 import type { AssessmentDefinition, AssessmentQuestion, AssessmentSection } from "@/types/models";
 import { userFacingTraitTitle } from "@/lib/results/trait-labels";
+import { PERSONALITY_ASSESSMENT_TITLE } from "@/lib/results/report-branding";
 import questionBankRaw from "../../question.json";
 
 type Item = {
@@ -96,7 +97,7 @@ export function buildOceanPersonalityAssessment(): AssessmentDefinition {
   return {
     id: OCEAN_ASSESSMENT_ID,
     active: true,
-    title: "Fitness-related personality inventory",
+    title: PERSONALITY_ASSESSMENT_TITLE,
     description:
       "Rate how much you agree with each statement using the numbered scale (1 disagree → 7 agree). Reverse-keyed lines are flipped automatically.",
     sections,

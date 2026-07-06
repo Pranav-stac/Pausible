@@ -14,4 +14,13 @@ describe("scrubBlocklistTerms", () => {
     const scrubbed = scrubBlocklistTerms(raw);
     expect(scrubbed.toLowerCase()).not.toContain("push through");
   });
+
+  it("scrubs scored and score phrasing without leaving blocklist hits", () => {
+    const raw =
+      "This pillar scored highly for your profile (cluster 72). Your total score suggests a strong fit.";
+    const scrubbed = scrubBlocklistTerms(raw);
+    expect(scrubbed.toLowerCase()).not.toContain("scored");
+    expect(scrubbed.toLowerCase()).not.toContain("cluster");
+    expect(containsBlocklistTerm(scrubbed)).toBeNull();
+  });
 });

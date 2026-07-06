@@ -4,12 +4,19 @@ import type {
   ActionPlanSelection,
   OpportunityCard,
   PillarName,
+  UserProfile,
 } from "@/lib/recommendations/types";
 import type { GeminiSynthesisContext } from "@/lib/recommendations/build-gemini-synthesis-context";
 import type { BuildProfileInput } from "@/lib/recommendations/build-user-profile";
-import { resolvePrimaryCentroidVector, resolvePrimaryPersonaKey, resolveTraitAverages } from "@/lib/scoring/normalize-persona";
+import { formatPdaUserContextBlock, resolveFirstName } from "@/lib/recommendations/pda-v12-prompt-context";
+import {
+  PDA_V12_PERSONA_BARRIER_BLOCK,
+  PDA_V12_SYSTEM_PROMPT_CORE,
+  PDA_V12_SYSTEM_PROMPT_OPENING,
+  PDA_V12_SYSTEM_PROMPT_RULES,
+} from "@/lib/recommendations/pda-v12-system-prompt";
+import { resolvePrimaryCentroidVector, resolveTraitAverages } from "@/lib/scoring/normalize-persona";
 import type { PersonaAnalysis, TraitKey } from "@/lib/scoring/persona-types";
-import { personaLabel } from "@/lib/results/persona-display";
 import { userFacingTraitLabel } from "@/lib/results/trait-labels";
 
 const BEHAVIOURAL_BOX_TITLES = [
@@ -34,71 +41,55 @@ export type SectionFitBlend = {
   secondaryPersona: string;
 };
 
-export function buildSystemPrompt(_templates?: ReportTemplatesDoc): string {
-  return `You are Pausibl's wellness report writer. You compose and structure PRE-SELECTED, pre-personalised
-recommendations into warm, clear text for ONE specific person. You never generate new advice; all
-substantive content is supplied to you.
+/** PDA v1.2 §18.1 — canonical system message for every report synthesis call. */
+export function buildSystemPrompt(_templates?: ReportTemplatesDoc, userContextBlock?: string): string {
+  if (!userContextBlock?.trim()) return PDA_V12_SYSTEM_PROMPT_CORE;
+  return `${PDA_V12_SYSTEM_PROMPT_OPENING}
 
-RULES (all mandatory):
-1. NO INVENTION. Use only the supplied recommendation text and context. Never add an action, number,
-   tip, claim, or recommendation not in the input. Every sentence must trace to a supplied item.
-2. CONTROLLED ADAPTATION LICENSE. You MAY adapt the SETTING / LIFESTYLE FRAMING of a supplied
-   recommendation to fit the user (e.g., 'after your last work task' -> 'after your main activities'
-   when the user is not a worker; refer to preferred activity or food pattern; acknowledge meal-prep
-   constraints). You MUST NOT change the action, alter any number, or add advice. Framing adapts;
-   substance is fixed.
-3. GUIDANCE ONLY. No sets/reps/weights/calorie targets/macros/meal plans as the basis of advice.
-   Acknowledge ambitious goals positively; frame progress in stages; never call a goal unrealistic.
-4. LIFESTYLE LANGUAGE. If lifestyle is homemaker/caregiver, student, or not working, OR age < 18:
-   never use work/office/meeting/commute/workday language. Student/minor -> school/exam/friends framing.
-5. PERSONA-BARRIER OVERRIDE. Never tell the user they possess a quality they listed as a barrier.
-   If persona implies disciplined/consistent but barriers include consistency or starting difficulty,
-   acknowledge the gap and frame the plan as building that quality gradually.
-6. TRAIT LABELS: only Openness, Discipline, Social Energy, Agreeableness, Stress Sensitivity. Never
-   output Conscientiousness, Extraversion, Neuroticism, OCEAN, or trait numbers.
-7. Persona names allowed in titles, plan subtitle, plan rationale; in behavioural prose centre the person.
-   Fit score may be shown as 'NN/100 - <Tier> tier' where the section asks for it.
-8. NEVER output engine internals (activation energy, blend ratio, scoring, cluster, rec IDs, strength
-   labels, readiness signal, pillar distribution) or motivational cliches.
-9. SAFETY DISCLAIMERS. If restriction flags are present OR age >= 65, obey disclaimer placement exactly.
-   Never soften, move, or omit them.
-10. TONE by fit_tier: Classic=confident, Core=soft, Leaning=exploratory, Exploring=invitational.
-    SECONDARY by blend_strength: Pure=single pattern, Tendencies=one line, Strong=dual pattern.
-11. Bridge framing: preferred activity = base; added modality = small honest addition.
-12. OUTPUT strict valid JSON matching the section schema. No text outside JSON. Respect length limits.
-    If required input is empty, follow the section FALLBACK; never fabricate.`;
+${userContextBlock.trim()}
+
+${PDA_V12_SYSTEM_PROMPT_RULES}`;
 }
 
-function fitBlendFooter(fb: SectionFitBlend): string {
-  const secondary = fb.blendStrength === "pure" ? "N/A (Pure blend)" : fb.secondaryPersona;
-  return `- Fit tier: ${fb.fitTier} (Classic/Core/Leaning/Exploring)
-- Blend strength: ${fb.blendStrength} (Pure/Tendencies/Strong Influence)
-- Secondary persona (if blend != Pure): ${secondary}`;
+export function buildSystemPromptForProfile(
+  profile: UserProfile,
+  input?: BuildProfileInput | null,
+  ctx?: GeminiSynthesisContext | null,
+  templates?: ReportTemplatesDoc,
+): string {
+  return buildSystemPrompt(templates, formatPdaUserContextBlock(profile, input, ctx));
+}
+
+function oceanInput(persona: PersonaAnalysis): string {
+  const traits = resolveTraitAverages(persona);
+  const centroid = resolvePrimaryCentroidVector(persona);
+  return `ocean_scores: O=${traits.openness}, C=${traits.conscientiousness}, E=${traits.extraversion}, A=${traits.agreeableness}, N=${traits.neuroticism}
+centroid_scores: O=${centroid.openness}, C=${centroid.conscientiousness}, E=${centroid.extraversion}, A=${centroid.agreeableness}, N=${centroid.neuroticism}`;
+}
+
+function deviationLines(persona: PersonaAnalysis, primaryLabel: string): string {
+  return (persona.traitDeviations ?? [])
+    .slice(0, 2)
+    .map((d) => {
+      const name = userFacingTraitLabel(d.trait as TraitKey);
+      const direction = d.direction === "above" ? "higher" : "lower";
+      return `- Deviation: ${name} is ${Math.abs(d.deviation).toFixed(1)} points ${direction} than typical ${primaryLabel}`;
+    })
+    .join("\n");
 }
 
 function tagList(items: { label: string }[]): string {
   return items.length ? items.map((i) => i.label).join(", ") : "None specified";
 }
 
-function oceanInput(persona: PersonaAnalysis): string {
-  const traits = resolveTraitAverages(persona);
-  const centroid = resolvePrimaryCentroidVector(persona);
-  return `User OCEAN scores: O=${traits.openness}, C=${traits.conscientiousness}, E=${traits.extraversion}, A=${traits.agreeableness}, N=${traits.neuroticism}
-Centroid values: O=${centroid.openness}, C=${centroid.conscientiousness}, E=${centroid.extraversion}, A=${centroid.agreeableness}, N=${centroid.neuroticism}`;
+function personaBarrierBlock(firstName: string, barriers: string): string {
+  return PDA_V12_PERSONA_BARRIER_BLOCK.replace(/\{first_name\}/g, firstName).replace(
+    /\{barriers\[\]\}/g,
+    barriers,
+  );
 }
 
-function deviationLines(persona: PersonaAnalysis, primaryLabel: string): string {
-  return (persona.traitDeviations ?? [])
-    .slice(0, 2)
-    .map((d, i) => {
-      const name = userFacingTraitLabel(d.trait as TraitKey);
-      const direction = d.direction === "above" ? "higher" : "lower";
-      return `- Deviation ${i + 1}: ${name} is ${Math.abs(d.deviation).toFixed(1)} points ${direction} than typical ${primaryLabel}`;
-    })
-    .join("\n");
-}
-
-/** Page 4 — Primary Pattern (Guide §7.4) */
+/** PDA v1.2 §20.4 — PRIMARY_PATTERN */
 export function buildPrimaryPatternPrompt(
   selection: ActionPlanSelection,
   ctx: GeminiSynthesisContext,
@@ -112,8 +103,11 @@ export function buildPrimaryPatternPrompt(
   const goals = tagList(ctx.matchedProfile.goals);
   const barriers = tagList(ctx.matchedProfile.barriers);
   const deviations = deviationLines(persona, ctx.personality.primaryPersona);
+  const firstName = resolveFirstName(input);
 
   return `PROMPT: PRIMARY_PATTERN
+
+${personaBarrierBlock(firstName, barriers)}
 
 INPUT:
 - primary_persona: ${ctx.personality.primaryPersona}
@@ -124,41 +118,32 @@ INPUT:
 - barriers: ${barriers}
 - fit_tier: ${fb.fitTier}
 
-TASK:
-Generate content for the user's primary wellness personality.
+TASK: Produce a 150-200 word Persona Description; six behavioural boxes; and 0-2 trait-deviation cards.
 
-SECTION 1: PERSONA NARRATIVE (150-200 words)
-Write how this personality pattern shows up in wellness behaviour. Use success_condition_text and strength_insight_text as factual basis. Connect to goals and barriers where supported. Do not add advice not in the input.
-PERSONA-BARRIER OVERRIDE (mandatory): if barriers include consistency, starting difficulty, or low motivation, NEVER assert the user is naturally disciplined or gritty without acknowledging the gap.
+Field constraints:
+- Description 150-200 words, second person, grounded in success_condition_text + strength_insight_text.
+- Exactly six boxes, titles: ${BEHAVIOURAL_BOX_TITLES.join(" · ")}. Each 2-3 sentences.
+- Box sources: Tendencies<- success_condition+OCEAN; Motivates<- strength_insight+goals; Drains<- barriers+low OCEAN; Default Under Stress<- Stress Sensitivity+barriers; Build Habits<- Discipline; Growth<- strength_insight+Openness.
+- Trait cards only for |deviation|>0.8 (max 2); title '[user-facing trait] - higher/lower than typical' + exactly 2 sentences.
+- Forbidden in boxes: technical trait names, animal names.
 
-SECTION 2: SIX BEHAVIOURAL BOXES
-For each category below, write 2-3 sentences from success_condition_text, strength_insight_text, and OCEAN scores only:
-${BEHAVIOURAL_BOX_TITLES.map((t, i) => `Box ${i + 1}: ${t}`).join("\n")}
+${deviations || "No deviations exceed threshold - return empty trait_deviations."}
 
-SECTION 3: TRAIT DEVIATIONS (0, 1, or 2 cards)
-${deviations || "No deviations exceed threshold — return empty array."}
-Use user-facing trait names only. Maximum 2 cards.
+FALLBACK: No qualifying deviation -> empty trait_deviations. A box lacking input -> one sentence from the strongest OCEAN signal; never fabricate a behaviour.
 
-RULES:
-1. Do not mention persona animal names.
-2. Write in second person. Simple English.
-3. Every claim must trace to input data.
-4. Tone: warm, insightful. Emotional arc: Deep Understanding.
-
-OUTPUT FORMAT (strict JSON):
+OUTPUT (strict JSON — platform keys):
 {
-  "personaNarrative": "string",
-  "behaviouralBoxes": [{ "title": "string", "content": "string" } x 6],
-  "traitDeviations": [{ "trait": "string", "direction": "higher|lower", "content": "string" } x 0-2]
+  "personaNarrative": "string(150-200w)",
+  "behaviouralBoxes": [{"title":"string","content":"string"} x6],
+  "traitDeviations": [{"trait":"string","direction":"higher|lower","content":"string(2 sent)"} x0-2]
+}`;
 }
 
-${fitBlendFooter(fb)}`;
-}
-
-/** Page 5 — Secondary Pattern (Guide §8.3) */
+/** PDA v1.2 §20.5 — SECONDARY_PATTERN (persona-barrier block from §20.4 applies). */
 export function buildSecondaryPatternPrompt(
   selection: ActionPlanSelection,
   ctx: GeminiSynthesisContext,
+  input: BuildProfileInput,
   fb: SectionFitBlend,
 ): string {
   if (fb.blendStrength === "pure") return "";
@@ -166,6 +151,8 @@ export function buildSecondaryPatternPrompt(
   const pi = selection.piSeries;
   const secondarySuccess = pi.secondarySuccessConditionText?.trim() || "";
   const secondaryStrength = pi.secondaryStrengthInsightText?.trim() || "";
+  const barriers = tagList(ctx.matchedProfile.barriers);
+  const firstName = resolveFirstName(input);
 
   const boxCount =
     fb.blendStrength === "tendencies" ? 3 : fb.blendStrength === "strong_influence" ? 6 : 0;
@@ -176,6 +163,8 @@ export function buildSecondaryPatternPrompt(
 
   return `PROMPT: SECONDARY_PATTERN
 
+${personaBarrierBlock(firstName, barriers)}
+
 INPUT:
 - secondary_persona: ${ctx.personality.secondaryPersona}
 - primary_persona: ${ctx.personality.primaryPersona}
@@ -183,38 +172,33 @@ INPUT:
 - success_condition_text: "${secondarySuccess}"
 - strength_insight_text: "${secondaryStrength}"
 - goals: ${tagList(ctx.matchedProfile.goals)}
-- barriers: ${tagList(ctx.matchedProfile.barriers)}
+- barriers: ${barriers}
 - fit_tier: ${fb.fitTier}
 
-APPLY BLEND STRENGTH RULES:
-- Tendencies: ${narrativeWords} word secondary narrative, 3 boxes (${SECONDARY_BOX_TITLES.join(", ")}), ${blendWords} word blend narrative.
-- Strong Influence: ${narrativeWords} word secondary narrative, all 6 behavioural boxes, ${blendWords} word blend narrative with concrete examples.
+TASK: Apply blend rules - Pure: 2-sentence summary only. Tendencies: ${narrativeWords}w description + 3 boxes (${SECONDARY_BOX_TITLES.join(", ")}) + ${blendWords}w 'How Your Two Patterns Interact'. Strong: ${narrativeWords}w + all 6 boxes + ${blendWords}w interaction with one concrete example.
 
-RULES:
-1. Do not mention persona animal names.
-2. Write in second person.
-3. Every claim must trace to input data.
-4. Do not repeat or contradict primary pattern content.
+Field constraints:
+- Do not repeat or contradict Page 4.
+- Box count exactly 0, 3, or 6 per blend; titles match Page 4.
+- Interaction uses only both personas' PI texts.
 
-OUTPUT FORMAT (strict JSON):
+FALLBACK: Pure -> behaviouralBoxes=[] and blendNarrative=null.
+
+OUTPUT (strict JSON):
 {
   "secondaryNarrative": "string",
-  "behaviouralBoxes": [{ "title": "string", "content": "string" } x ${boxCount}],
+  "behaviouralBoxes": [{"title":"string","content":"string"} x ${boxCount}],
   "blendNarrative": "string or null"
+}`;
 }
 
-${fitBlendFooter(fb)}`;
-}
-
-/** Page 6 — What You Don't See (Guide §9.3) */
+/** PDA v1.2 §20.6 — WHAT_YOU_DONT_SEE */
 export function buildBlindSpotsPrompt(
   selection: ActionPlanSelection,
   ctx: GeminiSynthesisContext,
   fb: SectionFitBlend,
 ): string {
   const pi = selection.piSeries;
-  const goals = tagList(ctx.matchedProfile.goals);
-  const barriers = tagList(ctx.matchedProfile.barriers);
 
   return `PROMPT: WHAT_YOU_DONT_SEE
 
@@ -222,135 +206,148 @@ INPUT:
 - primary_persona: ${ctx.personality.primaryPersona}
 - blind_spot_text: "${pi.blindSpotText}"
 - pattern_prediction_text: "${pi.patternPredictionText}"
-- goals: ${goals}
-- barriers: ${barriers}
+- goals: ${tagList(ctx.matchedProfile.goals)}
+- barriers: ${tagList(ctx.matchedProfile.barriers)}
 - fit_tier: ${fb.fitTier}
 
 TASK:
-SECTION 1: THE PATTERN YOU DO NOT NOTICE (80-100 words)
-Transform blind_spot_text into a relatable scenario. Never use: blind spot, weakness, flaw, problem.
+- 'The Pattern You Don't Notice' (80-100w self-recognition scenario from blind_spot_text)
+- 'What This Means For Your Goals' (60-80w, connect to a named goal via pattern_prediction_text, end with a forward look)
 
-SECTION 2: WHAT THIS MEANS FOR YOUR GOALS (60-80 words)
-Connect the pattern to goals using pattern_prediction_text. End with one forward-looking sentence.
+Field constraints:
+- Never use: blind spot, weakness, flaw, deficiency, problem, limitation. Observational, not critical.
+- Name the specific goal and mechanism; add no prediction beyond pattern_prediction_text.
 
-RULES:
-1. Never use: blind spot, weakness, flaw, deficiency, problem, limitation.
-2. Write in second person.
-3. Tone: observational, revelatory.
+FALLBACK: Empty pattern_prediction_text -> write section 2 from the strongest goal + blind_spot_text; never invent a prediction.
 
-OUTPUT FORMAT (strict JSON):
+OUTPUT (strict JSON):
 {
   "pattern_you_do_not_notice": "string(80-100w)",
   "what_this_means_for_your_goals": "string(60-80w)"
+}`;
 }
 
-(Legacy keys patternBody/goalsBody are also accepted.)
-
-${fitBlendFooter(fb)}`;
-}
-
-/** Page 7 — Key Actions per pillar (Guide §10.4) */
+/** PDA v1.2 §20.7 — PILLAR_ACTIONS (×4) */
 export function buildPillarPrompt(
   pillar: PillarName,
   plan: ActionPlanSelection["pillarPlans"][PillarName],
+  profile: UserProfile,
   ctx: GeminiSynthesisContext,
-  fb: SectionFitBlend,
+  input: BuildProfileInput,
+  _fb: SectionFitBlend,
 ): string {
   const focusText = plan.focusReason || plan.focusArea;
-  const doLines = plan.dos.map((d, i) => `- do_rec ${i + 1}: "${d.text}" [category: ${d.category.replace(/_/g, " ")}]`);
-  const dontLines = plan.donts.map((d, i) => `- dont_rec ${i + 1}: "${d.text}"`);
+  const doLines = plan.dos.map((d) => `  {text: "${d.text}", category: ${d.category}}`);
+  const dontLines = plan.donts.map((d) => `  {text: "${d.text}", category: ${d.category}}`);
 
   return `PROMPT: PILLAR_ACTIONS
 
-INPUT:
-- pillar: ${pillar}
-- primary_persona: ${ctx.personality.primaryPersona}
-- mindset_shift: "${focusText}"
-${doLines.join("\n")}
-${dontLines.join("\n")}
-- fit_tier: ${fb.fitTier}
-- blend_strength: ${fb.blendStrength}
+Compose the Key Actions block for pillar: ${pillar}.
 
-TASK:
-Format pre-selected recommendations. You are a composer, not a creator.
+INPUT (already selected for this user):
+  mindset_shift: "${focusText}"
+  do_recs (up to 3): [
+${doLines.join(",\n")}
+  ]
+  dont_recs (up to 2): [
+${dontLines.join(",\n")}
+  ]
 
-MINDSET SHIFT (max 15 words): single reframe from mindset_shift input.
+${formatPdaUserContextBlock(profile, input, ctx)}
 
-DO (3 items): action max 12 words (imperative), why max 20 words.
+Produce: a headline (the mindset reframe, <=15 words); 3 DO items (action = imperative <=12 words,
+why <=20 words); 2 DON'T items (behaviour to avoid <=12 words, why <=20 words). Compose ONLY from the
+supplied texts. Apply the system-prompt rules, PLUS the pillar rules below.
 
-DO NOT (2 items): behaviour max 12 words, why max 20 words.
+PHYSICAL ACTIVITY:
+ - At least 2 of the 3 DO items must reflect the user's activity_prefs. If 'dance' is a pref, phrase a
+   DO around a dance session; 'swimming' -> pool; 'running' -> an easy jog; etc. Use the supplied
+   activity-matched rec; if none was supplied, choose the supplied DO closest to the pref and frame it
+   toward that activity (framing only). Fall back to walking ONLY if activity_prefs is empty, OR
+   fitness_level = sedentary AND activity_level = sedentary.
+ - Do NOT output walking as a primary DO if fitness_level is consistent/advanced AND activity_level is
+   moderate/very_active (walking may appear only as active recovery).
+NUTRITION:
+ - If meal_control = others_prepare: give NO cooking / meal-prep / kitchen-organisation / grocery
+   advice. Use request/selection framing (fill the plate protein-first from what's served; ask the
+   preparer for one small change; keep your own healthy snacks) and acknowledge the constraint once
+   ('Since you don't decide the menu...').
+ - If 'fat_loss' is NOT in goals: use no caloric-deficit, weight-management, or body-composition
+   language. (muscle -> protein adequacy; energy -> steady blood sugar; overall health -> balanced eating.)
+SLEEP & RECOVERY:
+ - If caffeine = none: do not mention caffeine at all.
+ALL PILLARS:
+ - Apply the lifestyle-language rule (system rule 4) and persona-barrier override (system rule 5).
+SAFETY (if restriction_flags non-empty OR age >= 65) - PHYSICAL ACTIVITY only:
+ - Make the FIRST line of this pillar block exactly the clearance string from the Disclaimer Logic
+   (see 38.8), and add a scale-back option ('if this feels too much, do [gentler version]') to every
+   DO that involves effort.
 
-PDA v1.2 CONSTRAINTS (hard):
-- Physical Activity: user's activity_pref selections MUST appear in >=2 Do items when prefs given.
-- meals_by_others: never recommend cooking, meal prep, kitchen, or grocery planning.
-- No fat-loss/deficit language unless fat_loss is a stated goal.
-- Do not offer walking as primary action for already-fit/active users.
-- No caffeine advice when user reports caffeine_none.
-- Swap workplace language for non-workers (student, caregiver, not working, minor).
+FALLBACK: if fewer than 3 do / 2 dont were supplied, output exactly what is provided; never invent to pad.
 
-OUTPUT FORMAT (strict JSON):
+OUTPUT (strict JSON):
 {
   "pillar": "${pillar}",
-  "headline": "string (max 15 words)",
-  "do_items": [{ "action": "string", "why": "string" } x 3],
-  "dont_items": [{ "behaviour": "string", "why": "string" } x 2]
+  "headline": "string(<=15w)",
+  "do_items": [{"action":"string(<=12w)","why":"string(<=20w)"} x3],
+  "dont_items": [{"behaviour":"string(<=12w)","why":"string(<=20w)"} x2]
+}`;
 }
 
-${fitBlendFooter(fb)}`;
-}
-
-/** Page 8 — High-Impact Priorities (Guide §11.2) */
+/** PDA v1.2 §20.8 — HIGH_IMPACT_PRIORITIES */
 export function buildHighImpactPrioritiesPrompt(
   cards: OpportunityCard[],
+  profile: UserProfile,
   ctx: GeminiSynthesisContext,
-  fb: SectionFitBlend,
+  input: BuildProfileInput,
+  _fb: SectionFitBlend,
 ): string {
-  const goals = tagList(ctx.matchedProfile.goals);
-  const barriers = tagList(ctx.matchedProfile.barriers);
   const cardLines = cards.map(
     (c) =>
-      `- rank ${c.rank}: pillar=${c.pillar}, cluster_score=${c.clusterScore.toFixed(1)}, rec_text="${c.personaContextText}", category=${c.category.replace(/_/g, " ")}`,
+      `  {rank: ${c.rank}, pillar: ${c.pillar}, rec_text: "${c.personaContextText}", category: ${c.category}}`,
   );
 
   return `PROMPT: HIGH_IMPACT_PRIORITIES
 
-INPUT:
-- primary_persona: ${ctx.personality.primaryPersona}
-- priorities:
-${cardLines.join("\n")}
-- goals: ${goals}
-- barriers: ${barriers}
-- fit_tier: ${fb.fitTier}
+Generate ${cards.length} priority cards from the supplied, ranked priorities:
+  priorities: [
+${cardLines.join(",\n")}
+  ]
 
-TASK:
-Generate ${cards.length} priority cards ranked by cluster_score.
+${formatPdaUserContextBlock(profile, input, ctx)}
 
-PER CARD:
-- pillar, rank, headline (max 10 words), whyItMatters (40-50 words), startThisWeek (first_step).
+Per card: label 'PRIORITY {rank} - {PILLAR}'; headline (<=10 words); why_it_matters (40-50 words,
+tie to the user's pattern/goal/barrier from the input); first_step (ONE sentence).
 
-FIRST STEP RULE (photograph test): each first_step MUST be a concrete action TODAY/TONIGHT —
-format: [Verb] [specific object] [specific time/context]. Not a principle or restatement.
+FIRST-STEP RULE (mandatory - this is where past reports failed):
+ - The first_step MUST be a concrete physical action the user can do TODAY or TONIGHT.
+ - It MUST pass the PHOTOGRAPH TEST: you could photograph someone doing it. No principles, no
+   restatements of the recommendation, no mindset lines.
+ - FORMAT exactly: "[Verb] [specific object] [specific time/context]." Derive it from rec_text; do not invent.
+   BAD:  "Connection is your reset button."   /   "A 5-out-of-7 anchor gives you structure."
+   GOOD: "Text one friend today and suggest a walk this weekend."  /  "Tonight, set your alarm for the
+         same wake time you'll use all week."
 
-RULES:
-1. Do not invent actions not in input.
-2. Each card from a different pillar.
-3. Write in second person.
+Apply lifestyle-language and persona-barrier rules. One card per pillar; order by rank.
 
-OUTPUT FORMAT (strict JSON):
+FALLBACK: render exactly the number of priorities supplied (min 3, max 4).
+
+OUTPUT (strict JSON):
 {
   "priority_cards": [{
     "pillar": "string",
     "rank": number,
-    "headline": "string",
-    "why_it_matters": "string",
-    "first_step": "string"
+    "headline": "string(<=10w)",
+    "why_it_matters": "string(40-50w)",
+    "first_step": "string(1 sentence, photograph test)"
   }]
+}`;
 }
 
-${fitBlendFooter(fb)}`;
-}
-
-export function resolveFitBlend(ctx: GeminiSynthesisContext, templates: ReportTemplatesDoc): SectionFitBlend & { fitTone: string; blendRule: string } {
+export function resolveFitBlend(
+  ctx: GeminiSynthesisContext,
+  templates: ReportTemplatesDoc = DEFAULT_REPORT_TEMPLATES,
+): SectionFitBlend & { fitTone: string; blendRule: string } {
   const { personality } = ctx;
   return {
     fitTier: personality.fitTier,

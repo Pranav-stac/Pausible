@@ -235,10 +235,10 @@ export function PausibleResultsReport({
         subtitle={
           autoDownloadPdf
             ? planLoading
-              ? "Generating your report — PDF will download when ready (about 15 seconds)."
+              ? "Generating your report — PDF will download when ready."
               : "Loading report visuals — PDF will download shortly…"
             : planLoading
-              ? "Generating your personalized insights — this usually takes about 15 seconds."
+              ? "Generating your personalized insights — we’ll show your report as soon as it’s ready."
               : "Loading report visuals…"
         }
       />

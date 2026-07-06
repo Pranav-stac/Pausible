@@ -34,7 +34,7 @@ import {
   buildPillarPrompt,
   buildPrimaryPatternPrompt,
   buildSecondaryPatternPrompt,
-  buildSystemPrompt,
+  buildSystemPromptForProfile,
   resolveFitBlend,
 } from "@/lib/recommendations/gemini-section-prompts";
 import { applyPdaV12SynthesisPostProcess } from "@/lib/recommendations/qa-synthesis-checks";
@@ -193,7 +193,7 @@ function fallbackSynthesis(
     ...card,
     rank: card.rank || i + 1,
     headline: card.personaContextText.split(".")[0]?.slice(0, 80) || card.category.replace(/_/g, " "),
-    whyItMatters: `This pillar scored highly for your profile (cluster ${card.clusterScore.toFixed(0)}).`,
+    whyItMatters: "This pillar matters strongly for your profile.",
     startThisWeek: card.personaContextText.split(".")[0] ?? card.personaContextText,
   }));
 
@@ -285,8 +285,7 @@ function applyOpportunityCardFallbacks(cards: OpportunityCard[]): OpportunityCar
         firstSentence.slice(0, 80) ||
         card.category.replace(/_/g, " "),
       whyItMatters:
-        card.whyItMatters?.trim() ||
-        `This pillar scored highly for your profile (cluster ${card.clusterScore.toFixed(0)}).`,
+        card.whyItMatters?.trim() || "This pillar matters strongly for your profile.",
       startThisWeek: card.startThisWeek?.trim() || firstSentence || card.personaContextText,
     };
   });
@@ -345,7 +344,7 @@ export async function synthesizeActionPlanWithLlm(
   }
 
   const model = reportLlmModel(provider);
-  const systemPrompt = buildSystemPrompt(templates);
+  const systemPrompt = buildSystemPromptForProfile(selection.profile, input, ctx, templates);
   const fb = resolveFitBlend(ctx, templates);
   const persona = input?.scores?.persona;
   const errors: string[] = [];
@@ -400,9 +399,9 @@ export async function synthesizeActionPlanWithLlm(
         return Boolean(j?.pattern_you_do_not_notice?.trim() || j?.patternBody?.trim());
       },
     ),
-    call(buildSecondaryPatternPrompt(selection, ctx, fb), SECTION_OUTPUT_TOKENS.secondaryPattern),
+    call(buildSecondaryPatternPrompt(selection, ctx, input ?? { answers: {} }, fb), SECTION_OUTPUT_TOKENS.secondaryPattern),
     call(
-      buildPillarPrompt("Sleep & Recovery", selection.pillarPlans["Sleep & Recovery"], ctx, fb),
+      buildPillarPrompt("Sleep & Recovery", selection.pillarPlans["Sleep & Recovery"], selection.profile, ctx, input ?? { answers: {} }, fb),
       SECTION_OUTPUT_TOKENS.pillar,
       (p) => {
         const j = p as { headline?: string; do_items?: unknown[]; doItems?: unknown[] } | null;
@@ -411,7 +410,7 @@ export async function synthesizeActionPlanWithLlm(
       },
     ),
     call(
-      buildPillarPrompt("Nutrition", selection.pillarPlans.Nutrition, ctx, fb),
+      buildPillarPrompt("Nutrition", selection.pillarPlans.Nutrition, selection.profile, ctx, input ?? { answers: {} }, fb),
       SECTION_OUTPUT_TOKENS.pillar,
       (p) => {
         const j = p as { headline?: string; do_items?: unknown[]; doItems?: unknown[] } | null;
@@ -420,7 +419,7 @@ export async function synthesizeActionPlanWithLlm(
       },
     ),
     call(
-      buildPillarPrompt("Physical Activity", selection.pillarPlans["Physical Activity"], ctx, fb),
+      buildPillarPrompt("Physical Activity", selection.pillarPlans["Physical Activity"], selection.profile, ctx, input ?? { answers: {} }, fb),
       SECTION_OUTPUT_TOKENS.pillar,
       (p) => {
         const j = p as { headline?: string; do_items?: unknown[]; doItems?: unknown[] } | null;
@@ -429,7 +428,7 @@ export async function synthesizeActionPlanWithLlm(
       },
     ),
     call(
-      buildPillarPrompt("Mental Wellness", selection.pillarPlans["Mental Wellness"], ctx, fb),
+      buildPillarPrompt("Mental Wellness", selection.pillarPlans["Mental Wellness"], selection.profile, ctx, input ?? { answers: {} }, fb),
       SECTION_OUTPUT_TOKENS.pillar,
       (p) => {
         const j = p as { headline?: string; do_items?: unknown[]; doItems?: unknown[] } | null;
@@ -445,7 +444,7 @@ export async function synthesizeActionPlanWithLlm(
   }
 
   const prioritiesRes = await call(
-    buildHighImpactPrioritiesPrompt(selection.opportunityCards, ctx, fb),
+    buildHighImpactPrioritiesPrompt(selection.opportunityCards, selection.profile, ctx, input ?? { answers: {} }, fb),
     SECTION_OUTPUT_TOKENS.priorities,
     (p) => {
       const j = p as { priority_cards?: unknown[]; priorityCards?: unknown[] } | null;
@@ -605,18 +604,18 @@ export async function synthesizeActionPlanWithLlm(
 
   const postGate = validatePostSynthesis(
     sanitizePostSynthesisInput({
-      primaryNarrative: scrubbedPrimaryPattern.personaNarrative,
-      secondaryNarrative: scrubbedSecondaryPattern?.secondaryNarrative,
-      blindPattern: scrubbedBlindSpots.patternBody,
-      blindGoals: scrubbedBlindSpots.goalsBody,
-      pillarFocus: PILLARS.map((p) => scrubbedPillarPlans[p].focusArea),
-      pillarDos: PILLARS.flatMap((p) => scrubbedPillarPlans[p].dos.map((d) => d.action)),
-      pillarDonts: PILLARS.flatMap((p) => scrubbedPillarPlans[p].donts.map((d) => d.behavior)),
-      priorityHeadlines: scrubbedOpportunityCards.map((c) => c.headline ?? ""),
-      priorityBodies: scrubbedOpportunityCards.map((c) => c.whyItMatters ?? ""),
-      behaviouralBoxBodies: scrubbedPrimaryPattern.behaviouralBoxes.map((b) => b.content),
+      primaryNarrative: finalPrimaryPattern.personaNarrative,
+      secondaryNarrative: finalSecondaryPattern?.secondaryNarrative,
+      blindPattern: finalBlindSpots.patternBody,
+      blindGoals: finalBlindSpots.goalsBody,
+      pillarFocus: PILLARS.map((p) => finalPillarPlans[p].focusArea),
+      pillarDos: PILLARS.flatMap((p) => finalPillarPlans[p].dos.map((d) => d.action)),
+      pillarDonts: PILLARS.flatMap((p) => finalPillarPlans[p].donts.map((d) => d.behavior)),
+      priorityHeadlines: finalOpportunityCards.map((c) => c.headline ?? ""),
+      priorityBodies: finalOpportunityCards.map((c) => c.whyItMatters ?? ""),
+      behaviouralBoxBodies: finalPrimaryPattern.behaviouralBoxes.map((b) => b.content),
       primaryPersonaKey,
-      pillarSourceIds: PILLARS.map((p) => scrubbedPillarPlans[p].sourceIds ?? []),
+      pillarSourceIds: PILLARS.map((p) => finalPillarPlans[p].sourceIds ?? []),
       piSourceIds: selection.piSeries.sourceIds,
     }),
   );

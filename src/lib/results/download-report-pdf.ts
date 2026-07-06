@@ -1,5 +1,7 @@
 "use client";
 
+import { WELLNESS_REPORT_PDF_SUFFIX } from "@/lib/results/report-branding";
+
 const A4_W_MM = 210;
 const A4_H_MM = 297;
 
@@ -40,7 +42,11 @@ export async function downloadReportAsPdf(root: HTMLElement, filename: string): 
 }
 
 /** Builds a download filename from the participant name, with an optional ref suffix. */
-export function reportPdfFilename(participantName: string, refId?: string, suffix = "wellness-report"): string {
+export function reportPdfFilename(
+  participantName: string,
+  refId?: string,
+  suffix = WELLNESS_REPORT_PDF_SUFFIX,
+): string {
   const safeName = participantName
     .trim()
     .replace(/\.pdf$/i, "")

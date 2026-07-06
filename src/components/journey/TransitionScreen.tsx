@@ -8,6 +8,7 @@ import {
   APP_PAGE_BG_SOFT,
   CTA_PRIMARY_CLASS,
 } from "@/components/marketing/marketing-brand";
+import { PERSONALITY_ASSESSMENT_TITLE } from "@/lib/results/report-branding";
 
 export function TransitionScreen({ attemptId }: { attemptId: string }) {
   return (
@@ -19,7 +20,7 @@ export function TransitionScreen({ attemptId }: { attemptId: string }) {
         >
           ✓
         </div>
-        <h1 className={`mt-6 ${APP_HEADING_MD}`}>Personality assessment complete</h1>
+        <h1 className={`mt-6 ${APP_HEADING_MD}`}>{PERSONALITY_ASSESSMENT_TITLE} complete</h1>
         <p className={`mt-4 ${APP_BODY}`}>
           Now a few quick questions about your current situation — stress, sleep, goals, and barriers. This takes about
           2–3 minutes.

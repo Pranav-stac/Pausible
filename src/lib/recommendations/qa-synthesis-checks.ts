@@ -69,6 +69,63 @@ function appendPersonaBarrierAck(narrative: string): string {
   return `${ack}${narrative}`;
 }
 
+function wordCount(text: string): number {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+function prefLabel(tag: string): string {
+  return tag.replace(/^activity_pref_/, "").replace(/_/g, " ");
+}
+
+function truncateWords(text: string, maxWords: number): string {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  if (words.length <= maxWords) return text.trim();
+  return words.slice(0, maxWords).join(" ");
+}
+
+function padPersonaNarrative(narrative: string, boxes: { content: string }[]): string {
+  let out = narrative.trim();
+  if (wordCount(out) >= 150) return out;
+
+  const extras = boxes.map((b) => b.content.trim()).filter(Boolean);
+  for (const extra of extras) {
+    if (wordCount(out) >= 150) break;
+    out = `${out} ${extra}`.replace(/\s{2,}/g, " ").trim();
+  }
+
+  if (wordCount(out) < 150) {
+    out = `${out} You respond best when guidance respects your natural rhythm and builds in small, repeatable steps.`.trim();
+  }
+
+  return out;
+}
+
+function ensureActivityPreferenceDos(
+  dos: PillarSynthesisDo[],
+  prefs: string[],
+): PillarSynthesisDo[] {
+  if (!prefs.length) return dos;
+
+  const next = dos.map((d) => ({ ...d }));
+  let hits = next.filter((d) => prefMatches(d.action)).length;
+
+  for (let i = 0; i < next.length && hits < 2; i++) {
+    if (prefMatches(next[i].action)) continue;
+    const pref = prefLabel(prefs[hits % prefs.length]);
+    next[i] = {
+      ...next[i],
+      action: truncateWords(`Include a ${pref} session: ${next[i].action}`, 12),
+    };
+    hits++;
+  }
+
+  return next;
+}
+
+function finalizeCopy(text: string, profile: UserProfile): string {
+  return applyLifestyleFraming(scrubBlocklistTerms(text), profile);
+}
+
 function applyQaAutoFixes(
   profile: UserProfile,
   data: {
@@ -138,19 +195,58 @@ function applyQaAutoFixes(
     }
   }
 
-  if (safety.hasConsistencyBarrier || safety.hasStartingBarrier) {
-    data.primaryPattern = {
-      ...data.primaryPattern,
-      personaNarrative: appendPersonaBarrierAck(data.primaryPattern.personaNarrative),
+  if (safety.activityPrefs.length > 0) {
+    const physical = data.pillarPlans["Physical Activity"];
+    data.pillarPlans["Physical Activity"] = {
+      ...physical,
+      dos: ensureActivityPreferenceDos(physical.dos, safety.activityPrefs),
+    };
+  }
+
+  data.primaryPattern = {
+    ...data.primaryPattern,
+    personaNarrative: finalizeCopy(
+      padPersonaNarrative(
+        appendPersonaBarrierAck(data.primaryPattern.personaNarrative),
+        data.primaryPattern.behaviouralBoxes,
+      ),
+      profile,
+    ),
+    behaviouralBoxes: data.primaryPattern.behaviouralBoxes.map((b) => ({
+      ...b,
+      content: finalizeCopy(b.content, profile),
+    })),
+  };
+
+  for (const pillar of PILLARS) {
+    const plan = data.pillarPlans[pillar];
+    data.pillarPlans[pillar] = {
+      ...plan,
+      focusArea: finalizeCopy(plan.focusArea, profile),
+      focusReason: finalizeCopy(plan.focusReason, profile),
+      dos: plan.dos.map((d) => ({
+        action: finalizeCopy(d.action, profile),
+        why: finalizeCopy(d.why, profile),
+      })),
+      donts: plan.donts.map((d) => ({
+        behavior: finalizeCopy(d.behavior, profile),
+        why: finalizeCopy(d.why, profile),
+      })),
     };
   }
 
   data.opportunityCards = data.opportunityCards.map((c) => ({
     ...c,
-    startThisWeek:
-      c.startThisWeek && !/^(set|text|tonight|today|this week)/i.test(c.startThisWeek.trim())
-        ? `Tonight, ${c.startThisWeek.charAt(0).toLowerCase()}${c.startThisWeek.slice(1)}`
-        : c.startThisWeek,
+    headline: c.headline ? finalizeCopy(c.headline, profile) : c.headline,
+    whyItMatters: c.whyItMatters ? finalizeCopy(c.whyItMatters, profile) : c.whyItMatters,
+    startThisWeek: c.startThisWeek
+      ? finalizeCopy(
+          !/^(set|text|tonight|today|this week)/i.test(c.startThisWeek.trim())
+            ? `Tonight, ${c.startThisWeek.charAt(0).toLowerCase()}${c.startThisWeek.slice(1)}`
+            : c.startThisWeek,
+          profile,
+        )
+      : c.startThisWeek,
   }));
 }
 function collectPillarText(

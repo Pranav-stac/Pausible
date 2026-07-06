@@ -12,12 +12,13 @@ import {
   LABEL_CLASS,
   STEP_BADGE_CLASS,
 } from "@/components/marketing/marketing-brand";
+import { PERSONALITY_ASSESSMENT_TITLE } from "@/lib/results/report-branding";
 import { ArrowRight } from "@/components/marketing/icons";
 
 const STEPS = [
   {
     n: "01",
-    title: "Personality assessment",
+    title: PERSONALITY_ASSESSMENT_TITLE,
     detail: "90 questions across five traits — scroll at your own pace. Progress saves automatically.",
     time: "~15 min",
   },

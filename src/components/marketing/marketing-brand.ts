@@ -22,9 +22,9 @@ export const GRADIENT_CTA_BG =
 export const LABEL_CLASS =
   "text-[13px] font-bold uppercase tracking-[0.12em] text-[#0284C7]";
 
-/** Primary marketing CTA — brand gradient */
+/** Primary marketing CTA — brand gradient (explicit classes so journey pages render without .marketing-page) */
 export const CTA_PRIMARY_CLASS =
-  "inline-flex min-h-[52px] items-center justify-center gap-2 rounded-[14px] bg-[image:var(--marketing-grad)] px-7 py-3.5 text-[17px] font-semibold text-white shadow-[0_14px_30px_-10px_rgba(99,102,241,0.5)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_38px_-10px_rgba(99,102,241,0.55)] active:scale-[0.98]";
+  "inline-flex min-h-[52px] items-center justify-center gap-2 rounded-[14px] bg-linear-to-r from-[#00bfa5] via-[#0ea5e9] to-[#3b82f6] px-7 py-3.5 text-[17px] font-semibold text-white shadow-[0_14px_30px_-10px_rgba(2,132,199,0.45)] transition hover:-translate-y-0.5 hover:brightness-[1.03] hover:shadow-[0_18px_38px_-10px_rgba(2,132,199,0.5)] active:scale-[0.98]";
 
 export const CTA_SECONDARY_CLASS =
   "inline-flex min-h-[48px] items-center justify-center rounded-[14px] border border-[#E5E7EB] bg-white/80 px-6 py-3 text-sm font-semibold text-[#111827] backdrop-blur-sm transition hover:border-[#D1D5DB] hover:bg-white active:scale-[0.98] sm:min-h-[52px]";

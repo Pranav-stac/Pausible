@@ -8,7 +8,7 @@ import {
   buildPillarPrompt,
   buildPrimaryPatternPrompt,
   buildSecondaryPatternPrompt,
-  buildSystemPrompt,
+  buildSystemPromptForProfile,
   resolveFitBlend,
   type SectionFitBlend,
 } from "@/lib/recommendations/gemini-section-prompts";
@@ -174,7 +174,7 @@ function buildSections(args: {
       slide: "05",
       reportSection: "Your Secondary Pattern and Blend",
       label: "Secondary pattern",
-      userPrompt: buildSecondaryPatternPrompt(selection, ctx, fb),
+      userPrompt: buildSecondaryPatternPrompt(selection, ctx, input, fb),
       skipReason: "Pure blend — no secondary content",
       inputData: {
         blendRatio: ctx.personality.blendRatio,
@@ -209,7 +209,7 @@ function buildSections(args: {
         slide,
         reportSection: "Your Key Actions",
         label: `${pillar} pillar`,
-        userPrompt: buildPillarPrompt(pillar, plan, ctx, fb),
+        userPrompt: buildPillarPrompt(pillar, plan, selection.profile, ctx, input, fb),
         inputData: {
           pillar,
           mindsetShift: plan.focusArea,
@@ -228,7 +228,7 @@ function buildSections(args: {
       slide: "08",
       reportSection: "Your High-Impact Priorities",
       label: "Priority cards",
-      userPrompt: buildHighImpactPrioritiesPrompt(selection.opportunityCards, ctx, fb),
+      userPrompt: buildHighImpactPrioritiesPrompt(selection.opportunityCards, selection.profile, ctx, input, fb),
       inputData: {
         cards: selection.opportunityCards.map((c: OpportunityCard) => ({
           id: c.id,
@@ -271,7 +271,7 @@ export async function buildAttemptLlmContextPackage(input: BuildProfileInput): P
     {
       provider,
       model: reportLlmModel(provider),
-      systemPrompt: buildSystemPrompt(templates),
+      systemPrompt: buildSystemPromptForProfile(profile, input, ctx, templates),
       fitBlend,
       sharedContext: ctx,
       sections: buildSections({ selection, ctx, input, templates, persona }),

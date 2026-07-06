@@ -14,6 +14,8 @@ const WORK_LANGUAGE_REPLACEMENTS: [RegExp, string][] = [
   [/\bwork messages\b/gi, "messages"],
   [/\bwork screens\b/gi, "screens"],
   [/\bwork schedule\b/gi, "daily schedule"],
+  [/\bat work\b/gi, "during your day"],
+  [/\bwork\b/gi, "daily routine"],
   [/\boffice\b/gi, "daily routine"],
   [/\bmeeting\b/gi, "appointment"],
   [/\bcommute\b/gi, "travel"],

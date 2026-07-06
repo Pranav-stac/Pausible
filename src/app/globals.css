@@ -20,6 +20,9 @@
   --pausibl-navy: #0d1b2a;
   --pausibl-muted: #4d4d4d;
   --pausibl-soft: #f7f9fb;
+  --marketing-grad: linear-gradient(120deg, #00bfa5 0%, #0ea5e9 50%, #3b82f6 100%);
+  --marketing-accent: #0284c7;
+  --marketing-grad-soft: linear-gradient(120deg, #ccfdf6 0%, #e0f2fe 100%);
 }
 
 @theme inline {
@@ -159,9 +162,6 @@ body {
 }
 
 .marketing-page {
-  --marketing-grad: linear-gradient(120deg, #00bfa5 0%, #0ea5e9 50%, #3b82f6 100%);
-  --marketing-accent: #0284c7;
-  --marketing-grad-soft: linear-gradient(120deg, #ccfdf6 0%, #e0f2fe 100%);
   font-family: var(--font-outfit), system-ui, sans-serif;
   color: #111827;
   -webkit-font-smoothing: antialiased;

@@ -12,12 +12,9 @@ import {
   FORM_CARD_CLASS,
 } from "@/components/marketing/marketing-brand";
 import { fetchAttempt } from "@/lib/data/attempt-service";
-import { REPORT_BUILDING_STAGE_MS, REPORT_BUILDING_STAGES } from "@/lib/results/report-building-stages";
+import { REPORT_BUILDING_STAGES } from "@/lib/results/report-building-stages";
 
-const STAGE_MS = REPORT_BUILDING_STAGE_MS;
 const STAGES = REPORT_BUILDING_STAGES;
-const MIN_DISPLAY_MS = 15000;
-const MAX_WAIT_MS = 45000;
 
 export function ReportBuildingScreen({
   attemptId,
@@ -34,12 +31,6 @@ export function ReportBuildingScreen({
     let cancelled = false;
     let navigated = false;
 
-    const stageTimers = STAGES.slice(1).map((_, i) =>
-      window.setTimeout(() => {
-        if (!cancelled) setStageIndex(i + 1);
-      }, (i + 1) * STAGE_MS),
-    );
-
     const go = () => {
       if (cancelled || navigated) return;
       navigated = true;
@@ -48,8 +39,18 @@ export function ReportBuildingScreen({
 
     async function prefetchActionPlan() {
       try {
+        if (!cancelled) setStageIndex(0);
+
         const attempt = await fetchAttempt(attemptId);
-        if (cancelled || !attempt) return;
+        if (cancelled) return;
+        if (!attempt) {
+          setPrefetchError("We couldn’t load your attempt. Opening results anyway.");
+          return;
+        }
+
+        if (!cancelled) setStageIndex(1);
+
+        if (!cancelled) setStageIndex(2);
 
         const res = await fetch("/api/recommendations/action-plan", {
           method: "POST",
@@ -61,26 +62,23 @@ export function ReportBuildingScreen({
           }),
         });
 
+        if (!cancelled) setStageIndex(STAGES.length - 1);
+
         if (!res.ok) {
           const json = (await res.json().catch(() => ({}))) as { error?: string };
           if (!cancelled) setPrefetchError(json.error ?? "Could not pre-build your action plan.");
         }
       } catch {
         if (!cancelled) setPrefetchError("We’ll finish building your plan on the results page.");
+      } finally {
+        go();
       }
     }
 
-    const hardTimeout = window.setTimeout(go, MAX_WAIT_MS);
-
-    void (async () => {
-      await Promise.all([prefetchActionPlan(), new Promise((r) => setTimeout(r, MIN_DISPLAY_MS))]);
-      go();
-    })();
+    void prefetchActionPlan();
 
     return () => {
       cancelled = true;
-      stageTimers.forEach(clearTimeout);
-      clearTimeout(hardTimeout);
     };
   }, [attemptId, nextPath, router]);
 
@@ -138,7 +136,7 @@ export function ReportBuildingScreen({
               </div>
               <div>
                 <h1 className={APP_HEADING_MD}>Building your wellness report</h1>
-                <p className={`mt-1 ${APP_MUTED}`}>This usually takes about 15 seconds.</p>
+                <p className={`mt-1 ${APP_MUTED}`}>We’ll open your results as soon as your plan is ready.</p>
               </div>
             </div>
 

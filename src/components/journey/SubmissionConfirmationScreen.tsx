@@ -153,7 +153,7 @@ export function SubmissionConfirmationScreen({ attemptId }: { attemptId: string 
           </button>
 
           <p className={`mt-4 ${APP_MUTED} !text-xs`}>
-            This usually takes about 15 seconds. Your answers are saved — you can close this tab and return anytime.
+            We’ll open your results as soon as your plan is ready. Your answers are saved — you can close this tab and return anytime.
           </p>
         </aside>
       </div>

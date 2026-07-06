@@ -16,9 +16,9 @@ import {
 import { PLAN_TEXT_LIMITS } from "@/lib/recommendations/plan/plan-text-limits";
 import {
   buildIntegratedPlanPrompt,
+  buildSystemPromptForProfile,
   type IntegratedPlanPromptJson,
 } from "@/lib/recommendations/plan/plan-synthesis-prompts";
-import { buildSystemPrompt } from "@/lib/recommendations/gemini-section-prompts";
 import { validatePostSynthesis } from "@/lib/recommendations/report-validation";
 import { enforceIntegratedPlanLimits, isCompleteSentence } from "@/lib/recommendations/plan/plan-text-limits";
 import type { ReportLlmProvider } from "@/lib/recommendations/report-llm-types";
@@ -60,7 +60,7 @@ function resolvePlanBuiltNarrative(
   parsed: IntegratedPlanPromptJson | null,
   fallbackNarrative: string,
 ): string {
-  const narrative = coerceOptionalPlanText(parsed?.plan_built_narrative);
+  const narrative = coerceOptionalPlanText(parsed?.plan_built_narrative ?? parsed?.plan_rationale);
   if (narrative) return narrative;
 
   const legacyNotes = (parsed?.plan_notes ?? [])
@@ -217,6 +217,7 @@ export async function synthesizeIntegratedPlanPage(
   const userPrompt = buildIntegratedPlanPrompt(
     planOutput,
     profile,
+    input,
     secondaryBlendPct,
     priorityCards,
     fitScore,
@@ -239,7 +240,7 @@ export async function synthesizeIntegratedPlanPage(
       provider === "gpt"
         ? PLAN_PAGE_OPENAI_MODEL
         : process.env.GEMINI_PLAN_MODEL?.trim() || "gemini-3.5-flash",
-    systemPrompt: buildSystemPrompt(),
+    systemPrompt: buildSystemPromptForProfile(profile, input),
     userPrompt,
     json: true,
     maxOutputTokens: SECTION_OUTPUT_TOKENS.integratedPlan,
