@@ -35,9 +35,13 @@ export function MarketingNav({ ctaHref }: { ctaHref: string }) {
   }, [mobileOpen]);
 
   return (
-    <header className="marketing-nav-shell">
+    <header className={`marketing-nav-shell ${scrolled ? "is-scrolled" : ""}`}>
       <div className={`marketing-nav-glass ${scrolled ? "is-scrolled" : ""}`}>
-        <Link href="/" className="shrink-0 rounded-lg outline-offset-4" aria-label="Pausibl home">
+        <Link
+          href="/"
+          className="marketing-nav-logo shrink-0 rounded-lg outline-offset-4"
+          aria-label="Pausibl home"
+        >
           <BrandLogo sizeClass="text-lg sm:text-xl" />
         </Link>
 
@@ -45,7 +49,7 @@ export function MarketingNav({ ctaHref }: { ctaHref: string }) {
           {links.map((l) => (
             <a
               key={l.href}
-              className="text-lg font-medium text-[#4B5563] transition hover:text-[#111827]"
+              className="marketing-nav-link font-medium text-[#4B5563] transition-colors hover:text-[#111827]"
               href={l.href}
             >
               {l.label}
@@ -61,14 +65,14 @@ export function MarketingNav({ ctaHref }: { ctaHref: string }) {
           <TrackedAssessmentLink
             href={ctaHref}
             placement="marketing_header_cta"
-            className="hidden items-center gap-2 rounded-[14px] border-[1.5px] border-[#0284C7]/20 bg-[image:var(--marketing-grad)] px-6 py-3 text-[17px] font-semibold text-white shadow-[0_14px_30px_-10px_rgba(99,102,241,0.5)] transition hover:-translate-y-0.5 sm:inline-flex"
+            className="marketing-nav-cta hidden items-center gap-2 rounded-[14px] border-[1.5px] border-[#0284C7]/20 bg-[image:var(--marketing-grad)] px-6 py-3 text-[17px] font-semibold text-white shadow-[0_14px_30px_-10px_rgba(99,102,241,0.5)] transition-[transform,box-shadow] hover:-translate-y-0.5 sm:inline-flex"
           >
             Get Started
             <span aria-hidden>→</span>
           </TrackedAssessmentLink>
           <button
             type="button"
-            className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-[#E5E7EB] bg-white/80 text-slate-800 lg:hidden"
+            className="marketing-nav-menu-btn inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl text-slate-800 lg:hidden"
             aria-expanded={mobileOpen}
             aria-controls="marketing-mobile-menu"
             onClick={() => setMobileOpen((v) => !v)}
@@ -89,7 +93,7 @@ export function MarketingNav({ ctaHref }: { ctaHref: string }) {
 
       <div
         id="marketing-mobile-menu"
-        className={`pointer-events-auto fixed inset-x-0 top-[88px] z-40 border-t border-[#F3F4F6] bg-white/95 backdrop-blur-xl lg:hidden ${mobileOpen ? "block" : "hidden"}`}
+        className={`marketing-nav-drawer pointer-events-auto fixed inset-x-0 z-40 border-t border-white/60 transition-[top] duration-300 lg:hidden ${scrolled ? "top-[68px]" : "top-[88px]"} ${mobileOpen ? "block" : "hidden"}`}
       >
         <div className="mx-auto flex max-w-[1160px] flex-col gap-2 px-5 py-5">
           <TrackedAssessmentLink

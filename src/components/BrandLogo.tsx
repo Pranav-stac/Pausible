@@ -21,6 +21,7 @@ function PauseMark({ className = "" }: { className?: string }) {
       aria-hidden
     >
       <span className="h-[0.85em] w-[0.18em] rounded-full bg-[#00C9C8]" />
+      <span className="h-[0.85em] w-[0.18em] rounded-full bg-[#0D1B2A]" />
       <span className="h-[0.85em] w-[0.18em] rounded-full bg-[#2D82FF]" />
     </span>
   );
