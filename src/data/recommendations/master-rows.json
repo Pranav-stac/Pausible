@@ -172,7 +172,7 @@
     "pillar": "Sleep & Recovery",
     "category": "sleep_timing",
     "type": "do",
-    "text": "Get 10 minutes of natural light within an hour of waking, especially if you work indoors.",
+    "text": "Get 10 minutes of natural light within an hour of waking, especially if you spend most of your day indoors.",
     "personaFit": [
       "all_personas"
     ],
@@ -337,7 +337,7 @@
     "pillar": "Sleep & Recovery",
     "category": "wind_down_routine",
     "type": "dont",
-    "text": "Stop all intense work, difficult conversations, and stimulating content at least one hour before bed.",
+    "text": "Stop all demanding tasks, difficult conversations, and stimulating content at least one hour before bed.",
     "personaFit": [
       "watchful_deer",
       "curious_fox"
@@ -500,7 +500,7 @@
     "pillar": "Sleep & Recovery",
     "category": "sleep_environment",
     "type": "dont",
-    "text": "Avoid working from bed regularly — keep the bed associated with sleep, not productivity.",
+    "text": "Avoid using your bed for screens or tasks regularly — keep the bed associated with sleep, not productivity.",
     "personaFit": [
       "steady_elephant",
       "watchful_deer"
@@ -526,8 +526,8 @@
     ],
     "notes": "Renumbered from SLP015. Clear rationale added.",
     "personaContext": {
-      "watchful_deer": "If you associate your bed with deadlines and emails, your brain won't switch off when you lie down at night. Even a small desk or a specific chair creates the separation.",
-      "steady_elephant": "Structure matters to you. A physical boundary between work space and sleep space reinforces the mental boundary."
+      "watchful_deer": "If you associate your bed with tasks and messages, your brain won't switch off when you lie down at night. Even a small table or a specific chair creates the separation.",
+      "steady_elephant": "Structure matters to you. A physical boundary between your daytime space and your sleep space reinforces the mental boundary."
     },
     "oceanTraitTags": [
       "N_high"
@@ -664,7 +664,7 @@
     "pillar": "Sleep & Recovery",
     "category": "stress_sleep_recovery",
     "type": "do",
-    "text": "Set a hard stop time for work screens, then do one non-work activity (walk, shower, reading) before bed.",
+    "text": "Set a hard stop time for screens, then do one calming activity (walk, shower, reading) before bed.",
     "personaFit": [
       "watchful_deer",
       "steady_elephant"
@@ -691,7 +691,7 @@
     ],
     "notes": "Rewritten from vague 'create a clear transition'. Now has specific action.",
     "personaContext": {
-      "watchful_deer": "Without a hard stop, work bleeds into your evening and then into your sleep. The non-work activity is the buffer that separates your performance self from your resting self.",
+      "watchful_deer": "Without a hard stop, your day bleeds into your evening and then into your sleep. The calming activity is the buffer that separates your busy self from your resting self.",
       "steady_elephant": "Treat the stop time like any other appointment. Once it's a rule, it stops requiring willpower."
     },
     "oceanTraitTags": [
@@ -902,7 +902,7 @@
     "pillar": "Sleep & Recovery",
     "category": "recovery_identity",
     "type": "mindset_shift",
-    "text": "Rest is part of the work. Muscles grow during recovery, not during training. Skipping rest is not discipline — it is sabotage.",
+    "text": "Rest is part of the process. Muscles grow during recovery, not during training. Skipping rest is not discipline — it is sabotage.",
     "personaFit": [
       "steadfast_bear",
       "watchful_deer"
@@ -930,7 +930,7 @@
     "notes": "Rewritten from slogan-like 'treat recovery as productive, not lazy'. Now has specific framing.",
     "personaContext": {
       "watchful_deer": "If skipping a rest day feels lazy, that instinct is actually working against your goals. Recovery isn't the absence of effort — it's where the effort pays off.",
-      "steadfast_bear": "You respect hard work. Recovery is hard work done by your body while you step back. Fighting that process doesn't make you tougher — it makes the next session worse."
+      "steadfast_bear": "You respect hard effort. Recovery is hard effort done by your body while you step back. Fighting that process doesn't make you tougher — it makes the next session worse."
     },
     "oceanTraitTags": [
       "C_low",
@@ -1364,7 +1364,7 @@
     "pillar": "Nutrition",
     "category": "hydration",
     "type": "do",
-    "text": "Anchor your water intake to existing habits: a glass after waking, one before each meal, and a bottle at your desk or workspace.",
+    "text": "Anchor your water intake to existing habits: a glass after waking, one before each meal, and a bottle wherever you spend most of your time.",
     "personaFit": [
       "steady_elephant",
       "shielded_turtle"
@@ -1389,7 +1389,7 @@
     ],
     "notes": "Rewritten with specific anchor points.",
     "personaContext": {
-      "shielded_turtle": "You don't need to count ounces. Just link water to things you already do: wake up, eat, sit down to work. The anchors do the remembering for you.",
+      "shielded_turtle": "You don't need to count ounces. Just link water to things you already do: wake up, eat, sit down. The anchors do the remembering for you.",
       "steady_elephant": "Habit stacking is your strength. Water after waking, water before meals — it becomes invisible within days."
     },
     "oceanTraitTags": [
@@ -1673,7 +1673,7 @@
     "notes": "Rewritten more specifically. Visibility drives default choices.",
     "personaContext": {
       "shielded_turtle": "You eat what is easy to reach. Make the better options the easy ones and move the less helpful options out of sight. The environment does the work so you do not have to.",
-      "steady_elephant": "Organize your kitchen like you'd organize a workspace: the things you need most should be the most accessible."
+      "steady_elephant": "Organize your kitchen so the things you need most are the most accessible."
     },
     "oceanTraitTags": [
       "C_low"
@@ -1723,7 +1723,7 @@
     "pillar": "Nutrition",
     "category": "emotional_eating",
     "type": "do",
-    "text": "Keep planned, nutritious snacks at your desk or workspace for stressful days so the decision is already made.",
+    "text": "Keep planned, nutritious snacks wherever you spend your day for stressful days so the decision is already made.",
     "personaFit": [
       "watchful_deer",
       "shielded_turtle"
@@ -1939,7 +1939,9 @@
     ],
     "excludeIf": [
       "exclude_high_stress_extreme_diet",
-      "exclude_emotional_eating_extreme_restriction"
+      "exclude_emotional_eating_extreme_restriction",
+      "exclude_pregnancy_postpartum",
+      "exclude_medical_condition"
     ],
     "strength": "core",
     "oceanCategoryTags": [
@@ -1977,7 +1979,9 @@
       "barrier_lack_of_knowledge"
     ],
     "excludeIf": [
-      "exclude_high_stress_extreme_diet"
+      "exclude_high_stress_extreme_diet",
+      "exclude_pregnancy_postpartum",
+      "exclude_medical_condition"
     ],
     "strength": "core",
     "oceanCategoryTags": [
@@ -2179,7 +2183,8 @@
       "barrier_lack_of_knowledge"
     ],
     "excludeIf": [
-      "exclude_medical_condition"
+      "exclude_medical_condition",
+      "exclude_pregnancy_postpartum"
     ],
     "strength": "conditional",
     "oceanCategoryTags": [
@@ -2702,7 +2707,7 @@
     "pillar": "Physical Activity",
     "category": "walking_daily_activity",
     "type": "do",
-    "text": "Set one specific time during desk-heavy workdays to stand up and move for 5-10 minutes. Anchor it to lunch, a meeting end, or a recurring alarm.",
+    "text": "Set one specific time during long sitting days to stand up and move for 5-10 minutes. Anchor it to lunch, the end of an activity, or a recurring alarm.",
     "personaFit": [
       "steady_elephant",
       "shielded_turtle"
@@ -2731,7 +2736,7 @@
     "notes": "Added specific anchor points (lunch, meeting end, alarm) and duration.",
     "personaContext": {
       "shielded_turtle": "Set a quiet alarm. When it goes off, stand up and stretch for 5 minutes. No one needs to notice. It is just you taking a break.",
-      "steady_elephant": "Anchor this to something you already do. After lunch or after a recurring meeting — the trigger makes it automatic."
+      "steady_elephant": "Anchor this to something you already do. After lunch or after a regular activity — the trigger makes it automatic."
     },
     "oceanTraitTags": [
       "C_low",
@@ -2766,7 +2771,8 @@
     ],
     "excludeIf": [
       "exclude_injury",
-      "exclude_medical_condition"
+      "exclude_medical_condition",
+      "exclude_pregnancy_postpartum"
     ],
     "strength": "core",
     "oceanCategoryTags": [
@@ -2812,7 +2818,8 @@
     ],
     "excludeIf": [
       "exclude_injury",
-      "exclude_medical_condition"
+      "exclude_medical_condition",
+      "exclude_pregnancy_postpartum"
     ],
     "strength": "core",
     "oceanCategoryTags": [
@@ -2853,7 +2860,8 @@
       "barrier_lack_of_knowledge"
     ],
     "excludeIf": [
-      "exclude_injury"
+      "exclude_injury",
+      "exclude_pregnancy_postpartum"
     ],
     "strength": "core",
     "oceanCategoryTags": [
@@ -2894,7 +2902,8 @@
     ],
     "excludeIf": [
       "exclude_injury",
-      "exclude_severe_fatigue"
+      "exclude_severe_fatigue",
+      "exclude_pregnancy_postpartum"
     ],
     "strength": "core",
     "oceanCategoryTags": [
@@ -3321,7 +3330,7 @@
     "pillar": "Physical Activity",
     "category": "mobility_functional_movement",
     "type": "do",
-    "text": "Stretch for 5-10 minutes after your workout or at the end of your workday if you sit for long hours. Even a short stretch can noticeably reduce stiffness by evening.",
+    "text": "Stretch for 5-10 minutes after your workout or at the end of the day if you sit for long hours. Even a short stretch can noticeably reduce stiffness by evening.",
     "personaFit": [
       "steadfast_bear",
       "shielded_turtle"
@@ -3818,7 +3827,7 @@
     "pillar": "Mental Wellness",
     "category": "stress_management",
     "type": "do",
-    "text": "After your last work task, spend 10-15 minutes on something non-productive: a walk, music, sitting quietly, or a shower. This creates a buffer between your work self and your resting self.",
+    "text": "After your main activities for the day, spend 10-15 minutes on something non-productive: a walk, music, sitting quietly, or a shower. This creates a buffer between your busy self and your resting self.",
     "personaFit": [
       "watchful_deer",
       "steadfast_bear"
@@ -3844,7 +3853,7 @@
     ],
     "notes": "Rewritten from vague 'build emotional decompression'. Now has specific duration, examples, and rationale.",
     "personaContext": {
-      "watchful_deer": "Without a buffer between work and evening, stress carries into everything: your sleep, your food choices, your relationships. The buffer does not fix the stress — it contains it.",
+      "watchful_deer": "Without a buffer between your day and your evening, stress carries into everything: your sleep, your food choices, your relationships. The buffer does not fix the stress — it contains it.",
       "steadfast_bear": "You push through without stopping. But 15 minutes of deliberate non-productivity makes the remaining evening more restorative than powering through without a break."
     },
     "oceanTraitTags": [
@@ -3898,7 +3907,7 @@
     "pillar": "Mental Wellness",
     "category": "stress_management",
     "type": "do",
-    "text": "Set a time after which you do not check work messages. Tell people your cutoff so they stop expecting replies.",
+    "text": "Set a time after which you do not check messages or notifications. Tell people your cutoff so they stop expecting replies.",
     "personaFit": [
       "watchful_deer",
       "steady_elephant"
@@ -3925,7 +3934,7 @@
     "notes": "Rewritten from vague 'create healthy boundaries around work spillover'.",
     "personaContext": {
       "watchful_deer": "Every notification after hours reactivates your stress response. A communicated cutoff is not rude — it is a boundary that protects your recovery.",
-      "steady_elephant": "Make it a rule. Rules are your strength. 'No work messages after 8 PM' is clean, clear, and enforceable."
+      "steady_elephant": "Make it a rule. Rules are your strength. 'No messages after 8 PM' is clean, clear, and enforceable."
     },
     "oceanTraitTags": [
       "N_high"
@@ -4488,7 +4497,7 @@
     "pillar": "Mental Wellness",
     "category": "burnout_prevention",
     "type": "do",
-    "text": "During demanding work periods, schedule recovery breaks the same way you schedule meetings. If it is not in the calendar, it will not happen.",
+    "text": "During demanding periods, schedule recovery breaks the same way you schedule anything important. If it is not in the calendar, it will not happen.",
     "personaFit": [
       "steadfast_bear",
       "steady_elephant"
@@ -4514,8 +4523,8 @@
     ],
     "notes": "Added calendar scheduling metaphor.",
     "personaContext": {
-      "steadfast_bear": "You schedule training sessions and work meetings. Recovery breaks deserve the same treatment. If it is not in the calendar, your default mode will skip it.",
-      "steady_elephant": "You treat calendar items as commitments. Put recovery breaks on the calendar and treat them with the same respect you give work meetings."
+      "steadfast_bear": "You schedule training sessions and important commitments. Recovery breaks deserve the same treatment. If it is not in the calendar, your default mode will skip it.",
+      "steady_elephant": "You treat calendar items as commitments. Put recovery breaks on the calendar and treat them with the same respect you give any commitment."
     },
     "oceanTraitTags": [
       "N_high",
@@ -6741,7 +6750,9 @@
     ],
     "excludeIf": [
       "exclude_injury",
-      "exclude_persistent_pain"
+      "exclude_persistent_pain",
+      "exclude_pregnancy_postpartum",
+      "exclude_medical_condition"
     ],
     "strength": "conditional",
     "oceanCategoryTags": [],
@@ -6783,7 +6794,8 @@
       "barrier_lack_of_consistency"
     ],
     "excludeIf": [
-      "exclude_persistent_pain"
+      "exclude_persistent_pain",
+      "exclude_pregnancy_postpartum"
     ],
     "strength": "supporting",
     "oceanCategoryTags": [],
@@ -6899,7 +6911,8 @@
       "barrier_lack_of_consistency"
     ],
     "excludeIf": [
-      "exclude_persistent_pain"
+      "exclude_persistent_pain",
+      "exclude_pregnancy_postpartum"
     ],
     "strength": "optional",
     "oceanCategoryTags": [],
@@ -6914,5 +6927,471 @@
     },
     "oceanTraitTags": [],
     "effortLevel": "medium"
+  },
+  {
+    "id": "NUT037",
+    "pillar": "Nutrition",
+    "category": "flexible_nutrition",
+    "type": "do",
+    "text": "When you don't control what's cooked, fill your plate with the protein and vegetables first from whatever is served — you decide the proportions even when you don't decide the menu.",
+    "personaFit": [
+      "all_personas"
+    ],
+    "contextFit": [
+      "meal_control_prepared_by_others"
+    ],
+    "goalFit": [
+      "goal_overall_health",
+      "goal_energy"
+    ],
+    "barrierFit": [
+      "barrier_lack_of_knowledge"
+    ],
+    "excludeIf": [
+      "exclude_none"
+    ],
+    "strength": "supporting",
+    "oceanCategoryTags": [],
+    "notes": "v1.14 meals-by-others: selection framing.",
+    "personaContext": {
+      "shielded_turtle": "When you don't control what's cooked, fill your plate with the protein and vegetables first from whatever is served — you decide the proportions even when you don't decide the menu. Simple and low-pressure — no cooking or planning needed.",
+      "curious_fox": "When you don't control what's cooked, fill your plate with the protein and vegetables first from whatever is served — you decide the proportions even when you don't decide the menu. A flexible rule you can apply to any meal.",
+      "watchful_deer": "When you don't control what's cooked, fill your plate with the protein and vegetables first from whatever is served — you decide the proportions even when you don't decide the menu. You stay in gentle control without any conflict.",
+      "steadfast_bear": "When you don't control what's cooked, fill your plate with the protein and vegetables first from whatever is served — you decide the proportions even when you don't decide the menu. A clear rule you can apply consistently.",
+      "steady_elephant": "When you don't control what's cooked, fill your plate with the protein and vegetables first from whatever is served — you decide the proportions even when you don't decide the menu. Make it your default at every meal.",
+      "pack_wolf": "When you don't control what's cooked, fill your plate with the protein and vegetables first from whatever is served — you decide the proportions even when you don't decide the menu. Works even at family or shared meals."
+    },
+    "oceanTraitTags": [],
+    "effortLevel": "low"
+  },
+  {
+    "id": "NUT038",
+    "pillar": "Nutrition",
+    "category": "social_eating",
+    "type": "do",
+    "text": "Ask whoever prepares your meals for one small change a week — a little less oil, an extra vegetable, or a protein addition. Small requests are easier to grant than big ones.",
+    "personaFit": [
+      "all_personas"
+    ],
+    "contextFit": [
+      "meal_control_prepared_by_others"
+    ],
+    "goalFit": [
+      "goal_overall_health"
+    ],
+    "barrierFit": [
+      "barrier_lack_of_knowledge"
+    ],
+    "excludeIf": [
+      "exclude_none"
+    ],
+    "strength": "supporting",
+    "oceanCategoryTags": [],
+    "notes": "v1.14 meals-by-others: request framing.",
+    "personaContext": {
+      "shielded_turtle": "Ask whoever prepares your meals for one small change a week — a little less oil, an extra vegetable, or a protein addition. Small requests are easier to grant than big ones. One quiet request at a time is enough.",
+      "curious_fox": "Ask whoever prepares your meals for one small change a week — a little less oil, an extra vegetable, or a protein addition. Small requests are easier to grant than big ones. Try a different small tweak each week.",
+      "watchful_deer": "Ask whoever prepares your meals for one small change a week — a little less oil, an extra vegetable, or a protein addition. Small requests are easier to grant than big ones. A gentle ask, not a demand.",
+      "steadfast_bear": "Ask whoever prepares your meals for one small change a week — a little less oil, an extra vegetable, or a protein addition. Small requests are easier to grant than big ones. One clear, specific request works best.",
+      "steady_elephant": "Ask whoever prepares your meals for one small change a week — a little less oil, an extra vegetable, or a protein addition. Small requests are easier to grant than big ones. Make it a standing weekly habit.",
+      "pack_wolf": "Ask whoever prepares your meals for one small change a week — a little less oil, an extra vegetable, or a protein addition. Small requests are easier to grant than big ones. Frame it as something you're doing together."
+    },
+    "oceanTraitTags": [],
+    "effortLevel": "low"
+  },
+  {
+    "id": "NUT039",
+    "pillar": "Nutrition",
+    "category": "food_environment",
+    "type": "do",
+    "text": "Keep a few healthy options you fully control — fruit, nuts, yogurt, roasted chana — for between-meal hunger, so your choices aren't limited to only what's served.",
+    "personaFit": [
+      "all_personas"
+    ],
+    "contextFit": [
+      "meal_control_prepared_by_others"
+    ],
+    "goalFit": [
+      "goal_energy",
+      "goal_overall_health"
+    ],
+    "barrierFit": [
+      "barrier_emotional_eating_cravings"
+    ],
+    "excludeIf": [
+      "exclude_none"
+    ],
+    "strength": "supporting",
+    "oceanCategoryTags": [],
+    "notes": "v1.14 meals-by-others: own-control snacks.",
+    "personaContext": {
+      "shielded_turtle": "Keep a few healthy options you fully control — fruit, nuts, yogurt, roasted chana — for between-meal hunger, so your choices aren't limited to only what's served. Keep it simple — one or two options within reach.",
+      "curious_fox": "Keep a few healthy options you fully control — fruit, nuts, yogurt, roasted chana — for between-meal hunger, so your choices aren't limited to only what's served. Rotate a few you enjoy.",
+      "watchful_deer": "Keep a few healthy options you fully control — fruit, nuts, yogurt, roasted chana — for between-meal hunger, so your choices aren't limited to only what's served. A calm way to handle hunger without stress.",
+      "steadfast_bear": "Keep a few healthy options you fully control — fruit, nuts, yogurt, roasted chana — for between-meal hunger, so your choices aren't limited to only what's served. Stock them reliably so they're always there.",
+      "steady_elephant": "Keep a few healthy options you fully control — fruit, nuts, yogurt, roasted chana — for between-meal hunger, so your choices aren't limited to only what's served. Build it into your weekly shopping.",
+      "pack_wolf": "Keep a few healthy options you fully control — fruit, nuts, yogurt, roasted chana — for between-meal hunger, so your choices aren't limited to only what's served. Share the idea with the family too."
+    },
+    "oceanTraitTags": [],
+    "effortLevel": "low"
+  },
+  {
+    "id": "NUT040",
+    "pillar": "Nutrition",
+    "category": "flexible_nutrition",
+    "type": "dont",
+    "text": "Don't try to overhaul meals you don't cook. Focus your energy on what you can influence — portions, the order you eat things, and your own snacks.",
+    "personaFit": [
+      "all_personas"
+    ],
+    "contextFit": [
+      "meal_control_prepared_by_others"
+    ],
+    "goalFit": [
+      "goal_overall_health"
+    ],
+    "barrierFit": [
+      "barrier_overwhelm_from_complexity"
+    ],
+    "excludeIf": [
+      "exclude_none"
+    ],
+    "strength": "supporting",
+    "oceanCategoryTags": [],
+    "notes": "v1.14 meals-by-others: scope to controllable.",
+    "personaContext": {
+      "shielded_turtle": "Don't try to overhaul meals you don't cook. Focus your energy on what you can influence — portions, the order you eat things, and your own snacks. Less to manage means less overwhelm.",
+      "curious_fox": "Don't try to overhaul meals you don't cook. Focus your energy on what you can influence — portions, the order you eat things, and your own snacks. Keep it light and flexible.",
+      "watchful_deer": "Don't try to overhaul meals you don't cook. Focus your energy on what you can influence — portions, the order you eat things, and your own snacks. Focus lowers the pressure.",
+      "steadfast_bear": "Don't try to overhaul meals you don't cook. Focus your energy on what you can influence — portions, the order you eat things, and your own snacks. Aim your discipline where it actually works.",
+      "steady_elephant": "Don't try to overhaul meals you don't cook. Focus your energy on what you can influence — portions, the order you eat things, and your own snacks. A clear, contained system.",
+      "pack_wolf": "Don't try to overhaul meals you don't cook. Focus your energy on what you can influence — portions, the order you eat things, and your own snacks. No need to disrupt shared meals."
+    },
+    "oceanTraitTags": [],
+    "effortLevel": "low"
+  },
+  {
+    "id": "FIT042",
+    "pillar": "Physical Activity",
+    "category": "walking_daily_activity",
+    "type": "do",
+    "text": "Take a gentle daily walk on level ground at a comfortable pace. Stop and rest if you feel dizzy, breathless, or any pain — steady and safe beats fast.",
+    "personaFit": [
+      "all_personas"
+    ],
+    "contextFit": [
+      "age_45_54",
+      "age_55_plus",
+      "activity_pref_walking"
+    ],
+    "goalFit": [
+      "goal_energy",
+      "goal_overall_health"
+    ],
+    "barrierFit": [
+      "barrier_low_activation_energy"
+    ],
+    "excludeIf": [
+      "exclude_persistent_pain"
+    ],
+    "strength": "supporting",
+    "oceanCategoryTags": [],
+    "notes": "v1.14 elderly/joint-safe walking.",
+    "personaContext": {
+      "shielded_turtle": "Take a gentle daily walk on level ground at a comfortable pace. Stop and rest if you feel dizzy, breathless, or any pain — steady and safe beats fast. Short and unhurried is perfect.",
+      "curious_fox": "Take a gentle daily walk on level ground at a comfortable pace. Stop and rest if you feel dizzy, breathless, or any pain — steady and safe beats fast. Vary your route to keep it pleasant.",
+      "watchful_deer": "Take a gentle daily walk on level ground at a comfortable pace. Stop and rest if you feel dizzy, breathless, or any pain — steady and safe beats fast. Calm, low-pressure movement.",
+      "steadfast_bear": "Take a gentle daily walk on level ground at a comfortable pace. Stop and rest if you feel dizzy, breathless, or any pain — steady and safe beats fast. Consistency matters more than pace here.",
+      "steady_elephant": "Take a gentle daily walk on level ground at a comfortable pace. Stop and rest if you feel dizzy, breathless, or any pain — steady and safe beats fast. A fixed daily slot works well.",
+      "pack_wolf": "Take a gentle daily walk on level ground at a comfortable pace. Stop and rest if you feel dizzy, breathless, or any pain — steady and safe beats fast. A companion makes it easier and safer."
+    },
+    "oceanTraitTags": [],
+    "effortLevel": "low"
+  },
+  {
+    "id": "FIT043",
+    "pillar": "Physical Activity",
+    "category": "mobility_functional_movement",
+    "type": "do",
+    "text": "Do a few minutes of seated or supported stretches and simple balance holds — like standing tall near a chair. Gentle mobility protects joints and lowers fall risk.",
+    "personaFit": [
+      "all_personas"
+    ],
+    "contextFit": [
+      "age_45_54",
+      "age_55_plus",
+      "activity_pref_yoga"
+    ],
+    "goalFit": [
+      "goal_flexibility_mobility",
+      "goal_better_recovery"
+    ],
+    "barrierFit": [
+      "barrier_low_activation_energy"
+    ],
+    "excludeIf": [
+      "exclude_none"
+    ],
+    "strength": "supporting",
+    "oceanCategoryTags": [],
+    "notes": "v1.14 elderly balance/mobility.",
+    "personaContext": {
+      "shielded_turtle": "Do a few minutes of seated or supported stretches and simple balance holds — like standing tall near a chair. Gentle mobility protects joints and lowers fall risk. Very gentle — support yourself as needed.",
+      "curious_fox": "Do a few minutes of seated or supported stretches and simple balance holds — like standing tall near a chair. Gentle mobility protects joints and lowers fall risk. Try a few different simple moves.",
+      "watchful_deer": "Do a few minutes of seated or supported stretches and simple balance holds — like standing tall near a chair. Gentle mobility protects joints and lowers fall risk. Quiet and safe, at your own pace.",
+      "steadfast_bear": "Do a few minutes of seated or supported stretches and simple balance holds — like standing tall near a chair. Gentle mobility protects joints and lowers fall risk. Treat it as deliberate maintenance.",
+      "steady_elephant": "Do a few minutes of seated or supported stretches and simple balance holds — like standing tall near a chair. Gentle mobility protects joints and lowers fall risk. Same short sequence each day.",
+      "pack_wolf": "Do a few minutes of seated or supported stretches and simple balance holds — like standing tall near a chair. Gentle mobility protects joints and lowers fall risk. Easy to do with a partner."
+    },
+    "oceanTraitTags": [],
+    "effortLevel": "low"
+  },
+  {
+    "id": "FIT044",
+    "pillar": "Physical Activity",
+    "category": "beginner_movement",
+    "type": "do",
+    "text": "Start with short 5–10 minute sessions and build up slowly over weeks. There is no rush — comfort and consistency matter more than intensity.",
+    "personaFit": [
+      "all_personas"
+    ],
+    "contextFit": [
+      "age_45_54",
+      "age_55_plus",
+      "fitness_beginner"
+    ],
+    "goalFit": [
+      "goal_overall_health"
+    ],
+    "barrierFit": [
+      "barrier_starting_difficulty"
+    ],
+    "excludeIf": [
+      "exclude_none"
+    ],
+    "strength": "core",
+    "oceanCategoryTags": [],
+    "notes": "v1.14 elderly gentle ramp.",
+    "personaContext": {
+      "shielded_turtle": "Start with short 5–10 minute sessions and build up slowly over weeks. There is no rush — comfort and consistency matter more than intensity. Tiny and safe is exactly right.",
+      "curious_fox": "Start with short 5–10 minute sessions and build up slowly over weeks. There is no rush — comfort and consistency matter more than intensity. Keep it interesting but light.",
+      "watchful_deer": "Start with short 5–10 minute sessions and build up slowly over weeks. There is no rush — comfort and consistency matter more than intensity. Slow and steady suits you.",
+      "steadfast_bear": "Start with short 5–10 minute sessions and build up slowly over weeks. There is no rush — comfort and consistency matter more than intensity. Patience now prevents setbacks later.",
+      "steady_elephant": "Start with short 5–10 minute sessions and build up slowly over weeks. There is no rush — comfort and consistency matter more than intensity. Build in small, regular steps.",
+      "pack_wolf": "Start with short 5–10 minute sessions and build up slowly over weeks. There is no rush — comfort and consistency matter more than intensity. Bring someone along if it helps."
+    },
+    "oceanTraitTags": [],
+    "effortLevel": "low"
+  },
+  {
+    "id": "FIT045",
+    "pillar": "Physical Activity",
+    "category": "injury_safety",
+    "type": "dont",
+    "text": "Don't push into sharp joint pain or breathlessness. Discomfort is a signal to ease off and rest, not to power through.",
+    "personaFit": [
+      "all_personas"
+    ],
+    "contextFit": [
+      "age_45_54",
+      "age_55_plus"
+    ],
+    "goalFit": [
+      "goal_overall_health"
+    ],
+    "barrierFit": [
+      "barrier_injury_discomfort"
+    ],
+    "excludeIf": [
+      "exclude_none"
+    ],
+    "strength": "core",
+    "oceanCategoryTags": [],
+    "notes": "v1.14 elderly safety dont.",
+    "personaContext": {
+      "shielded_turtle": "Don't push into sharp joint pain or breathlessness. Discomfort is a signal to ease off and rest, not to power through. Listening to your body keeps you safe.",
+      "curious_fox": "Don't push into sharp joint pain or breathlessness. Discomfort is a signal to ease off and rest, not to power through. Ease off and try again another day.",
+      "watchful_deer": "Don't push into sharp joint pain or breathlessness. Discomfort is a signal to ease off and rest, not to power through. Rest is the right response, not a failure.",
+      "steadfast_bear": "Don't push into sharp joint pain or breathlessness. Discomfort is a signal to ease off and rest, not to power through. Backing off protects your progress.",
+      "steady_elephant": "Don't push into sharp joint pain or breathlessness. Discomfort is a signal to ease off and rest, not to power through. Adjust the plan rather than force it.",
+      "pack_wolf": "Don't push into sharp joint pain or breathlessness. Discomfort is a signal to ease off and rest, not to power through. Tell someone if pain persists."
+    },
+    "oceanTraitTags": [],
+    "effortLevel": "low"
+  },
+  {
+    "id": "SLP032",
+    "pillar": "Sleep & Recovery",
+    "category": "shift_work_travel_sleep",
+    "type": "do",
+    "text": "Make your sleep space fully dark and quiet whenever you sleep — blackout curtains, an eye mask, earplugs — so daytime sleep is as restful as night sleep.",
+    "personaFit": [
+      "all_personas"
+    ],
+    "contextFit": [
+      "work_shift_based"
+    ],
+    "goalFit": [
+      "goal_sleep_improvement",
+      "goal_better_recovery"
+    ],
+    "barrierFit": [
+      "barrier_poor_sleep"
+    ],
+    "excludeIf": [
+      "exclude_none"
+    ],
+    "strength": "supporting",
+    "oceanCategoryTags": [],
+    "notes": "v1.14 shift-work sleep environment.",
+    "personaContext": {
+      "shielded_turtle": "Make your sleep space fully dark and quiet whenever you sleep — blackout curtains, an eye mask, earplugs — so daytime sleep is as restful as night sleep. A calm, dark room lowers the stress of odd hours.",
+      "curious_fox": "Make your sleep space fully dark and quiet whenever you sleep — blackout curtains, an eye mask, earplugs — so daytime sleep is as restful as night sleep. Small setup, big difference.",
+      "watchful_deer": "Make your sleep space fully dark and quiet whenever you sleep — blackout curtains, an eye mask, earplugs — so daytime sleep is as restful as night sleep. Control the environment to settle a busy mind.",
+      "steadfast_bear": "Make your sleep space fully dark and quiet whenever you sleep — blackout curtains, an eye mask, earplugs — so daytime sleep is as restful as night sleep. Treat your sleep setup as part of the system.",
+      "steady_elephant": "Make your sleep space fully dark and quiet whenever you sleep — blackout curtains, an eye mask, earplugs — so daytime sleep is as restful as night sleep. Set it up once and keep it consistent.",
+      "pack_wolf": "Make your sleep space fully dark and quiet whenever you sleep — blackout curtains, an eye mask, earplugs — so daytime sleep is as restful as night sleep. Let housemates know your sleep window."
+    },
+    "oceanTraitTags": [],
+    "effortLevel": "low"
+  },
+  {
+    "id": "SLP033",
+    "pillar": "Sleep & Recovery",
+    "category": "shift_work_travel_sleep",
+    "type": "do",
+    "text": "Keep one fixed wind-down routine before you sleep — whatever the clock says — instead of a fixed bedtime. The routine, not the hour, is your anchor.",
+    "personaFit": [
+      "all_personas"
+    ],
+    "contextFit": [
+      "work_shift_based"
+    ],
+    "goalFit": [
+      "goal_sleep_improvement"
+    ],
+    "barrierFit": [
+      "barrier_poor_sleep"
+    ],
+    "excludeIf": [
+      "exclude_none"
+    ],
+    "strength": "supporting",
+    "oceanCategoryTags": [],
+    "notes": "v1.14 shift-work routine anchor.",
+    "personaContext": {
+      "shielded_turtle": "Keep one fixed wind-down routine before you sleep — whatever the clock says — instead of a fixed bedtime. The routine, not the hour, is your anchor. A familiar routine feels safe on any schedule.",
+      "curious_fox": "Keep one fixed wind-down routine before you sleep — whatever the clock says — instead of a fixed bedtime. The routine, not the hour, is your anchor. Keep the ritual, vary nothing else.",
+      "watchful_deer": "Keep one fixed wind-down routine before you sleep — whatever the clock says — instead of a fixed bedtime. The routine, not the hour, is your anchor. A predictable wind-down calms you.",
+      "steadfast_bear": "Keep one fixed wind-down routine before you sleep — whatever the clock says — instead of a fixed bedtime. The routine, not the hour, is your anchor. A reliable pre-sleep sequence you can repeat.",
+      "steady_elephant": "Keep one fixed wind-down routine before you sleep — whatever the clock says — instead of a fixed bedtime. The routine, not the hour, is your anchor. Same steps every sleep, any hour.",
+      "pack_wolf": "Keep one fixed wind-down routine before you sleep — whatever the clock says — instead of a fixed bedtime. The routine, not the hour, is your anchor. Protect it even after social shifts."
+    },
+    "oceanTraitTags": [],
+    "effortLevel": "low"
+  },
+  {
+    "id": "NUT041",
+    "pillar": "Nutrition",
+    "category": "travel_work_nutrition",
+    "type": "do",
+    "text": "Plan a proper meal for the middle of your shift instead of grazing on snacks. Treat it as your main meal, timed to your working hours rather than the clock.",
+    "personaFit": [
+      "all_personas"
+    ],
+    "contextFit": [
+      "work_shift_based"
+    ],
+    "goalFit": [
+      "goal_energy",
+      "goal_overall_health"
+    ],
+    "barrierFit": [
+      "barrier_lack_of_time"
+    ],
+    "excludeIf": [
+      "exclude_none"
+    ],
+    "strength": "supporting",
+    "oceanCategoryTags": [],
+    "notes": "v1.14 shift-work meal timing.",
+    "personaContext": {
+      "shielded_turtle": "Plan a proper meal for the middle of your shift instead of grazing on snacks. Treat it as your main meal, timed to your working hours rather than the clock. One planned meal is simpler than constant snacking.",
+      "curious_fox": "Plan a proper meal for the middle of your shift instead of grazing on snacks. Treat it as your main meal, timed to your working hours rather than the clock. Keep the option varied so it doesn't bore you.",
+      "watchful_deer": "Plan a proper meal for the middle of your shift instead of grazing on snacks. Treat it as your main meal, timed to your working hours rather than the clock. A steady meal steadies your energy.",
+      "steadfast_bear": "Plan a proper meal for the middle of your shift instead of grazing on snacks. Treat it as your main meal, timed to your working hours rather than the clock. Fuel the shift deliberately.",
+      "steady_elephant": "Plan a proper meal for the middle of your shift instead of grazing on snacks. Treat it as your main meal, timed to your working hours rather than the clock. Make it a fixed part of your shift routine.",
+      "pack_wolf": "Plan a proper meal for the middle of your shift instead of grazing on snacks. Treat it as your main meal, timed to your working hours rather than the clock. Share the meal break with colleagues."
+    },
+    "oceanTraitTags": [],
+    "effortLevel": "medium"
+  },
+  {
+    "id": "FIT046",
+    "pillar": "Physical Activity",
+    "category": "recovery_sensitive_training",
+    "type": "safety_guidance",
+    "text": "If you are returning to activity after pregnancy, illness, or a medical condition, begin only with gentle movement and get clearance from your doctor before doing anything more demanding.",
+    "personaFit": [
+      "all_personas"
+    ],
+    "contextFit": [],
+    "goalFit": [
+      "goal_overall_health"
+    ],
+    "barrierFit": [
+      "barrier_injury_discomfort"
+    ],
+    "excludeIf": [
+      "exclude_none"
+    ],
+    "strength": "core",
+    "oceanCategoryTags": [],
+    "notes": "v1.14 safe-return safety guidance (surfaces alongside DR12/DR13/DR14 disclaimers).",
+    "personaContext": {
+      "shielded_turtle": "If you are returning to activity after pregnancy, illness, or a medical condition, begin only with gentle movement and get clearance from your doctor before doing anything more demanding. Gentle and cleared-first is exactly the safe path.",
+      "curious_fox": "If you are returning to activity after pregnancy, illness, or a medical condition, begin only with gentle movement and get clearance from your doctor before doing anything more demanding. Ease in; there's time to explore later.",
+      "watchful_deer": "If you are returning to activity after pregnancy, illness, or a medical condition, begin only with gentle movement and get clearance from your doctor before doing anything more demanding. Safety first removes the worry.",
+      "steadfast_bear": "If you are returning to activity after pregnancy, illness, or a medical condition, begin only with gentle movement and get clearance from your doctor before doing anything more demanding. Clearance protects your comeback.",
+      "steady_elephant": "If you are returning to activity after pregnancy, illness, or a medical condition, begin only with gentle movement and get clearance from your doctor before doing anything more demanding. Build back methodically once cleared.",
+      "pack_wolf": "If you are returning to activity after pregnancy, illness, or a medical condition, begin only with gentle movement and get clearance from your doctor before doing anything more demanding. Lean on your support while you recover."
+    },
+    "oceanTraitTags": [],
+    "effortLevel": "low"
+  },
+  {
+    "id": "NUT042",
+    "pillar": "Nutrition",
+    "category": "nutrition_recovery",
+    "type": "do",
+    "text": "During recovery — postpartum, illness, or a very demanding period — focus on eating enough and eating well. Nourishment and steady energy matter far more than cutting back.",
+    "personaFit": [
+      "all_personas"
+    ],
+    "contextFit": [],
+    "goalFit": [
+      "goal_energy",
+      "goal_better_recovery",
+      "goal_overall_health"
+    ],
+    "barrierFit": [
+      "barrier_lack_of_knowledge"
+    ],
+    "excludeIf": [
+      "exclude_none"
+    ],
+    "strength": "core",
+    "oceanCategoryTags": [],
+    "notes": "v1.14 recovery nourishment (pairs with DR18 goal-safety override).",
+    "personaContext": {
+      "shielded_turtle": "During recovery — postpartum, illness, or a very demanding period — focus on eating enough and eating well. Nourishment and steady energy matter far more than cutting back. No restriction needed — just steady nourishment.",
+      "curious_fox": "During recovery — postpartum, illness, or a very demanding period — focus on eating enough and eating well. Nourishment and steady energy matter far more than cutting back. Keep meals varied and satisfying.",
+      "watchful_deer": "During recovery — postpartum, illness, or a very demanding period — focus on eating enough and eating well. Nourishment and steady energy matter far more than cutting back. Permission to nourish, not restrict, eases pressure.",
+      "steadfast_bear": "During recovery — postpartum, illness, or a very demanding period — focus on eating enough and eating well. Nourishment and steady energy matter far more than cutting back. Fuel recovery as deliberately as training.",
+      "steady_elephant": "During recovery — postpartum, illness, or a very demanding period — focus on eating enough and eating well. Nourishment and steady energy matter far more than cutting back. Make regular, balanced meals the system.",
+      "pack_wolf": "During recovery — postpartum, illness, or a very demanding period — focus on eating enough and eating well. Nourishment and steady energy matter far more than cutting back. Accept help with meals during this time."
+    },
+    "oceanTraitTags": [],
+    "effortLevel": "low"
   }
 ]

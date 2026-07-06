@@ -1,6 +1,6 @@
 import { buildUserProfile, type BuildProfileInput } from "@/lib/recommendations/build-user-profile";
-import { filterRecommendations } from "@/lib/recommendations/filter";
-import { injectGoalPreferenceBridge } from "@/lib/recommendations/goal-preference-bridge";
+import { filterForProfile } from "@/lib/recommendations/filter";
+import { injectGoalPreferenceBridge, injectSafeReturnRec } from "@/lib/recommendations/goal-preference-bridge";
 import { injectModalityAnchors } from "@/lib/recommendations/modality-anchors";
 import { validatePreGeneration } from "@/lib/recommendations/report-validation";
 import { buildActionPlan } from "@/lib/recommendations/gemini-synthesis";
@@ -16,10 +16,10 @@ export async function runRecommendationEngine(
 ): Promise<ActionPlan> {
   const config = await loadRecommendationConfig();
   const profile = buildUserProfile(input, config);
-  const filtered = filterRecommendations(config.recommendations, profile);
+  const filtered = filterForProfile(config.recommendations, profile);
   const scored = scoreAll(filtered, profile);
-  const ranked = injectModalityAnchors(
-    injectGoalPreferenceBridge(scored, profile, scored),
+  const ranked = injectSafeReturnRec(
+    injectModalityAnchors(injectGoalPreferenceBridge(scored, profile, scored), profile, scored),
     profile,
     scored,
   );

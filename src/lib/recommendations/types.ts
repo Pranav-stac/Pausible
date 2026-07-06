@@ -63,6 +63,10 @@ export type UserProfile = {
   oceanCategoryTags: string[];
   /** True when DR11 goal-preference bridge applies (FIT037). */
   goalPreferenceBridge: boolean;
+  /** CQ01 — exact or band-derived age when available. */
+  computedAgeYears: number | null;
+  isMinor: boolean;
+  isElderly65: boolean;
 };
 
 export type ScoreBreakdown = {

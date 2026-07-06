@@ -1,42 +1,46 @@
+"use client";
+
+import { ArrowRight } from "@/components/marketing/icons";
+import { MarketingReveal } from "@/components/marketing/MarketingReveal";
 import { TrackedAssessmentLink } from "@/components/marketing/TrackedAssessmentLink";
-import { CTA_PRIMARY_CLASS, MARKETING_CONTAINER, MARKETING_SECTION } from "@/components/marketing/marketing-brand";
+import { MARKETING_CONTAINER } from "@/components/marketing/marketing-brand";
 
 export function FinalCTA({ href }: { href: string }) {
   return (
-    <section className={`${MARKETING_SECTION} bg-[#F7F9FB]`}>
-      <div className={MARKETING_CONTAINER}>
-        <div className="relative overflow-hidden rounded-3xl bg-[#0D1B2A] px-6 py-14 sm:px-12 sm:py-16 lg:rounded-[2rem] lg:py-20">
-          <div
-            className="pointer-events-none absolute inset-0 opacity-40"
-            aria-hidden
-            style={{
-              background:
-                "radial-gradient(ellipse 80% 60% at 0% 100%, rgb(0 201 200 / 0.18), transparent 55%), radial-gradient(ellipse 60% 50% at 100% 0%, rgb(45 130 255 / 0.2), transparent 50%)",
-            }}
-          />
+    <section id="start" className="scroll-mt-20 bg-white">
+      <div className={`${MARKETING_CONTAINER} px-6 py-[104px] sm:px-6`}>
+        <MarketingReveal>
+          <div className="relative overflow-hidden rounded-[32px] bg-[image:var(--marketing-grad)] px-7 py-12 text-center shadow-[0_40px_90px_-36px_rgba(2,132,199,0.55)] sm:px-[72px] sm:py-20">
+            <div
+              className="pointer-events-none absolute -top-20 -right-10 h-[280px] w-[280px] rounded-full bg-white/18 blur-[20px]"
+              aria-hidden
+            />
+            <div
+              className="pointer-events-none absolute -bottom-[120px] -left-[60px] h-[320px] w-[320px] rounded-full bg-white/12 blur-[20px]"
+              aria-hidden
+            />
 
-          <div className="relative max-w-2xl">
-            <h2 className="text-balance text-3xl font-bold tracking-tight text-white sm:text-4xl">
-              Ready to meet your wellness persona?
-            </h2>
-            <p className="mt-4 max-w-[42ch] text-base leading-relaxed text-white/85 sm:text-lg">
-              Pause. Reflect. Accelerate. Your first step takes 15–20 minutes, and it finally fits you.
-            </p>
+            <div className="relative mx-auto max-w-2xl">
+              <h2 className="text-balance text-[clamp(30px,4vw,48px)] font-bold leading-[1.1] tracking-[-0.02em] text-white">
+                Ready to meet your wellness persona?
+              </h2>
+              <p className="mx-auto mt-[18px] max-w-[520px] text-pretty text-[clamp(17px,1.5vw,20px)] leading-[1.6] text-white/92">
+                Pause. Reflect. Accelerate. Your first step takes 15–20 minutes — and it finally fits you.
+              </p>
 
-            <TrackedAssessmentLink
-              href={href}
-              placement="final_cta"
-              className={`mt-8 ${CTA_PRIMARY_CLASS} !bg-white !text-[#2D82FF] ring-white/20 hover:!bg-white/95`}
-            >
-              Get started
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                <path d="M5 12h14M13 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </TrackedAssessmentLink>
+              <TrackedAssessmentLink
+                href={href}
+                placement="final_cta"
+                className="mt-9 inline-flex min-h-[56px] items-center justify-center gap-2 rounded-[14px] bg-white px-[38px] py-[17px] text-lg font-bold text-[#0284C7] shadow-[0_18px_40px_-14px_rgba(0,0,0,0.3)] transition hover:-translate-y-0.5"
+              >
+                Get Started
+                <ArrowRight className="h-[18px] w-[18px]" />
+              </TrackedAssessmentLink>
 
-            <p className="mt-5 text-sm text-white/65">Takes 15–20 minutes · No credit card required</p>
+              <p className="mt-5 text-sm font-medium text-white/85">Takes 15–20 minutes · No credit card required</p>
+            </div>
           </div>
-        </div>
+        </MarketingReveal>
       </div>
     </section>
   );

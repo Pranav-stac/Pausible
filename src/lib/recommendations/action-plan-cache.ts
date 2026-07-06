@@ -10,10 +10,11 @@ import { stripUndefinedDeep } from "@/lib/firebase/strip-undefined";
 import type { AttemptAnswers, AttemptScores } from "@/types/models";
 
 /** Bump when prompt/context changes so stale cached plans regenerate. */
-export const ACTION_PLAN_SYNTHESIS_VERSION = "v30-blocklist-scrub";
+export const ACTION_PLAN_SYNTHESIS_VERSION = "v33-pda-v12-final";
 
 export type StoredActionPlanCache = {
   inputHash: string;
+  synthesisVersion: string;
   plan: ActionPlanApiResponse["plan"];
   llmProvider?: ReportLlmProvider;
   synthesizedAt?: string;
@@ -38,6 +39,7 @@ export function buildStoredActionPlanCache(
 ): StoredActionPlanCache {
   return stripUndefinedDeep({
     inputHash,
+    synthesisVersion: ACTION_PLAN_SYNTHESIS_VERSION,
     plan,
     llmProvider,
     synthesizedAt: new Date().toISOString(),
@@ -92,6 +94,10 @@ export function readStoredActionPlanCache(
   const inputHash = typeof row.inputHash === "string" ? row.inputHash : "";
   if (!inputHash || !plan || typeof plan !== "object") return null;
 
+  const cachedVersion =
+    typeof row.synthesisVersion === "string" ? row.synthesisVersion : "";
+  if (cachedVersion !== ACTION_PLAN_SYNTHESIS_VERSION) return null;
+
   const cachedProvider = parseReportLlmProvider(row.llmProvider);
   if (opts?.currentProvider && opts.currentProvider !== cachedProvider) return null;
 
@@ -100,6 +106,7 @@ export function readStoredActionPlanCache(
 
   return {
     inputHash,
+    synthesisVersion: ACTION_PLAN_SYNTHESIS_VERSION,
     plan: plan as ActionPlanApiResponse["plan"],
     llmProvider: cachedProvider,
     synthesizedAt: typeof row.synthesizedAt === "string" ? row.synthesizedAt : undefined,

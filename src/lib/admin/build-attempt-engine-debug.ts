@@ -4,7 +4,7 @@ import { BARRIER_OVERRIDE_TAGS, hasBarrierOverride, type BarrierOverrideKey } fr
 import { buildUserProfile, type BuildProfileInput } from "@/lib/recommendations/build-user-profile";
 import { clusterRecommendations } from "@/lib/recommendations/cluster";
 import { auditFilterExclusions } from "@/lib/recommendations/filter-audit";
-import { filterRecommendations } from "@/lib/recommendations/filter";
+import { filterForProfile } from "@/lib/recommendations/filter";
 import { GOAL_PREFERENCE_BRIDGE_REC_ID, injectGoalPreferenceBridge } from "@/lib/recommendations/goal-preference-bridge";
 import { injectModalityAnchors } from "@/lib/recommendations/modality-anchors";
 import { loadRecommendationConfig } from "@/lib/recommendations/load-recommendation-config";
@@ -161,7 +161,7 @@ export async function buildAttemptEngineDebugPackage(
   const config = await loadRecommendationConfig();
   const profile = buildUserProfile(input, config);
   const master = config.recommendations;
-  const filtered = filterRecommendations(master, profile);
+  const filtered = filterForProfile(master, profile);
   const excluded = auditFilterExclusions(master, profile);
   const scored = scoreAll(filtered, profile);
   const preBridge = scored;

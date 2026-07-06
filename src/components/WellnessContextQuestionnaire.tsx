@@ -1,9 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { BrandLogo } from "@/components/BrandLogo";
+import {
+  ACTIVE_CARD_RING,
+  APP_HEADER,
+  APP_LINK_BACK,
+  APP_PAGE_BG_SOFT,
+  BRAND_ACCENT_TEXT,
+  CTA_PRIMARY_CLASS,
+  PROGRESS_FILL_CLASS,
+  PROGRESS_TRACK_CLASS,
+} from "@/components/marketing/marketing-brand";
 import { trackAssessmentComplete } from "@/lib/analytics/track";
 import { fetchAssessment } from "@/lib/data/assessment-service";
 import { fetchAttempt, upsertAttempt } from "@/lib/data/attempt-service";
@@ -22,7 +32,31 @@ import {
   WELLNESS_CONTEXT_PREFIX,
   wellnessContextAssessmentId,
 } from "@/data/wellness-context-questionnaire";
+import {
+  ageBandTagFromYears,
+  computeAgeYearsFromDate,
+  parseIsoDate,
+  WELLNESS_DATE_OF_BIRTH_KEY,
+} from "@/lib/recommendations/compute-wellness-age";
 import type { AssessmentDefinition, AssessmentQuestion, AssessmentSection, AttemptAnswers } from "@/types/models";
+
+const WELLNESS_AGE_RANGE_KEY = `${WELLNESS_CONTEXT_PREFIX}age_range`;
+
+const AGE_BAND_TAG_TO_OPTION: Record<string, string> = {
+  age_under_18: "Under 18",
+  age_18_24: "18–24",
+  age_25_34: "25–34",
+  age_35_44: "35–44",
+  age_45_54: "45–54",
+  age_55_plus: "55+",
+};
+
+function ageBandOptionFromDob(iso: string): string | null {
+  const dob = parseIsoDate(iso);
+  if (!dob) return null;
+  const tag = ageBandTagFromYears(computeAgeYearsFromDate(dob));
+  return AGE_BAND_TAG_TO_OPTION[tag] ?? null;
+}
 
 function flattenQuestions(def: AssessmentDefinition): AssessmentQuestion[] {
   const order: AssessmentQuestion[] = [];
@@ -85,6 +119,9 @@ export function WellnessContextQuestionnaire({
   bootstrapQuestionnaire: AssessmentDefinition | null;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const focusQuestionId = searchParams.get("q");
+  const returnPath = searchParams.get("return");
   const { effectiveUid, ready, ensureAnonymousSession } = useFirebaseAuth();
   const { requirePayment } = useAppSettings();
   const [localUid, setLocalUid] = useState<string | null>(null);
@@ -101,6 +138,7 @@ export function WellnessContextQuestionnaire({
   const [expandedPastIndex, setExpandedPastIndex] = useState<number | null>(null);
   const [oceanAnswerCount, setOceanAnswerCount] = useState(0);
   const questionRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const focusAppliedRef = useRef(false);
 
   useEffect(() => {
     queueMicrotask(() => setLocalUid(getOrCreateLocalUid()));
@@ -306,6 +344,18 @@ export function WellnessContextQuestionnaire({
     scrollToQuestion(Math.max(0, revealedCount - 2));
   }, [revealedCount, scrollToQuestion]);
 
+  useEffect(() => {
+    if (!focusQuestionId || !questions.length || sessionLoading || focusAppliedRef.current) return;
+    const idx = questions.findIndex((q) => q.id === focusQuestionId);
+    if (idx < 0) return;
+    focusAppliedRef.current = true;
+    setRevealedCount((prev) => Math.max(prev, idx + 1));
+    setExpandedPastIndex(idx);
+    window.requestAnimationFrame(() => {
+      questionRefs.current[idx]?.scrollIntoView({ behavior: "smooth", block: "start", inline: "nearest" });
+    });
+  }, [focusQuestionId, questions, sessionLoading]);
+
   const allComplete = useMemo(
     () => (questionnaire ? allSectionsComplete(questionnaire, answers) : false),
     [questionnaire, answers],
@@ -379,9 +429,7 @@ export function WellnessContextQuestionnaire({
 
       const afterNext = requirePayment ? "checkout" : "results";
       const afterPath = `/after-assessment/${encodeURIComponent(attemptId)}?next=${afterNext}`;
-      router.push(
-        `/submission-confirmed/${encodeURIComponent(attemptId)}?next=${encodeURIComponent(afterPath)}`,
-      );
+      router.push(returnPath ?? `/submission-confirmed/${encodeURIComponent(attemptId)}?next=${encodeURIComponent(afterPath)}`);
     } catch (e) {
       setSubmitError(e instanceof Error ? e.message : "Could not submit. Please try again.");
     } finally {
@@ -395,6 +443,7 @@ export function WellnessContextQuestionnaire({
     ensureAnonymousSession,
     questionnaire,
     requirePayment,
+    returnPath,
     router,
   ]);
 
@@ -421,7 +470,7 @@ export function WellnessContextQuestionnaire({
     return (
       <div className="mx-auto max-w-lg px-4 py-16 text-center">
         <p className="text-sm text-red-700">{questionnaireError}</p>
-        <Link href="/" className="mt-6 inline-block text-sm font-semibold text-sky-700">
+        <Link href="/" className={`mt-6 inline-block ${APP_LINK_BACK}`}>
           ← Back to home
         </Link>
       </div>
@@ -432,7 +481,7 @@ export function WellnessContextQuestionnaire({
     return (
       <div className="mx-auto max-w-lg px-4 py-16 text-center">
         <p className="text-sm text-red-700">{loadError}</p>
-        <Link href="/" className="mt-6 inline-block text-sm font-semibold text-sky-700">
+        <Link href="/" className={`mt-6 inline-block ${APP_LINK_BACK}`}>
           ← Back to home
         </Link>
       </div>
@@ -440,14 +489,22 @@ export function WellnessContextQuestionnaire({
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-slate-100 via-slate-50 to-emerald-50/40 pb-[10rem] sm:pb-44">
-      <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/90 backdrop-blur-md">
+    <div className={`${APP_PAGE_BG_SOFT} pb-[10rem] sm:pb-44`}>
+      <header className={APP_HEADER}>
         <div className={`${assessmentShellClass} ${assessmentShellPadClass} flex flex-col gap-2 py-3`}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <Link href="/" className="rounded-lg outline-offset-4" aria-label="Pausible home">
               <BrandLogo heightClass="h-7 sm:h-8" withWordmark wordmarkClassName="text-base sm:text-[1.05rem]" />
             </Link>
             <div className="flex items-center gap-2">
+              {returnPath ? (
+                <Link
+                  href={returnPath}
+                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  ← Back to review
+                </Link>
+              ) : null}
               <span className="text-[11px] font-semibold text-slate-600">Step 2 of 2 · Context</span>
             </div>
           </div>
@@ -465,13 +522,10 @@ export function WellnessContextQuestionnaire({
             </p>
           ) : null}
           <div className="flex min-w-0 items-center gap-2">
-            <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-slate-200/80">
-              <div
-                className="h-full rounded-full bg-linear-to-r from-emerald-500 to-teal-600 transition-all"
-                style={{ width: `${progressPct}%` }}
-              />
+            <div className={PROGRESS_TRACK_CLASS}>
+              <div className={PROGRESS_FILL_CLASS} style={{ width: `${progressPct}%` }} />
             </div>
-            <span className="shrink-0 text-[11px] font-semibold tabular-nums text-slate-700">{progressPct}%</span>
+            <span className="shrink-0 text-[11px] font-semibold tabular-nums text-[#4D4D4D]">{progressPct}%</span>
           </div>
           <div className="flex justify-end">
             <button
@@ -504,7 +558,7 @@ export function WellnessContextQuestionnaire({
               return (
                 <div key={q.id}>
                   {sectionHeader ? (
-                    <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-700/80">
+                    <p className={`mb-2 text-[10px] font-bold uppercase tracking-[0.2em] ${BRAND_ACCENT_TEXT}`}>
                       {sectionHeader.title.replace(/^Section \d+ — /, "")}
                     </p>
                   ) : null}
@@ -516,7 +570,7 @@ export function WellnessContextQuestionnaire({
                   >
                     <button
                       type="button"
-                      className="flex w-full items-start gap-3 rounded-2xl border border-slate-200/95 bg-white/95 px-4 py-3 text-left shadow-sm ring-1 ring-slate-100/85 transition-colors hover:border-emerald-300/70 hover:bg-white active:bg-emerald-50/40 sm:rounded-3xl sm:py-3.5"
+                      className="flex w-full items-start gap-3 rounded-2xl border border-slate-200/95 bg-white/95 px-4 py-3 text-left shadow-sm ring-1 ring-slate-100/85 transition-colors hover:border-[#2D82FF]/40 hover:bg-white active:bg-[#F7F9FB] sm:rounded-3xl sm:py-3.5"
                       onClick={() => {
                         setExpandedPastIndex(idx);
                         window.requestAnimationFrame(() => {
@@ -528,7 +582,7 @@ export function WellnessContextQuestionnaire({
                         });
                       }}
                     >
-                      <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-800">
+                      <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#00C9C8]/15 text-sm font-bold text-[#00A8A7]">
                         ✓
                       </span>
                       <span className="min-w-0 flex-1">
@@ -537,7 +591,7 @@ export function WellnessContextQuestionnaire({
                         </span>
                         <p className="mt-1 line-clamp-2 text-sm font-medium leading-snug text-slate-800">{q.prompt}</p>
                         {snippet ? <p className="mt-1.5 truncate text-xs text-slate-500">{snippet}</p> : null}
-                        <p className="mt-2 text-[11px] font-semibold text-emerald-700">Tap to change answer</p>
+                        <p className={`mt-2 text-[11px] font-semibold ${BRAND_ACCENT_TEXT}`}>Tap to change answer</p>
                       </span>
                     </button>
                   </div>
@@ -564,7 +618,7 @@ export function WellnessContextQuestionnaire({
                   <article
                     className={`rounded-3xl border bg-white p-5 shadow-[0_22px_50px_-32px_rgba(15,23,42,0.18)] sm:p-8 ${
                       isActive
-                        ? "border-emerald-300/80 ring-2 ring-emerald-400/45 ring-offset-2 ring-offset-slate-50"
+                        ? ACTIVE_CARD_RING
                         : "border-slate-200/80"
                     }`}
                   >
@@ -572,7 +626,7 @@ export function WellnessContextQuestionnaire({
                       <div className="-mt-1 mb-4 flex justify-end">
                         <button
                           type="button"
-                          className="text-[11px] font-semibold text-emerald-700 underline decoration-emerald-300 underline-offset-2 hover:text-teal-800"
+                          className={`text-[11px] font-semibold ${BRAND_ACCENT_TEXT} underline decoration-[#00C9C8]/40 underline-offset-2 hover:text-[#0D1B2A]`}
                           onClick={() => setExpandedPastIndex(null)}
                         >
                           Collapse summary
@@ -581,7 +635,7 @@ export function WellnessContextQuestionnaire({
                     ) : null}
                     <p className="mb-3 text-[11px] font-semibold tabular-nums tracking-wide text-slate-500 sm:text-xs">
                       Question {idx + 1} of {total}
-                      {isActive ? <span className="ml-2 font-bold text-emerald-700">· Current</span> : null}
+                      {isActive ? <span className={`ml-2 font-bold ${BRAND_ACCENT_TEXT}`}>· Current</span> : null}
                     </p>
                     <h3 className="text-lg font-bold leading-snug tracking-tight text-slate-950 sm:text-xl">{q.prompt}</h3>
                     {q.caption ? <p className="mt-2 text-xs font-medium text-slate-500">{q.caption}</p> : null}
@@ -601,14 +655,53 @@ export function WellnessContextQuestionnaire({
                         />
                       ) : null}
                       {q.type === "single" ? (
-                        <SingleChoice
-                          options={q.options ?? []}
-                          value={singleVal}
-                          onChange={(v) => {
-                            setAnswer(q.id, v);
-                            if (idx === activeIdx) tryRevealNextAfterIndex(idx);
-                          }}
-                        />
+                        <>
+                          {q.id === WELLNESS_AGE_RANGE_KEY ? (
+                            <div className="mb-5">
+                              <label
+                                htmlFor={`${q.id}-dob`}
+                                className="mb-2 block text-xs font-semibold text-slate-700"
+                              >
+                                Date of birth
+                              </label>
+                              <input
+                                id={`${q.id}-dob`}
+                                type="date"
+                                max={new Date().toISOString().slice(0, 10)}
+                                value={
+                                  typeof answers[WELLNESS_DATE_OF_BIRTH_KEY] === "string"
+                                    ? answers[WELLNESS_DATE_OF_BIRTH_KEY]
+                                    : ""
+                                }
+                                onChange={(e) => {
+                                  const iso = e.target.value;
+                                  setAnswers((prev) => {
+                                    const next: AttemptAnswers = { ...prev, [WELLNESS_DATE_OF_BIRTH_KEY]: iso };
+                                    const band = ageBandOptionFromDob(iso);
+                                    if (band) next[WELLNESS_AGE_RANGE_KEY] = band;
+                                    return next;
+                                  });
+                                  if (iso && idx === activeIdx) {
+                                    const band = ageBandOptionFromDob(iso);
+                                    if (band) tryRevealNextAfterIndex(idx);
+                                  }
+                                }}
+                                className="w-full max-w-xs rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-[#2D82FF] focus:outline-none focus:ring-2 focus:ring-[#2D82FF]/25"
+                              />
+                              <p className="mt-2 text-[11px] text-slate-500">
+                                Or pick an age band below if you prefer not to enter your exact date.
+                              </p>
+                            </div>
+                          ) : null}
+                          <SingleChoice
+                            options={q.options ?? []}
+                            value={singleVal}
+                            onChange={(v) => {
+                              setAnswer(q.id, v);
+                              if (idx === activeIdx) tryRevealNextAfterIndex(idx);
+                            }}
+                          />
+                        </>
                       ) : null}
                       {q.type === "multi" ? (
                         <MultiChoiceAdvance
@@ -666,9 +759,9 @@ export function WellnessContextQuestionnaire({
               type="button"
               disabled={!allComplete || submitting}
               onClick={() => void handleSubmit()}
-              className="rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-lg disabled:opacity-40"
+              className={`${CTA_PRIMARY_CLASS} disabled:opacity-40`}
             >
-              {submitting ? "Saving your responses…" : "Submit responses"}
+              {submitting ? "Saving your responses…" : returnPath ? "Save & return to review" : "Submit responses"}
             </button>
           </div>
         </div>
@@ -743,8 +836,8 @@ function StressLikertScale({
               aria-pressed={pressed}
               className={`flex min-h-[2.75rem] w-full flex-col items-center justify-center rounded-xl border px-0.5 py-2.5 text-sm font-bold transition sm:min-h-[3.1rem] sm:rounded-2xl sm:text-base ${
                 pressed
-                  ? "border-transparent bg-linear-to-br from-emerald-500 to-teal-600 text-white shadow-md"
-                  : "border-slate-200 bg-white text-slate-900 hover:border-emerald-400/70"
+                  ? "border-transparent bg-linear-to-br from-[#00C9C8] to-[#2D82FF] text-white shadow-md"
+                  : "border-slate-200 bg-white text-[#0D1B2A] hover:border-[#2D82FF]/50"
               }`}
             >
               <span className="tabular-nums">{n}</span>
@@ -776,7 +869,7 @@ function SingleChoice({
             onClick={() => onChange(opt)}
             className={`flex w-full min-h-[3rem] items-center rounded-2xl border px-4 py-3 text-left text-sm transition ${
               active
-                ? "border-emerald-500 bg-emerald-50/80 text-slate-900 shadow-inner"
+                ? "border-[#2D82FF]/50 bg-[#F7F9FB] text-[#0D1B2A] shadow-inner"
                 : "border-slate-200 bg-white text-slate-800 hover:border-slate-300"
             }`}
           >
@@ -849,7 +942,7 @@ function MultiChoiceAdvance({
         type="button"
         disabled={!canContinue}
         onClick={() => onContinue(value)}
-        className="mt-2 w-full rounded-full bg-emerald-700 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
+        className={`mt-2 w-full ${CTA_PRIMARY_CLASS} !min-h-[44px] !py-2.5 disabled:opacity-40`}
       >
         Continue
       </button>

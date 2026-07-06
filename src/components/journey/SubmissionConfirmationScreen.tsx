@@ -2,9 +2,24 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
-import { BrandLogo } from "@/components/BrandLogo";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { AppPageShell } from "@/components/AppPageShell";
+import { SubmissionAnswersReview } from "@/components/journey/SubmissionAnswersReview";
+import {
+  APP_BODY,
+  APP_HEADING_MD,
+  APP_LINK_BACK,
+  APP_MUTED,
+  APP_PAGE_BG_SOFT,
+  BRAND_ACCENT_TEXT,
+  CTA_PRIMARY_FULL_CLASS,
+  FORM_CARD_CLASS,
+} from "@/components/marketing/marketing-brand";
+import { getWellnessContextQuestionnaire } from "@/data/wellness-context-questionnaire";
+import { buildAttemptAnswerBlocks, countAnsweredRows } from "@/lib/admin/format-attempt-answer";
+import { fetchAssessment } from "@/lib/data/assessment-service";
 import { fetchAttempt } from "@/lib/data/attempt-service";
+import type { AssessmentDefinition } from "@/types/models";
 
 const NEXT_STEPS = [
   "Analyze your personality patterns and behavioral tendencies",
@@ -17,8 +32,11 @@ export function SubmissionConfirmationScreen({ attemptId }: { attemptId: string 
   const params = useSearchParams();
   const afterPath =
     params.get("next") ?? `/after-assessment/${encodeURIComponent(attemptId)}?next=results`;
+  const returnPath = `/submission-confirmed/${encodeURIComponent(attemptId)}?next=${encodeURIComponent(afterPath)}`;
   const [checking, setChecking] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [personalityAssessment, setPersonalityAssessment] = useState<AssessmentDefinition | null>(null);
+  const [answers, setAnswers] = useState<Record<string, unknown>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -32,7 +50,13 @@ export function SubmissionConfirmationScreen({ attemptId }: { attemptId: string 
         }
         if (!attempt.scores?.persona) {
           router.replace(`/wellness-context/${encodeURIComponent(attemptId)}`);
+          return;
         }
+
+        const personality = await fetchAssessment(attempt.assessmentId);
+        if (cancelled) return;
+        setPersonalityAssessment(personality);
+        setAnswers(attempt.answers ?? {});
       } catch (e) {
         if (!cancelled) setLoadError(e instanceof Error ? e.message : "Could not load your session.");
       } finally {
@@ -44,6 +68,19 @@ export function SubmissionConfirmationScreen({ attemptId }: { attemptId: string 
     };
   }, [attemptId, router]);
 
+  const answerBlocks = useMemo(() => {
+    const wellness = getWellnessContextQuestionnaire();
+    const assessments = [personalityAssessment, wellness].filter(
+      (def): def is AssessmentDefinition => def != null,
+    );
+    return buildAttemptAnswerBlocks(assessments, answers);
+  }, [answers, personalityAssessment]);
+
+  const { answered: answeredCount, total: totalCount } = useMemo(
+    () => countAnsweredRows(answerBlocks),
+    [answerBlocks],
+  );
+
   const handleContinue = useCallback(() => {
     router.push(
       `/report-building/${encodeURIComponent(attemptId)}?next=${encodeURIComponent(afterPath)}`,
@@ -52,7 +89,7 @@ export function SubmissionConfirmationScreen({ attemptId }: { attemptId: string 
 
   if (checking) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f7f8fa] text-sm text-slate-500">
+      <div className={`flex min-h-screen items-center justify-center ${APP_PAGE_BG_SOFT} ${APP_BODY}`}>
         Confirming your responses…
       </div>
     );
@@ -60,9 +97,9 @@ export function SubmissionConfirmationScreen({ attemptId }: { attemptId: string 
 
   if (loadError) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-[#f7f8fa] px-5 text-center">
+      <div className={`flex min-h-screen flex-col items-center justify-center ${APP_PAGE_BG_SOFT} px-5 text-center`}>
         <p className="text-sm text-red-700">{loadError}</p>
-        <Link href="/" className="mt-6 text-sm font-semibold text-sky-700 hover:text-sky-900">
+        <Link href="/" className={`mt-6 font-semibold ${APP_LINK_BACK}`}>
           ← Back to home
         </Link>
       </div>
@@ -70,70 +107,56 @@ export function SubmissionConfirmationScreen({ attemptId }: { attemptId: string 
   }
 
   return (
-    <main className="min-h-screen bg-[#f7f8fa] scheme-light">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -left-24 top-0 h-72 w-72 rounded-full bg-emerald-200/30 blur-3xl" />
-        <div className="absolute -right-16 top-32 h-80 w-80 rounded-full bg-sky-200/25 blur-3xl" />
+    <AppPageShell stepLabel="Step 2 complete" contentClassName="!max-w-7xl !py-8 lg:!py-10">
+      <div className={`${FORM_CARD_CLASS} p-6 text-center sm:p-8 lg:p-10`}>
+        <div
+          className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-linear-to-br from-[#00C9C8] to-[#2D82FF] text-2xl font-bold text-white shadow-[0_8px_24px_-6px_rgba(45,130,255,0.45)]"
+          aria-hidden
+        >
+          ✓
+        </div>
+
+        <h1 className={`mt-7 ${APP_HEADING_MD}`}>Your responses are saved</h1>
+        <p className={`mx-auto mt-4 max-w-3xl ${APP_BODY}`}>
+          Thank you for completing both steps. Below is everything you answered — review it anytime before we build
+          your personalized intelligence report.
+        </p>
       </div>
 
-      <header className="relative z-10 border-b border-slate-200/70 bg-white/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-5 py-4 sm:px-8">
-          <Link href="/" className="rounded-lg outline-offset-4" aria-label="Pausible home">
-            <BrandLogo heightClass="h-7 sm:h-8" withWordmark wordmarkClassName="text-base sm:text-lg" />
-          </Link>
-          <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-            Step 2 complete
-          </span>
-        </div>
-      </header>
+      <div className="mt-6 grid gap-6 lg:mt-8 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-8 xl:grid-cols-[minmax(0,1fr)_360px] xl:gap-10">
+        <SubmissionAnswersReview
+          blocks={answerBlocks}
+          answeredCount={answeredCount}
+          totalCount={totalCount}
+          attemptId={attemptId}
+          returnPath={returnPath}
+        />
 
-      <div className="relative z-10 mx-auto flex min-h-[calc(100vh-4.5rem)] max-w-lg flex-col items-center justify-center px-5 py-12 sm:px-8">
-        <div className="w-full rounded-[2rem] border border-white/80 bg-white p-8 text-center shadow-[0_28px_70px_-40px_rgba(15,23,42,0.18)] ring-1 ring-slate-100 sm:p-10">
-          <div
-            className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-linear-to-br from-emerald-500 to-teal-600 text-2xl font-bold text-white shadow-lg shadow-emerald-500/25"
-            aria-hidden
-          >
-            ✓
-          </div>
+        <aside className={`${FORM_CARD_CLASS} lg:sticky lg:top-6 p-6 text-left sm:p-7`}>
+          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#6E7191]">What happens next</p>
+          <ul className="mt-4 space-y-3">
+            {NEXT_STEPS.map((step) => (
+              <li key={step} className={`flex items-start gap-3 leading-snug ${APP_BODY} !text-sm`}>
+                <span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[#00C9C8]/15 text-[10px] font-bold ${BRAND_ACCENT_TEXT}`}>
+                  ✓
+                </span>
+                {step}
+              </li>
+            ))}
+          </ul>
 
-          <h1 className="mt-7 text-2xl font-black tracking-tight text-slate-950 sm:text-[1.75rem]">
-            Your responses are saved
-          </h1>
-          <p className="mt-4 text-base leading-relaxed text-slate-600">
-            Thank you for completing the wellness questionnaire. We&apos;ve recorded your answers and are ready to
-            build your personalized intelligence report.
-          </p>
-
-          <div className="mt-8 rounded-2xl border border-slate-100 bg-slate-50/80 px-5 py-5 text-left">
-            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">What happens next</p>
-            <ul className="mt-4 space-y-3">
-              {NEXT_STEPS.map((step) => (
-                <li key={step} className="flex items-start gap-3 text-sm leading-snug text-slate-700">
-                  <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-100 text-[10px] font-bold text-emerald-700">
-                    ✓
-                  </span>
-                  {step}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleContinue}
-            className="mt-9 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-slate-950 px-10 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
-          >
+          <button type="button" onClick={handleContinue} className={`mt-8 ${CTA_PRIMARY_FULL_CLASS}`}>
             Build my report
             <span className="ml-1.5" aria-hidden>
               →
             </span>
           </button>
 
-          <p className="mt-5 text-xs leading-relaxed text-slate-500">
+          <p className={`mt-4 ${APP_MUTED} !text-xs`}>
             This usually takes about 15 seconds. Your answers are saved — you can close this tab and return anytime.
           </p>
-        </div>
+        </aside>
       </div>
-    </main>
+    </AppPageShell>
   );
 }

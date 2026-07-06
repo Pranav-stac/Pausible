@@ -1,5 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { computeGoalPreferenceBridge } from "@/lib/recommendations/build-user-profile";
+import { buildUserProfile, computeGoalPreferenceBridge, type BuildProfileInput } from "@/lib/recommendations/build-user-profile";
+import { buildRecommendationSeedPayload } from "@/lib/recommendations/build-seed-payload";
+
+describe("wellness legacy option aliases", () => {
+  it("maps v1.3 fitness labels to canonical tags", () => {
+    const config = buildRecommendationSeedPayload();
+    const profile = buildUserProfile(
+      {
+        answers: {
+          wc_fitness_level: "Beginner — I rarely exercise",
+          wc_stress_level: "High",
+        },
+        scores: null,
+      },
+      config,
+    );
+    expect(profile.context).toContain("fitness_beginner");
+    expect(profile.context).toContain("stress_high");
+    expect(profile.barriers).toContain("barrier_work_stress");
+  });
+});
 
 describe("PDA §21.14 DR11 goal-preference bridge", () => {
   it("surfaces bridge when strength goal lacks resistance preference", () => {

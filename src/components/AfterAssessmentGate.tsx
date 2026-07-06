@@ -4,6 +4,14 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BrandLogo } from "@/components/BrandLogo";
+import {
+  APP_BODY,
+  APP_HEADING_MD,
+  APP_LINK_BACK,
+  APP_PAGE_BG_SOFT,
+  CTA_PRIMARY_CLASS,
+  FORM_CARD_CLASS,
+} from "@/components/marketing/marketing-brand";
 import { tryClaimAttemptForSession } from "@/lib/data/attempt-claim-client";
 import { fetchAssessment } from "@/lib/data/assessment-service";
 import { fetchAttempt, finalizeAttemptPayment } from "@/lib/data/attempt-service";
@@ -131,7 +139,7 @@ export function AfterAssessmentGate({ attemptId }: { attemptId: string }) {
 
   if (!ready || settingsLoading || (returningFromGoogleRedirect && !hasGoogleIdentity && !err)) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 px-4 text-sm text-slate-600">
+      <div className={`flex min-h-screen flex-col items-center justify-center ${APP_PAGE_BG_SOFT} px-4 ${APP_BODY}`}>
         {returningFromGoogleRedirect ? "Completing Google sign-in…" : "Preparing…"}
       </div>
     );
@@ -144,24 +152,24 @@ export function AfterAssessmentGate({ attemptId }: { attemptId: string }) {
 
   if (hasGoogleIdentity && !err) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 px-4 text-sm text-slate-600">
+      <div className={`flex min-h-screen flex-col items-center justify-center ${APP_PAGE_BG_SOFT} px-4 ${APP_BODY}`}>
         Redirecting…
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-slate-100 via-white to-sky-50/40 px-4 py-12">
+    <div className={`${APP_PAGE_BG_SOFT} px-4 py-12`}>
       <div className="mx-auto max-w-md">
         <div className="mb-8 flex justify-center">
-          <Link href="/" className="rounded-lg outline-offset-4" aria-label="Pausible home">
-            <BrandLogo heightClass="h-8" withWordmark wordmarkClassName="text-lg" />
+          <Link href="/" className="rounded-lg outline-offset-4" aria-label="Pausibl home">
+            <BrandLogo sizeClass="text-lg" />
           </Link>
         </div>
 
-        <div className="rounded-3xl border border-slate-200/90 bg-white p-8 shadow-[0_24px_60px_-28px_rgba(15,23,42,0.2)]">
-          <h1 className="text-center text-xl font-semibold tracking-tight text-slate-900">Sign in to see your results</h1>
-          <p className="mt-3 text-center text-sm leading-relaxed text-slate-600">
+        <div className={`${FORM_CARD_CLASS} p-8`}>
+          <h1 className={`text-center ${APP_HEADING_MD}`}>Sign in to see your results</h1>
+          <p className={`mt-3 text-center ${APP_BODY}`}>
             Your assessment is saved. Sign in with Google to attach it to your account and open{" "}
             {resolvedNext === "checkout" ? "checkout" : "your results"} — results are not available without Google
             sign-in.
@@ -178,18 +186,18 @@ export function AfterAssessmentGate({ attemptId }: { attemptId: string }) {
               type="button"
               disabled={busy}
               onClick={() => void onConnectGoogle()}
-              className="w-full rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-slate-900 disabled:opacity-50"
+              className={`w-full ${CTA_PRIMARY_CLASS} disabled:opacity-50`}
             >
               {busy ? "Working…" : "Sign in with Google"}
             </button>
           </div>
 
-          <p className="mt-6 text-center text-[11px] leading-relaxed text-slate-500">
+          <p className={`mt-6 text-center text-[11px] leading-relaxed ${APP_BODY} !text-[#6E7191]`}>
             Use the same browser you used for the assessment so we can match your answers if you sign in with an
             existing Google account.
           </p>
 
-          <Link href="/" className="mt-6 block text-center text-sm font-semibold text-sky-700 hover:text-indigo-800">
+          <Link href="/" className={`mt-6 block text-center font-semibold ${APP_LINK_BACK}`}>
             ← Home
           </Link>
         </div>

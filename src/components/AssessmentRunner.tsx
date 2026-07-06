@@ -1,9 +1,18 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { BrandLogo } from "@/components/BrandLogo";
+import {
+  ACTIVE_CARD_RING,
+  APP_HEADER,
+  APP_PAGE_BG_SOFT,
+  BRAND_ACCENT_TEXT,
+  CTA_PRIMARY_CLASS,
+  PROGRESS_FILL_CLASS,
+  PROGRESS_TRACK_CLASS,
+} from "@/components/marketing/marketing-brand";
 import { trackAssessmentComplete, trackAssessmentStart } from "@/lib/analytics/track";
 import { assessmentShellClass, assessmentShellPadClass } from "@/lib/assessment/layout";
 import { getWellnessContextQuestionnaire, WELLNESS_CONTEXT_PREFIX } from "@/data/wellness-context-questionnaire";
@@ -52,6 +61,11 @@ export function AssessmentRunner({
   bootstrapRequirePayment: boolean | null;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const resumeAttemptId = searchParams.get("resume");
+  const focusQuestionId = searchParams.get("q");
+  const returnPath = searchParams.get("return");
+  const editMode = Boolean(resumeAttemptId && returnPath);
   const { effectiveUid, ready, ensureAnonymousSession } = useFirebaseAuth();
   const serverPaymentHint = typeof bootstrapRequirePayment === "boolean" ? bootstrapRequirePayment : undefined;
   const { requirePayment } = useAppSettings(serverPaymentHint);
@@ -70,6 +84,8 @@ export function AssessmentRunner({
   const claimSecretRef = useRef("");
   const startTrackedRef = useRef<string | null>(null);
   const assessmentSessionIdRef = useRef<string | null>(null);
+  const resumeLoadedRef = useRef(false);
+  const focusAppliedRef = useRef(false);
 
   useEffect(() => {
     queueMicrotask(() => setLocalUid(getOrCreateLocalUid()));
@@ -89,6 +105,8 @@ export function AssessmentRunner({
     if (!assessment?.id) return;
     if (assessmentSessionIdRef.current === assessment.id) return;
     assessmentSessionIdRef.current = assessment.id;
+    if (resumeAttemptId) return;
+
     const saved = loadOceanProgress(assessment.id);
     if (saved?.attemptId) {
       attemptIdRef.current = saved.attemptId;
@@ -111,7 +129,37 @@ export function AssessmentRunner({
     } catch {
       /* quota / private mode */
     }
-  }, [assessment]);
+  }, [assessment?.id, resumeAttemptId]);
+
+  useEffect(() => {
+    if (!assessment?.id || !resumeAttemptId || resumeLoadedRef.current || !attemptUid) return;
+    resumeLoadedRef.current = true;
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const attempt = await fetchAttempt(resumeAttemptId);
+        if (cancelled || !attempt) return;
+
+        attemptIdRef.current = resumeAttemptId;
+        const flat = flattenQuestions(assessment);
+        const restored: Record<string, number | string | string[]> = {};
+        for (const q of flat) {
+          const val = attempt.answers?.[q.id];
+          if (val !== undefined && val !== null) restored[q.id] = val as number | string | string[];
+        }
+
+        setAnswers(restored);
+        setRevealedCount(flat.length);
+      } catch {
+        /* ignore */
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [assessment, attemptUid, resumeAttemptId]);
 
   useEffect(() => {
     if (bootstrapAssessment != null) return;
@@ -151,6 +199,17 @@ export function AssessmentRunner({
   const setAnswer = useCallback((qid: string, value: number | string | string[]) => {
     setAnswers((prev) => ({ ...prev, [qid]: value }));
   }, []);
+
+  useEffect(() => {
+    if (!focusQuestionId || !questions.length || focusAppliedRef.current) return;
+    const idx = questions.findIndex((q) => q.id === focusQuestionId);
+    if (idx < 0) return;
+    focusAppliedRef.current = true;
+    setRevealedCount((prev) => Math.max(prev, idx + 1));
+    window.requestAnimationFrame(() => {
+      questionRefs.current[idx]?.scrollIntoView({ behavior: "smooth", block: "start", inline: "nearest" });
+    });
+  }, [focusQuestionId, questions]);
 
   useEffect(() => {
     if (!assessment?.id || !attemptIdRef.current) return;
@@ -308,6 +367,60 @@ export function AssessmentRunner({
     router.push(`/after-assessment/${encodeURIComponent(id)}?next=${next}`);
   }, [answers, assessment, attemptUid, ensureAnonymousSession, questions, requirePayment, router]);
 
+  const handleSaveAndReturn = useCallback(async () => {
+    if (!assessment || !attemptUid || !attemptIdRef.current || !returnPath) return;
+
+    const merged: Record<string, number | string | string[]> = {};
+    for (const q of questions) {
+      const c = coerceAnswer(q, answers[q.id]);
+      if (c === null) throw new Error("Some answers are still incomplete. Please review each question.");
+      merged[q.id] = c;
+    }
+
+    let saveUid = attemptUid;
+    if (isFirebaseConfigured()) {
+      const firebaseUid = await ensureAnonymousSession();
+      if (!firebaseUid) {
+        throw new Error("Could not save your assessment. Please check your connection and try again.");
+      }
+      saveUid = firebaseUid;
+    }
+
+    const id = attemptIdRef.current;
+    const prev = await fetchAttempt(id);
+    if (!prev) throw new Error("Session not found.");
+
+    const payload: AttemptAnswers = { ...(prev.answers ?? {}), ...mergeProfileDraftIntoAnswers(merged) };
+    const personaConfig = await fetchPersonaScoringConfig();
+    const scores = computeAttemptScores(payload, personaConfig);
+    const personaAnalysis = scores.persona ?? null;
+
+    let claimSecret = "";
+    try {
+      if (typeof window !== "undefined") {
+        claimSecret = localStorage.getItem(claimStorageKey(id)) ?? "";
+      }
+    } catch {
+      /* private mode */
+    }
+    const claim = claimSecret.length >= 16 ? { claimSecret } : {};
+
+    await upsertAttempt({
+      id,
+      uid: saveUid,
+      assessmentId: prev.assessmentId,
+      answers: payload,
+      scores,
+      personaAnalysis,
+      paymentStatus: prev.paymentStatus,
+      shareToken: prev.shareToken ?? null,
+      isLatestShareEligible: Boolean(prev.isLatestShareEligible),
+      ...claim,
+    });
+
+    router.push(returnPath);
+  }, [answers, assessment, attemptUid, ensureAnonymousSession, questions, returnPath, router]);
+
   const fillAllRandomTesting = useCallback(() => {
     if (!questions.length || !assessment || !attemptUid) return;
     const next = randomAnswersForQuestions(questions);
@@ -374,14 +487,23 @@ export function AssessmentRunner({
   const showCompletion = revealedCount >= total;
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-slate-100 via-slate-50 to-sky-50/90 pb-[10rem] sm:pb-44">
-      <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/90 backdrop-blur-md">
+    <div className={`${APP_PAGE_BG_SOFT} pb-[10rem] sm:pb-44`}>
+      <header className={APP_HEADER}>
         <div className={`${assessmentShellClass} ${assessmentShellPadClass} flex flex-col gap-2 py-3`}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <Link href="/" className="flex items-center rounded-lg outline-offset-4" aria-label="Pausible home">
               <BrandLogo heightClass="h-7 sm:h-8" withWordmark wordmarkClassName="text-base sm:text-[1.05rem]" />
             </Link>
-            {showTestFill ? (
+            <div className="flex items-center gap-2">
+              {editMode && returnPath ? (
+                <Link
+                  href={returnPath}
+                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  ← Back to review
+                </Link>
+              ) : null}
+              {showTestFill ? (
               <button
                 type="button"
                 title="Development / QA only — fills personality inventory only"
@@ -390,17 +512,15 @@ export function AssessmentRunner({
               >
                 Fill personas (test)
               </button>
-            ) : null}
+              ) : null}
+            </div>
           </div>
 
           <div className="flex min-w-0 items-center gap-2">
-            <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-slate-200/80">
-              <div
-                className="h-full rounded-full bg-linear-to-r from-sky-500 to-indigo-500 transition-all"
-                style={{ width: `${progress}%` }}
-              />
+            <div className={PROGRESS_TRACK_CLASS}>
+              <div className={PROGRESS_FILL_CLASS} style={{ width: `${progress}%` }} />
             </div>
-            <span className="shrink-0 text-[11px] font-semibold tabular-nums text-slate-700">{progress}%</span>
+            <span className="shrink-0 text-[11px] font-semibold tabular-nums text-[#4D4D4D]">{progress}%</span>
           </div>
 
         </div>
@@ -452,7 +572,7 @@ export function AssessmentRunner({
                 <article
                   className={`rounded-3xl border bg-white p-5 shadow-[0_22px_50px_-32px_rgba(15,23,42,0.18)] sm:p-8 ${
                     isActive
-                      ? "border-sky-300/80 ring-2 ring-sky-400/45 ring-offset-2 ring-offset-slate-50"
+                      ? ACTIVE_CARD_RING
                       : isPast
                         ? "border-slate-200/80"
                         : "border-slate-200/80"
@@ -460,7 +580,7 @@ export function AssessmentRunner({
                 >
                   <p className="mb-3 text-[11px] font-semibold tabular-nums tracking-wide text-slate-500 sm:text-xs">
                     Question {idx + 1} of {total}
-                    {isActive ? <span className="ml-2 font-bold text-sky-700">· Current</span> : null}
+                    {isActive ? <span className={`ml-2 font-bold ${BRAND_ACCENT_TEXT}`}>· Current</span> : null}
                     {isPast && coerceAnswer(q, raw) !== null ? (
                       <span className="ml-2 font-semibold text-emerald-700">· Answered</span>
                     ) : null}
@@ -541,18 +661,21 @@ export function AssessmentRunner({
               type="button"
               onClick={() => {
                 setSubmitError(null);
-                void handleFinish().catch((e: unknown) => {
+                const action = editMode ? handleSaveAndReturn() : handleFinish();
+                void action.catch((e: unknown) => {
                   setSubmitError(e instanceof Error ? e.message : "Could not submit. Please try again.");
                 });
               }}
               disabled={!canFinish}
-              className="cursor-pointer rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/20 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+              className={`${CTA_PRIMARY_CLASS} disabled:cursor-not-allowed disabled:opacity-40`}
             >
-              {assessment.id === defaultAssessmentId
-                ? "Submit and continue"
-                : requirePayment
-                  ? "Finish & continue to checkout"
-                  : "Finish & unlock results"}
+              {editMode
+                ? "Save & return to review"
+                : assessment.id === defaultAssessmentId
+                  ? "Submit and continue"
+                  : requirePayment
+                    ? "Finish & continue to checkout"
+                    : "Finish & unlock results"}
             </button>
           </div>
         </div>
@@ -621,9 +744,9 @@ function LikertScaleNumeric({
     "flex w-full touch-manipulation select-none flex-col items-center justify-center rounded-xl border px-0.5 py-2.5 text-sm font-bold transition-colors min-h-[2.75rem] min-w-0 sm:min-h-[3.1rem] sm:rounded-2xl sm:text-base";
   const inactive = preview
     ? "border-slate-200 bg-white text-slate-900"
-    : "cursor-pointer border-slate-200 bg-white text-slate-900 hover:border-sky-400/70 hover:cursor-pointer active:scale-[0.98]";
+    : "cursor-pointer border-slate-200 bg-white text-slate-900 hover:border-[#2D82FF]/50 hover:cursor-pointer active:scale-[0.98]";
   const active =
-    "border-transparent bg-linear-to-br from-emerald-500 to-sky-500 text-white shadow-md shadow-teal-500/35";
+    "border-transparent bg-linear-to-br from-[#00C9C8] to-[#2D82FF] text-white shadow-md shadow-[#2D82FF]/35";
 
   return (
     <div className={preview ? "opacity-[0.96]" : ""}>
@@ -705,8 +828,8 @@ function SingleChoice({
             onClick={() => onChange(opt)}
             className={`flex w-full min-h-[3rem] cursor-pointer items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm transition ${
               active
-                ? "border-violet-500 bg-linear-to-br from-violet-50 to-white text-slate-900 shadow-inner"
-                : "border-slate-200 bg-white text-slate-800 hover:border-slate-300"
+                ? "border-[#2D82FF]/50 bg-linear-to-br from-[#00C9C8]/10 to-white text-[#0D1B2A] shadow-inner"
+                : "border-slate-200 bg-white text-[#4D4D4D] hover:border-slate-300"
             }`}
           >
             <span>{opt}</span>
@@ -749,8 +872,8 @@ function MultiChoiceAdvance({
             onClick={() => toggle(opt)}
             className={`flex w-full min-h-[3rem] cursor-pointer items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm transition ${
               active
-                ? "border-fuchsia-500 bg-fuchsia-50 text-slate-900"
-                : "border-slate-200 bg-white text-slate-800 hover:border-slate-300"
+                ? "border-[#2D82FF]/50 bg-[#F7F9FB] text-[#0D1B2A]"
+                : "border-slate-200 bg-white text-[#4D4D4D] hover:border-slate-300"
             }`}
           >
             <span>{opt}</span>
@@ -763,7 +886,7 @@ function MultiChoiceAdvance({
         type="button"
         disabled={disabled || !canContinue}
         onClick={() => onContinue(value)}
-        className="mt-3 w-full cursor-pointer rounded-2xl bg-slate-950 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+        className={`mt-3 w-full ${CTA_PRIMARY_CLASS} disabled:cursor-not-allowed disabled:opacity-40`}
       >
         Continue
       </button>

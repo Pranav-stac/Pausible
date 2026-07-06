@@ -1,0 +1,312 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e3]:
+      - link "Pausibl home" [ref=e4] [cursor=pointer]:
+        - /url: /
+        - generic "Pausibl" [ref=e6]:
+          - generic [ref=e7]: PA
+          - generic [ref=e11]: SIBL
+      - navigation "Primary" [ref=e12]:
+        - link "How it works" [ref=e13] [cursor=pointer]:
+          - /url: "#how"
+        - link "Personas" [ref=e14] [cursor=pointer]:
+          - /url: "#personas"
+        - link "Your report" [ref=e15] [cursor=pointer]:
+          - /url: "#report"
+      - generic [ref=e16]:
+        - button "Sign in" [ref=e18]
+        - link "Get Started" [ref=e19] [cursor=pointer]:
+          - /url: /intro
+          - text: Get Started
+          - generic [ref=e20]: →
+    - region "Wellness that fits how you're wired." [ref=e21]:
+      - generic [ref=e22]:
+        - generic [ref=e23]:
+          - heading "Wellness that fits how you're wired." [level=1] [ref=e24]
+          - paragraph [ref=e25]: Most plans fail because they ignore your personality. Pausibl reads how you actually operate — then builds wellness guidance you'll genuinely keep.
+          - link "Get Started" [ref=e27] [cursor=pointer]:
+            - /url: /intro
+            - text: Get Started
+            - generic [ref=e28]: →
+        - generic [ref=e31]:
+          - generic [ref=e33]:
+            - paragraph [ref=e34]: Sample report
+            - paragraph [ref=e35]: Steady Elephant
+          - generic [ref=e37]:
+            - generic [ref=e39]:
+              - generic [ref=e40]: Discipline
+              - generic [ref=e41]: 88%
+            - generic [ref=e45]:
+              - generic [ref=e46]: Openness
+              - generic [ref=e47]: 62%
+            - generic [ref=e51]:
+              - generic [ref=e52]: Social Energy
+              - generic [ref=e53]: 45%
+          - generic [ref=e56]:
+            - paragraph [ref=e57]: Week 1 anchor
+            - paragraph [ref=e58]: Move your bedtime 15 minutes earlier for one week and notice how recovery shifts.
+    - region "Meet Pausibl in 2 minutes" [ref=e59]:
+      - generic [ref=e60]:
+        - generic [ref=e61]:
+          - paragraph [ref=e62]: Watch the overview
+          - heading "Meet Pausibl in 2 minutes" [level=2] [ref=e63]
+          - paragraph [ref=e64]: See how Wellness Intelligence translates your personality into a plan that actually sticks.
+        - generic [ref=e66]:
+          - generic [ref=e70]:
+            - generic [ref=e71]: PA
+            - generic [ref=e75]: SIBL
+          - generic [ref=e76]:
+            - button "Video coming soon" [disabled] [ref=e77]:
+              - img [ref=e78]
+            - paragraph [ref=e80]: Video coming soon
+    - region "Five steps to a wellness plan that finally fits" [ref=e81]:
+      - generic [ref=e82]:
+        - generic [ref=e83]:
+          - paragraph [ref=e84]: How it works
+          - heading "Five steps to a wellness plan that finally fits" [level=2] [ref=e85]
+        - generic [ref=e86]:
+          - generic [ref=e89]:
+            - generic [ref=e90]:
+              - button "1" [ref=e91]
+              - generic [ref=e92]: Tell Us About You
+            - generic [ref=e93]:
+              - button "2" [ref=e94]
+              - generic [ref=e95]: Decode Your Personality
+            - generic [ref=e96]:
+              - button "3" [ref=e97]
+              - generic [ref=e98]: Discover What Makes You Tick
+            - generic [ref=e99]:
+              - button "4" [ref=e100]
+              - generic [ref=e101]: Your Wellness Blueprint
+            - generic [ref=e102]:
+              - button "5" [ref=e103]
+              - generic [ref=e104]: Build a Lasting System
+          - generic [ref=e105]:
+            - generic [ref=e106]:
+              - paragraph [ref=e107]: Step 1
+              - heading "Tell Us About You" [level=3] [ref=e108]
+              - paragraph [ref=e109]:
+                - text: Answer a series of engaging questions about your habits, lifestyle, preferences, and everyday wellness choices. It takes around
+                - strong [ref=e110]: 15–20 minutes
+                - text: and there are no right or wrong answers.
+            - generic:
+              - paragraph: Step 2
+              - heading "We Decode Your Wellness Personality" [level=3]
+              - paragraph: Our proprietary Wellness Intelligence Engine analyzes your responses to understand how you naturally approach nutrition, exercise, sleep, recovery, and mental well-being.
+            - generic:
+              - paragraph: Step 3
+              - heading "Discover What Makes You Tick" [level=3]
+              - paragraph: Uncover your unique wellness personality, natural strengths, hidden blind spots, motivation style, and the factors that help — or hinder — your long-term consistency.
+            - generic:
+              - paragraph: Step 4
+              - heading "Receive Your Personalized Wellness Blueprint" [level=3]
+              - paragraph: Get tailored insights, practical recommendations, and a wellness strategy built around your personality, goals, lifestyle, and daily realities — not generic advice.
+              - generic:
+                - generic: ✦
+                - text: Includes your personalized Coach Guide
+            - generic:
+              - paragraph: Step 5
+              - heading "Build a Wellness System That Lasts" [level=3]
+              - paragraph: Walk away with a clear, actionable roadmap designed to fit your life, helping you create healthy habits you can actually sustain for the long term.
+    - region "Six ways of being. One of them is you." [ref=e113]:
+      - generic [ref=e114]:
+        - generic [ref=e115]:
+          - paragraph [ref=e116]: Meet your archetype
+          - heading "Six ways of being. One of them is you." [level=2] [ref=e117]
+          - paragraph [ref=e118]: Each persona reflects a real pattern in how people approach change — grounded in behavioral science, not horoscopes.
+          - paragraph [ref=e119]:
+            - img [ref=e120]
+            - text: Click on any card below to explore the archetype in depth
+        - generic [ref=e124]:
+          - 'button "Steady Elephant Disciplined and structured. You build wellness that lasts. Click to explore → Archetype insight Steady Elephant Core strength: Structure and follow-through Growth edge: Flexibility when plans break Tap to flip back" [ref=e126] [cursor=pointer]':
+            - generic [ref=e127]:
+              - generic [ref=e128]:
+                - heading "Steady Elephant" [level=3] [ref=e130]
+                - paragraph [ref=e131]: Disciplined and structured. You build wellness that lasts.
+                - paragraph [ref=e132]: Click to explore →
+              - generic [ref=e133]:
+                - generic [ref=e134]:
+                  - paragraph [ref=e135]: Archetype insight
+                  - heading "Steady Elephant" [level=3] [ref=e136]
+                - generic [ref=e137]:
+                  - paragraph [ref=e138]: "Core strength: Structure and follow-through"
+                  - paragraph [ref=e139]: "Growth edge: Flexibility when plans break"
+                - paragraph [ref=e140]: Tap to flip back
+          - 'button "Pack Wolf Social and energetic. You thrive when others are in it with you. Click to explore → Archetype insight Pack Wolf Core strength: Energy and accountability Growth edge: Solo consistency on quiet weeks Tap to flip back" [ref=e142] [cursor=pointer]':
+            - generic [ref=e143]:
+              - generic [ref=e144]:
+                - heading "Pack Wolf" [level=3] [ref=e146]
+                - paragraph [ref=e147]: Social and energetic. You thrive when others are in it with you.
+                - paragraph [ref=e148]: Click to explore →
+              - generic [ref=e149]:
+                - generic [ref=e150]:
+                  - paragraph [ref=e151]: Archetype insight
+                  - heading "Pack Wolf" [level=3] [ref=e152]
+                - generic [ref=e153]:
+                  - paragraph [ref=e154]: "Core strength: Energy and accountability"
+                  - paragraph [ref=e155]: "Growth edge: Solo consistency on quiet weeks"
+                - paragraph [ref=e156]: Tap to flip back
+          - 'button "Watchful Deer Sensitive and careful. You move best when you feel safe. Click to explore → Archetype insight Watchful Deer Core strength: Self-awareness and care Growth edge: Pushing pace when stressed Tap to flip back" [ref=e158] [cursor=pointer]':
+            - generic [ref=e159]:
+              - generic [ref=e160]:
+                - heading "Watchful Deer" [level=3] [ref=e162]
+                - paragraph [ref=e163]: Sensitive and careful. You move best when you feel safe.
+                - paragraph [ref=e164]: Click to explore →
+              - generic [ref=e165]:
+                - generic [ref=e166]:
+                  - paragraph [ref=e167]: Archetype insight
+                  - heading "Watchful Deer" [level=3] [ref=e168]
+                - generic [ref=e169]:
+                  - paragraph [ref=e170]: "Core strength: Self-awareness and care"
+                  - paragraph [ref=e171]: "Growth edge: Pushing pace when stressed"
+                - paragraph [ref=e172]: Tap to flip back
+          - 'button "Curious Fox Curious and creative. You need variety to stay engaged. Click to explore → Archetype insight Curious Fox Core strength: Creativity and openness Growth edge: Staying with one routine long enough Tap to flip back" [ref=e174] [cursor=pointer]':
+            - generic [ref=e175]:
+              - generic [ref=e176]:
+                - heading "Curious Fox" [level=3] [ref=e178]
+                - paragraph [ref=e179]: Curious and creative. You need variety to stay engaged.
+                - paragraph [ref=e180]: Click to explore →
+              - generic [ref=e181]:
+                - generic [ref=e182]:
+                  - paragraph [ref=e183]: Archetype insight
+                  - heading "Curious Fox" [level=3] [ref=e184]
+                - generic [ref=e185]:
+                  - paragraph [ref=e186]: "Core strength: Creativity and openness"
+                  - paragraph [ref=e187]: "Growth edge: Staying with one routine long enough"
+                - paragraph [ref=e188]: Tap to flip back
+          - 'button "Steadfast Bear Grounded and balanced. You find a calm, steady rhythm. Click to explore → Archetype insight Steadfast Bear Core strength: Steady recovery and balance Growth edge: Noticing early warning signs Tap to flip back" [ref=e190] [cursor=pointer]':
+            - generic [ref=e191]:
+              - generic [ref=e192]:
+                - heading "Steadfast Bear" [level=3] [ref=e194]
+                - paragraph [ref=e195]: Grounded and balanced. You find a calm, steady rhythm.
+                - paragraph [ref=e196]: Click to explore →
+              - generic [ref=e197]:
+                - generic [ref=e198]:
+                  - paragraph [ref=e199]: Archetype insight
+                  - heading "Steadfast Bear" [level=3] [ref=e200]
+                - generic [ref=e201]:
+                  - paragraph [ref=e202]: "Core strength: Steady recovery and balance"
+                  - paragraph [ref=e203]: "Growth edge: Noticing early warning signs"
+                - paragraph [ref=e204]: Tap to flip back
+          - 'button "Shielded Turtle Protective and gradual. You start small and stay consistent. Click to explore → Archetype insight Shielded Turtle Core strength: Protective pacing Growth edge: Trusting small wins to compound Tap to flip back" [ref=e206] [cursor=pointer]':
+            - generic [ref=e207]:
+              - generic [ref=e208]:
+                - heading "Shielded Turtle" [level=3] [ref=e210]
+                - paragraph [ref=e211]: Protective and gradual. You start small and stay consistent.
+                - paragraph [ref=e212]: Click to explore →
+              - generic [ref=e213]:
+                - generic [ref=e214]:
+                  - paragraph [ref=e215]: Archetype insight
+                  - heading "Shielded Turtle" [level=3] [ref=e216]
+                - generic [ref=e217]:
+                  - paragraph [ref=e218]: "Core strength: Protective pacing"
+                  - paragraph [ref=e219]: "Growth edge: Trusting small wins to compound"
+                - paragraph [ref=e220]: Tap to flip back
+        - link "Which one are you? Find out →" [ref=e222] [cursor=pointer]:
+          - /url: /intro
+    - region "A wellness report that reads like it knows you." [ref=e223]:
+      - generic [ref=e224]:
+        - generic [ref=e225]:
+          - generic [ref=e226]:
+            - paragraph [ref=e227]: Your report
+            - heading "A wellness report that reads like it knows you." [level=2] [ref=e228]
+          - generic [ref=e229]:
+            - generic [ref=e231]:
+              - img [ref=e233]
+              - generic [ref=e236]:
+                - heading "Personality Insights" [level=3] [ref=e237]
+                - paragraph [ref=e238]: How your traits shape your real relationship with wellness.
+            - generic [ref=e240]:
+              - img [ref=e242]
+              - generic [ref=e245]:
+                - heading "Blind spots" [level=3] [ref=e246]
+                - paragraph [ref=e247]: The patterns that quietly derail you — named, without judgment.
+            - generic [ref=e249]:
+              - img [ref=e251]
+              - generic [ref=e253]:
+                - heading "Tailored recommendations" [level=3] [ref=e254]
+                - paragraph [ref=e255]: Habits matched to your rhythm, not someone else's ideal.
+            - generic [ref=e257]:
+              - img [ref=e259]
+              - generic [ref=e261]:
+                - heading "Action priorities" [level=3] [ref=e262]
+                - paragraph [ref=e263]: Where to start, so the first step feels obvious.
+            - generic [ref=e265]:
+              - img [ref=e267]
+              - generic [ref=e270]:
+                - heading "Your Coach Guide" [level=3] [ref=e271]
+                - paragraph [ref=e272]: A companion framework for turning your report insights into daily practice — structured, personal, and built around how you operate.
+        - generic [ref=e273]:
+          - article [ref=e274]:
+            - generic [ref=e275]:
+              - generic [ref=e276]: PAUSIBL
+              - generic [ref=e277]: Wellness Intelligence Report
+            - generic [ref=e278]:
+              - paragraph [ref=e279]: Primary Persona
+              - heading "Steady Elephant" [level=3] [ref=e280]
+              - generic [ref=e283]:
+                - generic [ref=e285]:
+                  - generic [ref=e286]: Discipline
+                  - generic [ref=e287]: 91%
+                - generic [ref=e291]:
+                  - generic [ref=e292]: Curiosity
+                  - generic [ref=e293]: 46%
+                - generic [ref=e297]:
+                  - generic [ref=e298]: Social Energy
+                  - generic [ref=e299]: 68%
+          - article [ref=e302]:
+            - paragraph [ref=e303]: Your blind spots
+            - list [ref=e304]:
+              - listitem [ref=e305]: You may over-plan and resist spontaneity when routines break.
+              - listitem [ref=e306]: Recovery can slip when structure feels threatened.
+          - article [ref=e307]:
+            - generic [ref=e308]:
+              - generic [ref=e309]: ✓
+              - heading "Coach Guide — Week 1 Focus" [level=3] [ref=e310]
+            - list [ref=e311]:
+              - listitem [ref=e312]:
+                - generic [ref=e313]: ✓
+                - text: Anchor training to calendar blocks
+              - listitem [ref=e314]:
+                - generic [ref=e315]: ✓
+                - text: Use a checklist for high-stress weeks
+              - listitem [ref=e316]: Build in one flexible recovery day
+      - generic [ref=e319]:
+        - generic [ref=e320]:
+          - paragraph [ref=e321]: Why it works
+          - heading "Built on behavioral science, not trends." [level=2] [ref=e322]
+          - paragraph [ref=e323]: Pausibl is grounded in the OCEAN personality framework — the most validated model in modern psychology — translated into guidance that feels human.
+        - generic [ref=e324]:
+          - article [ref=e326]:
+            - heading "Psychologically personalized" [level=3] [ref=e328]
+            - paragraph [ref=e329]: Matched to your actual personality — not your sign, weight, or goals on paper.
+          - article [ref=e331]:
+            - heading "Emotionally intelligent" [level=3] [ref=e333]
+            - paragraph [ref=e334]: No shame, no 'just stay disciplined.' Restarts are normal — we plan for them.
+          - article [ref=e336]:
+            - heading "Made for real people" [level=3] [ref=e338]
+            - paragraph [ref=e339]: For busy lives, not ideal ones. Sustainable beats impressive, every time.
+    - generic [ref=e344]:
+      - heading "Ready to meet your wellness persona?" [level=2] [ref=e345]
+      - paragraph [ref=e346]: Pause. Reflect. Accelerate. Your first step takes 15–20 minutes — and it finally fits you.
+      - link "Get Started" [ref=e347] [cursor=pointer]:
+        - /url: /intro
+        - text: Get Started
+        - img [ref=e348]
+      - paragraph [ref=e350]: Takes 15–20 minutes · No credit card required
+    - generic [ref=e352]:
+      - generic [ref=e354]:
+        - generic [ref=e355]:
+          - generic "Pausibl" [ref=e357]:
+            - generic [ref=e358]: PA
+            - generic [ref=e362]: SIBL
+          - paragraph [ref=e363]: Pause. Reflect. Accelerate.
+        - navigation "Footer" [ref=e364]:
+          - link "About" [ref=e365] [cursor=pointer]:
+            - /url: /terms
+          - link "Privacy" [ref=e366] [cursor=pointer]:
+            - /url: /privacy
+          - link "Contact" [ref=e367] [cursor=pointer]:
+            - /url: mailto:hello@pausible.com
+      - paragraph [ref=e369]: © 2026 Pausible. A Wellness Intelligence Platform.
+  - alert [ref=e370]

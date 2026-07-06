@@ -26,6 +26,9 @@ function profile(
     exclusions: ["exclude_none"],
     oceanCategoryTags: [],
     goalPreferenceBridge: false,
+    computedAgeYears: null,
+    isMinor: false,
+    isElderly65: false,
     ...overrides,
   };
 }

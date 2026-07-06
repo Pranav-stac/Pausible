@@ -2,6 +2,15 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { BrandLogo } from "@/components/BrandLogo";
+import {
+  APP_BODY,
+  APP_HEADING_MD,
+  CTA_PRIMARY_CLASS,
+  CTA_SECONDARY_CLASS,
+  FORM_CARD_CLASS,
+  INPUT_CLASS,
+  INPUT_LABEL,
+} from "@/components/marketing/marketing-brand";
 
 function GoogleLogoMark({ className = "h-5 w-5" }: { className?: string }) {
   return (
@@ -94,16 +103,16 @@ export function AssessmentLoginPromptDialog({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={descId}
-        className="relative w-full max-w-md rounded-3xl border border-slate-200/90 bg-white p-6 shadow-[0_24px_60px_-28px_rgba(15,23,42,0.25)] sm:p-8"
+        className={`relative w-full max-w-md ${FORM_CARD_CLASS} p-6 sm:p-8`}
       >
         <div className="mb-5 flex justify-center">
           <BrandLogo heightClass="h-9 sm:h-10" />
         </div>
 
-        <h2 id={titleId} className="text-center text-xl font-semibold tracking-tight text-slate-900">
+        <h2 id={titleId} className={`text-center ${APP_HEADING_MD}`}>
           Sign in to continue
         </h2>
-        <p id={descId} className="mt-2 text-center text-sm leading-relaxed text-slate-600">
+        <p id={descId} className={`mt-2 text-center ${APP_BODY}`}>
           Save your results and pick up where you left off.
         </p>
 
@@ -120,7 +129,7 @@ export function AssessmentLoginPromptDialog({
               type="button"
               disabled={busy}
               onClick={() => onSignInWithGoogle()}
-              className="flex w-full cursor-pointer items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              className={`flex w-full items-center justify-center gap-3 ${CTA_SECONDARY_CLASS} !min-h-[48px] disabled:cursor-not-allowed disabled:opacity-50`}
             >
               <GoogleLogoMark />
               {busy ? "Working…" : "Continue with Google"}
@@ -150,7 +159,7 @@ export function AssessmentLoginPromptDialog({
                   value={email}
                   disabled={busy}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none ring-sky-300 focus:ring-2 disabled:opacity-60"
+                  className={INPUT_CLASS}
                   placeholder="you@example.com"
                 />
               </label>
@@ -162,14 +171,14 @@ export function AssessmentLoginPromptDialog({
                   value={password}
                   disabled={busy}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none ring-sky-300 focus:ring-2 disabled:opacity-60"
+                  className={INPUT_CLASS}
                   placeholder="At least 6 characters"
                 />
               </label>
               <button
                 type="submit"
                 disabled={emailSubmitDisabled}
-                className="w-full cursor-pointer rounded-xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                className={`w-full ${CTA_PRIMARY_CLASS} disabled:cursor-not-allowed disabled:opacity-50`}
               >
                 {busy ? "Working…" : emailMode === "register" ? "Create account" : "Sign in with email"}
               </button>

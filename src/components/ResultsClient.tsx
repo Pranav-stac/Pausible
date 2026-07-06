@@ -344,7 +344,7 @@ export function ResultsClient() {
   }
 
   return (
-    <div className="min-h-screen scheme-light text-slate-900">
+    <div className="min-h-screen bg-[#F7F9FB] scheme-light text-[#0D1B2A]">
       <ResultsTopBar />
       {showCoachGuide ? (
         reportLlmReady ? (

@@ -7,6 +7,7 @@ import {
   buildDeterministicPlanBuiltNarrative,
   buildDeterministicPlanSubtitle,
 } from "@/lib/recommendations/plan/build-plan-built-narrative";
+import { applyLifestyleFraming } from "@/lib/recommendations/lifestyle-framing";
 import { sanitizeIntegratedPlanFields } from "@/lib/recommendations/plan/plan-blocklist";
 import {
   formatReadinessLine,
@@ -155,6 +156,14 @@ function mergeParsedPlan(
   const { sanitized, violations } = sanitizeIntegratedPlanFields({
     ...limited,
     plan_subtitle: planSubtitle,
+    phases: limited.phases.map((phase) => ({
+      ...phase,
+      phase_intent_user: applyLifestyleFraming(phase.phase_intent_user, profile),
+      anchor_habit_user: applyLifestyleFraming(phase.anchor_habit_user, profile),
+      daily_rhythm_user: phase.daily_rhythm_user.map((line) => applyLifestyleFraming(line, profile)),
+      weekly_rhythm_user: phase.weekly_rhythm_user.map((line) => applyLifestyleFraming(line, profile)),
+      readiness_signal_user: applyLifestyleFraming(phase.readiness_signal_user, profile),
+    })),
   });
 
   if (violations.length) {

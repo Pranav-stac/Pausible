@@ -1,10 +1,16 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BrandLogo } from "@/components/BrandLogo";
+import { AppPageShell } from "@/components/AppPageShell";
+import {
+  APP_BODY,
+  APP_HEADING_MD,
+  APP_MUTED,
+  BRAND_ACCENT_TEXT,
+  FORM_CARD_CLASS,
+} from "@/components/marketing/marketing-brand";
 import { fetchAttempt } from "@/lib/data/attempt-service";
 import { REPORT_BUILDING_STAGE_MS, REPORT_BUILDING_STAGES } from "@/lib/results/report-building-stages";
 
@@ -82,25 +88,8 @@ export function ReportBuildingScreen({
   const progressPct = Math.round(((stageIndex + 1) / STAGES.length) * 100);
 
   return (
-    <main className="min-h-screen bg-[#f7f8fa] scheme-light">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -left-24 top-0 h-72 w-72 rounded-full bg-sky-200/30 blur-3xl" />
-        <div className="absolute -right-16 top-32 h-80 w-80 rounded-full bg-emerald-200/25 blur-3xl" />
-        <div className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-violet-200/20 blur-3xl" />
-      </div>
-
-      <header className="relative z-10 border-b border-slate-200/70 bg-white/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-5 py-4 sm:px-8">
-          <Link href="/" className="rounded-lg outline-offset-4" aria-label="Pausible home">
-            <BrandLogo heightClass="h-7 sm:h-8" withWordmark wordmarkClassName="text-base sm:text-lg" />
-          </Link>
-          <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-            Step 3 · Report
-          </span>
-        </div>
-      </header>
-
-      <div className="relative z-10 mx-auto flex min-h-[calc(100vh-4.5rem)] max-w-5xl flex-col items-center justify-center px-5 py-10 sm:px-8 sm:py-14">
+    <AppPageShell stepLabel="Step 3 · Report" contentClassName="!max-w-5xl">
+      <div className="flex min-h-[calc(100vh-8rem)] flex-col items-center justify-center py-6 sm:py-10">
         <div className="grid w-full gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:gap-12">
           <div
             className={`relative overflow-hidden rounded-[2rem] border border-white/80 bg-linear-to-br ${stage.bg} p-5 shadow-[0_28px_70px_-40px_rgba(15,23,42,0.22)] ring-1 ${stage.ring} sm:p-7`}
@@ -138,8 +127,8 @@ export function ReportBuildingScreen({
                   />
                   <defs>
                     <linearGradient id="reportProgress" x1="0%" y1="0%" x2="100%" y2="0%">
-                      <stop offset="0%" stopColor="#10b981" />
-                      <stop offset="100%" stopColor="#0ea5e9" />
+                      <stop offset="0%" stopColor="#00C9C8" />
+                      <stop offset="100%" stopColor="#2D82FF" />
                     </linearGradient>
                   </defs>
                 </svg>
@@ -148,10 +137,8 @@ export function ReportBuildingScreen({
                 </span>
               </div>
               <div>
-                <h1 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
-                  Building your wellness report
-                </h1>
-                <p className="mt-1 text-sm text-slate-600">This usually takes about 15 seconds.</p>
+                <h1 className={APP_HEADING_MD}>Building your wellness report</h1>
+                <p className={`mt-1 ${APP_MUTED}`}>This usually takes about 15 seconds.</p>
               </div>
             </div>
 
@@ -164,16 +151,16 @@ export function ReportBuildingScreen({
                     key={item.label}
                     className={`flex items-start gap-3 rounded-2xl border px-4 py-3.5 transition-all duration-500 ${
                       active
-                        ? "border-slate-200 bg-white shadow-[0_12px_32px_-24px_rgba(15,23,42,0.18)] ring-1 ring-slate-100"
+                        ? `${FORM_CARD_CLASS} !p-4`
                         : done
-                          ? "border-emerald-200/80 bg-emerald-50/50"
+                          ? "border-[#00C9C8]/30 bg-[#F7F9FB]"
                           : "border-transparent bg-white/40 opacity-50"
                     }`}
                   >
                     <span
                       className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold transition-colors ${
                         done
-                          ? "bg-emerald-500 text-white"
+                          ? "bg-linear-to-br from-[#00C9C8] to-[#2D82FF] text-white"
                           : active
                             ? `bg-linear-to-br ${item.accent} text-white shadow-md`
                             : "bg-slate-200 text-slate-500"
@@ -184,7 +171,7 @@ export function ReportBuildingScreen({
                     <span className="min-w-0">
                       <span
                         className={`block text-sm font-semibold leading-snug ${
-                          active ? "text-slate-950" : done ? "text-emerald-900" : "text-slate-600"
+                          active ? "text-[#0D1B2A]" : done ? BRAND_ACCENT_TEXT : "text-[#4D4D4D]"
                         }`}
                       >
                         {item.label}
@@ -192,9 +179,9 @@ export function ReportBuildingScreen({
                       {active ? (
                         <span className="mt-1 flex items-center gap-2 text-xs text-slate-500">
                           <span className="inline-flex gap-1">
-                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-emerald-500 [animation-delay:0ms]" />
-                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-emerald-500 [animation-delay:150ms]" />
-                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-emerald-500 [animation-delay:300ms]" />
+                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#00C9C8] [animation-delay:0ms]" />
+                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#2D82FF] [animation-delay:150ms]" />
+                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#00C9C8] [animation-delay:300ms]" />
                           </span>
                           In progress
                         </span>
@@ -213,6 +200,6 @@ export function ReportBuildingScreen({
           </div>
         </div>
       </div>
-    </main>
+    </AppPageShell>
   );
 }

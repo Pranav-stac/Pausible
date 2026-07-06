@@ -37,6 +37,7 @@ import {
   buildSystemPrompt,
   resolveFitBlend,
 } from "@/lib/recommendations/gemini-section-prompts";
+import { applyPdaV12SynthesisPostProcess } from "@/lib/recommendations/qa-synthesis-checks";
 import { sanitizePostSynthesisInput, validatePostSynthesis } from "@/lib/recommendations/report-validation";
 import { scrubBlocklistTerms } from "@/lib/recommendations/content-blocklist";
 import { PDA_REPORT_PILLAR_ORDER } from "@/lib/recommendations/scoring-constants";
@@ -224,9 +225,21 @@ function fallbackSynthesis(
     text: s.text,
   }));
 
-  return {
-    opportunityCards,
+  const blindSpots = {
+    patternBody: pi.blindSpotText,
+    goalsBody: buildGoalsFallbackBody(selection, input),
+  };
+
+  const processed = applyPdaV12SynthesisPostProcess(selection.profile, {
     pillarPlans,
+    primaryPattern,
+    opportunityCards,
+    blindSpots,
+  });
+
+  return {
+    opportunityCards: processed.opportunityCards,
+    pillarPlans: processed.pillarPlans,
     launchpad: { start_here: [], environment_setup: [], recovery_rules: [] },
     coachNotes: {
       keyStrength: pi.strengthInsightText || "",
@@ -236,17 +249,20 @@ function fallbackSynthesis(
     },
     safetyGuidance,
     reportSections: {
-      primaryPattern,
+      primaryPattern: processed.primaryPattern,
       secondaryPattern: secondaryPattern ?? undefined,
       quickProfile,
-      blindSpots: {
-        patternBody: pi.blindSpotText,
-        goalsBody: buildGoalsFallbackBody(selection, input),
-      },
-      opportunities: opportunityCards,
+      blindSpots: processed.blindSpots,
+      opportunities: processed.opportunityCards,
     },
     synthesized: false,
-    synthesisError: "LLM API key not configured — showing deterministic copy from your matched recommendations.",
+    synthesisError: [
+      "LLM API key not configured — showing deterministic copy from your matched recommendations.",
+      ...processed.qa.warnings.map((w) => `qa_warn: ${w}`),
+      ...processed.qa.failures.map((f) => `qa: ${f}`),
+    ]
+      .filter(Boolean)
+      .join("; "),
   };
 }
 
@@ -567,11 +583,25 @@ export async function synthesizeActionPlanWithLlm(
     goalsBody: scrubCopy(reportSections.blindSpots.goalsBody),
   };
 
-  let finalPrimaryPattern = scrubbedPrimaryPattern;
+  const pdaProcessed = applyPdaV12SynthesisPostProcess(selection.profile, {
+    pillarPlans: scrubbedPillarPlans,
+    primaryPattern: scrubbedPrimaryPattern,
+    opportunityCards: scrubbedOpportunityCards,
+    blindSpots: scrubbedBlindSpots,
+  });
+
+  let finalPrimaryPattern = pdaProcessed.primaryPattern;
   let finalSecondaryPattern = scrubbedSecondaryPattern;
-  let finalPillarPlans = scrubbedPillarPlans;
-  let finalOpportunityCards = scrubbedOpportunityCards;
-  let finalBlindSpots = scrubbedBlindSpots;
+  let finalPillarPlans = pdaProcessed.pillarPlans;
+  let finalOpportunityCards = pdaProcessed.opportunityCards;
+  let finalBlindSpots = pdaProcessed.blindSpots;
+
+  if (pdaProcessed.qa.warnings.length) {
+    errors.push(...pdaProcessed.qa.warnings.map((w) => `qa_warn: ${w}`));
+  }
+  if (pdaProcessed.qa.failures.length) {
+    errors.push(...pdaProcessed.qa.failures.map((f) => `qa: ${f}`));
+  }
 
   const postGate = validatePostSynthesis(
     sanitizePostSynthesisInput({
@@ -599,16 +629,22 @@ export async function synthesizeActionPlanWithLlm(
   }
 
   if (postGate.useFallback) {
-    finalPrimaryPattern = scrubPrimaryPattern(
-      fallback.reportSections?.primaryPattern ?? fallbackPrimaryPattern(selection, persona),
-    );
+    const fallbackProcessed = applyPdaV12SynthesisPostProcess(selection.profile, {
+      pillarPlans: scrubPillarPlans(fallback.pillarPlans),
+      primaryPattern: scrubPrimaryPattern(
+        fallback.reportSections?.primaryPattern ?? fallbackPrimaryPattern(selection, persona),
+      ),
+      opportunityCards: scrubOpportunityCards(fallback.opportunityCards),
+      blindSpots: {
+        patternBody: scrubCopy(fallback.reportSections?.blindSpots.patternBody ?? finalBlindSpots.patternBody),
+        goalsBody: scrubCopy(fallback.reportSections?.blindSpots.goalsBody ?? finalBlindSpots.goalsBody),
+      },
+    });
+    finalPrimaryPattern = fallbackProcessed.primaryPattern;
     finalSecondaryPattern = scrubSecondaryPattern(fallback.reportSections?.secondaryPattern);
-    finalPillarPlans = scrubPillarPlans(fallback.pillarPlans);
-    finalOpportunityCards = scrubOpportunityCards(fallback.opportunityCards);
-    finalBlindSpots = {
-      patternBody: scrubCopy(fallback.reportSections?.blindSpots.patternBody ?? finalBlindSpots.patternBody),
-      goalsBody: scrubCopy(fallback.reportSections?.blindSpots.goalsBody ?? finalBlindSpots.goalsBody),
-    };
+    finalPillarPlans = fallbackProcessed.pillarPlans;
+    finalOpportunityCards = fallbackProcessed.opportunityCards;
+    finalBlindSpots = fallbackProcessed.blindSpots;
   }
 
   const finalReportSections = {

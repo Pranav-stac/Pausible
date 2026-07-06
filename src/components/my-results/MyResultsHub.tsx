@@ -13,6 +13,15 @@ import {
   resolveAttemptDisplayName,
 } from "@/lib/results/attempt-display-name";
 import { BrandLogo } from "@/components/BrandLogo";
+import {
+  APP_BODY,
+  APP_HEADING_MD,
+  APP_LINK_BACK,
+  APP_PAGE_BG_SOFT,
+  CTA_PRIMARY_CLASS,
+  CTA_SECONDARY_CLASS,
+  FORM_CARD_CLASS,
+} from "@/components/marketing/marketing-brand";
 import type { User } from "firebase/auth";
 
 function hasGoogleResultsIdentity(user: User | null) {
@@ -23,9 +32,9 @@ export function MyResultsNavLink({ layout = "toolbar" }: { layout?: "toolbar" | 
   const { ready, effectiveUid, user } = useFirebaseAuth();
   if (!ready || !effectiveUid) return null;
   if (isFirebaseConfigured() && !hasGoogleResultsIdentity(user)) return null;
-  const toolbarCls = "hidden text-sm font-semibold text-slate-700 hover:text-slate-950 sm:inline";
+  const toolbarCls = "hidden text-sm font-semibold text-[#4D4D4D] hover:text-[#0D1B2A] sm:inline";
   const drawerCls =
-    "block w-full rounded-xl px-3 py-3 text-left text-sm font-semibold text-slate-800 hover:bg-slate-50";
+    "block w-full rounded-xl px-3 py-3 text-left text-sm font-semibold text-[#0D1B2A] hover:bg-[#F7F9FB]";
   return (
     <Link href="/me" className={layout === "drawer" ? drawerCls : toolbarCls}>
       My results
@@ -59,34 +68,26 @@ export function MyResultsHub() {
   }, [effectiveUid, hasGoogleIdentity, load, mustUseGoogle]);
 
   if (!ready) {
-    return <div className="p-12 text-center text-sm text-slate-500">Loading…</div>;
+    return <div className={`p-12 text-center ${APP_BODY}`}>Loading…</div>;
   }
 
   if (mustUseGoogle && !hasGoogleIdentity) {
     return (
-      <div className="mx-auto max-w-lg px-4 py-20 text-center">
-        <Link href="/" className="text-sm font-semibold text-sky-600">
+      <div className={`mx-auto max-w-lg px-4 py-20 text-center ${APP_PAGE_BG_SOFT}`}>
+        <Link href="/" className={APP_LINK_BACK}>
           ← Home
         </Link>
-        <h1 className="mt-4 text-lg font-semibold text-slate-900">Sign in to view your history</h1>
-        <p className="mt-2 text-sm leading-relaxed text-slate-600">
+        <h1 className={`mt-4 ${APP_HEADING_MD}`}>Sign in to view your history</h1>
+        <p className={`mt-2 ${APP_BODY}`}>
           Link or sign in with Google to load your assessments from this deployment.
         </p>
         <div className="mt-6 flex flex-col items-center gap-3">
           {user?.isAnonymous ? (
-            <button
-              type="button"
-              onClick={() => void linkGoogle()}
-              className="rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white"
-            >
+            <button type="button" onClick={() => void linkGoogle()} className={CTA_PRIMARY_CLASS}>
               Link Google
             </button>
           ) : (
-            <button
-              type="button"
-              onClick={() => void signInWithGoogle()}
-              className="rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white"
-            >
+            <button type="button" onClick={() => void signInWithGoogle()} className={CTA_PRIMARY_CLASS}>
               Sign in with Google
             </button>
           )}
@@ -98,8 +99,8 @@ export function MyResultsHub() {
   if (!effectiveUid) {
     return (
       <div className="mx-auto max-w-lg px-3 py-20 text-center">
-        <p className="text-sm text-slate-600">Sign in wasn’t restored for this browser session.</p>
-        <Link href="/" className="mt-4 inline-block font-semibold text-sky-600">
+        <p className={APP_BODY}>Sign in wasn’t restored for this browser session.</p>
+        <Link href="/" className={`mt-4 inline-block font-semibold ${APP_LINK_BACK}`}>
           ← Home
         </Link>
       </div>
@@ -107,15 +108,15 @@ export function MyResultsHub() {
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-slate-50 to-white px-3 py-10 sm:px-4">
+    <div className={`${APP_PAGE_BG_SOFT} px-3 py-10 sm:px-4`}>
       <div className="mx-auto flex max-w-3xl flex-col gap-8">
         <header className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-6">
           <div>
-            <Link href="/" className="inline-flex items-center gap-2 font-semibold text-sky-700">
+            <Link href="/" className={`inline-flex items-center gap-2 font-semibold ${APP_LINK_BACK}`}>
               ← Home
             </Link>
-            <h1 className="mt-4 text-2xl font-semibold tracking-tight text-slate-900">Your assessments</h1>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">
+            <h1 className={`mt-4 ${APP_HEADING_MD}`}>Your assessments</h1>
+            <p className={`mt-2 ${APP_BODY}`}>
               Paid attempts unlock the full playbook. Only your <strong>latest paid</strong> run can expose a spotlight
               link—past entries stay private in this history.
             </p>
@@ -125,12 +126,12 @@ export function MyResultsHub() {
               <button
                 type="button"
                 onClick={() => void signOut()}
-                className="rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 shadow-sm hover:border-rose-200 hover:bg-rose-50 hover:text-rose-800"
+                className={`${CTA_SECONDARY_CLASS} !min-h-[36px] !px-3.5 !py-2 !text-xs hover:border-rose-200 hover:bg-rose-50 hover:text-rose-800`}
               >
                 Log out
               </button>
             ) : null}
-            <BrandLogo heightClass="h-8 sm:h-9" withWordmark wordmarkClassName="text-lg" />
+            <BrandLogo sizeClass="text-lg sm:text-xl" />
           </div>
         </header>
 
@@ -138,9 +139,9 @@ export function MyResultsHub() {
 
         <div className="space-y-4">
           {rows.length === 0 ? (
-            <p className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-600">
+            <p className={`${FORM_CARD_CLASS} p-8 text-center ${APP_BODY}`}>
               No attempts yet.&nbsp;
-              <Link href="/assessment/default" className="font-semibold text-sky-700">
+              <Link href="/assessment/default" className={`font-semibold ${APP_LINK_BACK}`}>
                 Start an assessment →
               </Link>
             </p>
@@ -151,13 +152,10 @@ export function MyResultsHub() {
               const statusLabel = paymentStatusLabel(row.paymentStatus);
 
               return (
-                <div
-                  key={row.id}
-                  className="flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
-                >
+                <div key={row.id} className={`${FORM_CARD_CLASS} flex flex-wrap items-start justify-between gap-4 p-5`}>
                   <div className="min-w-0 flex-1">
-                    <h2 className="text-base font-semibold leading-snug text-slate-900 sm:text-lg">{title}</h2>
-                    <p className="mt-1 text-sm text-slate-600">
+                    <h2 className="text-base font-semibold leading-snug text-[#0D1B2A] sm:text-lg">{title}</h2>
+                    <p className={`mt-1 ${APP_BODY} !text-sm`}>
                       {dateLabel}
                       <span className="text-slate-400"> · </span>
                       {statusLabel}
@@ -175,14 +173,14 @@ export function MyResultsHub() {
                         <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-950">Needs payment</span>
                       )}
                       {row.paymentStatus === "paid" && row.isLatestShareEligible ? (
-                        <span className="rounded-full bg-sky-100 px-3 py-1 text-sky-950">Latest share spotlight</span>
+                        <span className="rounded-full bg-[#00C9C8]/15 px-3 py-1 text-[#00A8A7]">Latest share spotlight</span>
                       ) : null}
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => router.push(`/results/${row.id}`)}
-                    className="shrink-0 rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white"
+                    className={`shrink-0 ${CTA_PRIMARY_CLASS} !min-h-[40px] !px-4 !py-2 !text-sm`}
                   >
                     Open
                   </button>

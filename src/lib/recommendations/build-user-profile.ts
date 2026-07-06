@@ -1,8 +1,11 @@
 import { personaKeyToCsvAlias } from "@/lib/recommendations/persona-aliases";
+import { resolveWellnessAge } from "@/lib/recommendations/compute-wellness-age";
+import { migrateProfileTags } from "@/lib/recommendations/tag-drift-migration";
 import { ensureColTOceanTags } from "@/lib/scoring/ocean-tags";
 import { normalizeFitTier } from "@/lib/scoring/persona-fit";
 import type { RecommendationConfig, WellnessFieldConfig } from "@/lib/recommendations/firestore-config-types";
 import type { UserProfile } from "@/lib/recommendations/types";
+import { WELLNESS_LEGACY_OPTION_ALIASES } from "@/lib/recommendations/wellness-legacy-options";
 import type { PersonaKey } from "@/lib/scoring/persona-types";
 import type { AttemptAnswers, AttemptScores } from "@/types/models";
 
@@ -46,7 +49,10 @@ function resolveOptionTags(
   const barriers: string[] = [];
   const exclusions: string[] = [];
   const key = norm(raw);
-  const mapped = field.optionTags?.[key];
+  let mapped = field.optionTags?.[key];
+  if (!mapped) {
+    mapped = WELLNESS_LEGACY_OPTION_ALIASES[field.answerKey]?.[key];
+  }
   if (!mapped) return { context, goals, barriers, exclusions };
 
   const tags = Array.isArray(mapped) ? mapped : [mapped];
@@ -62,10 +68,13 @@ function resolveOptionTags(
   }
 
   if (field.inferBarrierTags?.length) {
-    const poorSleep =
-      context.includes("sleep_quality_poor") || context.includes("sleep_quality_very_poor");
-    const highStress = context.includes("stress_high");
-    if (poorSleep || highStress) {
+    const isStress = field.answerKey.includes("stress_level");
+    const isSleep = field.answerKey.includes("sleep_quality");
+    const shouldInfer =
+      (isStress && context.includes("stress_high")) ||
+      (isSleep &&
+        (context.includes("sleep_quality_poor") || context.includes("sleep_quality_very_poor")));
+    if (shouldInfer) {
       for (const b of field.inferBarrierTags) {
         if (!barriers.includes(b)) barriers.push(b);
       }
@@ -219,6 +228,10 @@ export function buildUserProfile(input: BuildProfileInput, config: Recommendatio
 
   applyLegacyWellnessAnswers(answers, context, goals, barriers);
 
+  migrateProfileTags({ context, goals, barriers, exclusions: healthExclusions });
+
+  const ageInfo = resolveWellnessAge(answers, context);
+
   const exclusions = derivedExclusions(
     config,
     context,
@@ -227,6 +240,8 @@ export function buildUserProfile(input: BuildProfileInput, config: Recommendatio
     secondaryPersonaAlias,
     healthExclusions,
   );
+
+  migrateProfileTags({ context, goals, barriers, exclusions });
 
   return {
     primaryPersona,
@@ -243,5 +258,8 @@ export function buildUserProfile(input: BuildProfileInput, config: Recommendatio
     exclusions,
     oceanCategoryTags,
     goalPreferenceBridge: computeGoalPreferenceBridge(goals, context),
+    computedAgeYears: ageInfo.computedAgeYears,
+    isMinor: ageInfo.isMinor,
+    isElderly65: ageInfo.isElderly65,
   };
 }

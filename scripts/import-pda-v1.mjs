@@ -1,7 +1,7 @@
 /**
- * Import authoritative PDA v1.0 data from FinalData Excel:
- *   - Master Recommendations v1.13 (171 recs, 21 cols)
- *   - Contextual Questions & Tags v1.3 (tag mapping)
+ * Import authoritative PDA data from FinalData/NewFinalData:
+ *   - Recommendation Master v1.15 (184 recs, 21 cols)
+ *   - Contextual Questions & Tags v1.4 (tag mapping + derived rules reference)
  *
  * Usage: node scripts/import-pda-v1.mjs
  */
@@ -11,7 +11,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
-const excelDir = path.join(root, "FinalData", "Excel");
+const newDataDir = path.join(root, "FinalData", "NewFinalData");
 
 function cellStr(cell) {
   const v = cell?.value;
@@ -29,7 +29,7 @@ function splitTags(raw) {
 }
 
 async function importMaster() {
-  const file = path.join(excelDir, "Pausibl_RecommendationsMaster_v1.13_Master Recommendations.xlsx");
+  const file = path.join(newDataDir, "Pausibl_RecommendationsMaster_v1.15.xlsx");
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.readFile(file);
   const sheet = wb.getWorksheet("Master Recommendations") ?? wb.worksheets[0];
@@ -81,18 +81,15 @@ async function importMaster() {
   const outDir = path.join(root, "src", "data", "recommendations");
   mkdirSync(outDir, { recursive: true });
   writeFileSync(path.join(outDir, "master-rows.json"), JSON.stringify(rows, null, 2));
-  console.log(`✓ master-rows.json — ${rows.length} recommendations (v1.13)`);
+  console.log(`✓ master-rows.json — ${rows.length} recommendations (v1.15)`);
   return rows.length;
 }
 
 async function importTagMapping() {
-  const file = path.join(
-    excelDir,
-    "v1.3_Pausibl_Contextual_Questions_tags_Context Tag Mapping.xlsx",
-  );
+  const file = path.join(newDataDir, "Pausibl_Contextual_Questions_tags_v1.4.xlsx");
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.readFile(file);
-  const sheet = wb.worksheets[0];
+  const sheet = wb.getWorksheet("Context Tag Mapping") ?? wb.worksheets[0];
   if (!sheet) throw new Error("Context Tag Mapping workbook empty");
 
   const tagRows = [];
@@ -114,7 +111,7 @@ async function importTagMapping() {
 
   const outDir = path.join(root, "src", "data", "recommendations");
   writeFileSync(path.join(outDir, "tag-mapping-rules.json"), JSON.stringify(tagRows, null, 2));
-  console.log(`✓ tag-mapping-rules.json — ${tagRows.length} tag rules (CQ v1.3)`);
+  console.log(`✓ tag-mapping-rules.json — ${tagRows.length} tag rules (CQ v1.4)`);
   return tagRows.length;
 }
 

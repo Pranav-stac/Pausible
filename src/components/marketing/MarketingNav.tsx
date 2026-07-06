@@ -6,17 +6,24 @@ import { useEffect, useState } from "react";
 import { BrandLogo } from "@/components/BrandLogo";
 import { MyResultsNavLink } from "@/components/my-results/MyResultsHub";
 import { NavAuthActions } from "@/components/NavAuthActions";
-import { CTA_PRIMARY_CLASS } from "@/components/marketing/marketing-brand";
 import { TrackedAssessmentLink } from "@/components/marketing/TrackedAssessmentLink";
 
 const links = [
-  { label: "How it works", href: "#journey" },
+  { label: "How it works", href: "#how" },
   { label: "Personas", href: "#personas" },
   { label: "Your report", href: "#report" },
 ];
 
 export function MarketingNav({ ctaHref }: { ctaHref: string }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 12);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   useEffect(() => {
     if (!mobileOpen) return;
@@ -28,17 +35,17 @@ export function MarketingNav({ ctaHref }: { ctaHref: string }) {
   }, [mobileOpen]);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/95 backdrop-blur-md">
-      <div className="relative mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3.5 sm:px-6">
+    <header className="marketing-nav-shell">
+      <div className={`marketing-nav-glass ${scrolled ? "is-scrolled" : ""}`}>
         <Link href="/" className="shrink-0 rounded-lg outline-offset-4" aria-label="Pausibl home">
           <BrandLogo sizeClass="text-lg sm:text-xl" />
         </Link>
 
-        <nav className="hidden items-center justify-center gap-8 md:flex" aria-label="Primary">
+        <nav className="hidden flex-1 items-center justify-center gap-9 lg:flex" aria-label="Primary">
           {links.map((l) => (
             <a
               key={l.href}
-              className="text-sm font-medium text-[#4D4D4D] transition hover:text-[#0D1B2A]"
+              className="text-lg font-medium text-[#4B5563] transition hover:text-[#111827]"
               href={l.href}
             >
               {l.label}
@@ -47,20 +54,21 @@ export function MarketingNav({ ctaHref }: { ctaHref: string }) {
         </nav>
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-          <div className="hidden items-center gap-2 lg:flex lg:gap-3">
+          <div className="hidden items-center gap-2 xl:flex xl:gap-3">
             <MyResultsNavLink />
             <NavAuthActions />
           </div>
           <TrackedAssessmentLink
             href={ctaHref}
             placement="marketing_header_cta"
-            className={`hidden sm:inline-flex ${CTA_PRIMARY_CLASS} !min-h-[40px] !px-5 !py-2 !text-sm`}
+            className="hidden items-center gap-2 rounded-[14px] border-[1.5px] border-[#0284C7]/20 bg-[image:var(--marketing-grad)] px-6 py-3 text-[17px] font-semibold text-white shadow-[0_14px_30px_-10px_rgba(99,102,241,0.5)] transition hover:-translate-y-0.5 sm:inline-flex"
           >
-            Get started
+            Get Started
+            <span aria-hidden>→</span>
           </TrackedAssessmentLink>
           <button
             type="button"
-            className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-800 md:hidden"
+            className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-[#E5E7EB] bg-white/80 text-slate-800 lg:hidden"
             aria-expanded={mobileOpen}
             aria-controls="marketing-mobile-menu"
             onClick={() => setMobileOpen((v) => !v)}
@@ -81,22 +89,22 @@ export function MarketingNav({ ctaHref }: { ctaHref: string }) {
 
       <div
         id="marketing-mobile-menu"
-        className={`border-t border-slate-100 bg-white md:hidden ${mobileOpen ? "block" : "hidden"}`}
+        className={`pointer-events-auto fixed inset-x-0 top-[88px] z-40 border-t border-[#F3F4F6] bg-white/95 backdrop-blur-xl lg:hidden ${mobileOpen ? "block" : "hidden"}`}
       >
-        <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-5">
+        <div className="mx-auto flex max-w-[1160px] flex-col gap-2 px-5 py-5">
           <TrackedAssessmentLink
             href={ctaHref}
             placement="marketing_drawer_cta"
-            className={`flex w-full items-center justify-center ${CTA_PRIMARY_CLASS}`}
+            className="flex w-full items-center justify-center gap-2 rounded-[14px] bg-[image:var(--marketing-grad)] px-6 py-3.5 text-base font-semibold text-white"
             onAfterTrack={() => setMobileOpen(false)}
           >
-            Get started
+            Get Started →
           </TrackedAssessmentLink>
           <nav className="flex flex-col gap-0.5" aria-label="Mobile primary">
             {links.map((l) => (
               <a
                 key={l.href}
-                className="rounded-lg px-3 py-3 text-sm font-medium text-[#4D4D4D] hover:bg-[#F7F9FB] hover:text-[#0D1B2A]"
+                className="rounded-lg px-3 py-3 text-base font-medium text-[#4B5563] hover:bg-[#F9FAFB] hover:text-[#111827]"
                 href={l.href}
                 onClick={() => setMobileOpen(false)}
               >
@@ -104,7 +112,7 @@ export function MarketingNav({ ctaHref }: { ctaHref: string }) {
               </a>
             ))}
           </nav>
-          <div className="mt-3 flex flex-col gap-2 border-t border-slate-100 pt-4">
+          <div className="mt-3 flex flex-col gap-2 border-t border-[#F3F4F6] pt-4">
             <MyResultsNavLink layout="drawer" />
             <NavAuthActions layout="drawer" />
           </div>

@@ -1,7 +1,7 @@
 /**
  * PDA v1.0 recommendation scoring (§14).
  */
-export const PDA_SPEC_VERSION = "v1.0";
+export const PDA_SPEC_VERSION = "v1.2";
 
 /** Max total score used for internal ranking only (not shown to users). */
 export const PDA_MAX_SCORE = 158;

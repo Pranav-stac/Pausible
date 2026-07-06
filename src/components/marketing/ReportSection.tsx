@@ -1,12 +1,17 @@
+"use client";
+
 import Image from "next/image";
 
-import { LABEL_CLASS } from "@/components/marketing/marketing-brand";
-import { USER_FACING_TRAIT_LIST } from "@/lib/results/trait-labels";
+import {
+  MarketingReveal,
+  MarketingStagger,
+  MarketingStaggerItem,
+} from "@/components/marketing/MarketingReveal";
 
 const FEATURES = [
   {
-    title: "Personalized Persona Profile",
-    body: "Your primary wellness archetype with a visual breakdown of your behavioral traits.",
+    title: "Personality Insights",
+    body: "How your traits shape your real relationship with wellness.",
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
         <circle cx="12" cy="8" r="4" />
@@ -15,17 +20,8 @@ const FEATURES = [
     ),
   },
   {
-    title: "Behavioral Traits Breakdown",
-    body: `See how ${USER_FACING_TRAIT_LIST} shape your habits.`,
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-        <path d="M4 20V10M10 20V4M16 20v-8M22 20V14" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    title: "Blind Spot Insights",
-    body: "Honest, science-backed observations about patterns that may be holding you back.",
+    title: "Blind spots",
+    body: "The patterns that quietly derail you — named, without judgment.",
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
@@ -34,8 +30,17 @@ const FEATURES = [
     ),
   },
   {
-    title: "Coach Guide & Action Plan",
-    body: "A week-by-week coaching guide tailored to your persona — not generic wellness tips.",
+    title: "Tailored recommendations",
+    body: "Habits matched to your rhythm, not someone else's ideal.",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+      </svg>
+    ),
+  },
+  {
+    title: "Action priorities",
+    body: "Where to start, so the first step feels obvious.",
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
         <path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" strokeLinecap="round" strokeLinejoin="round" />
@@ -43,8 +48,8 @@ const FEATURES = [
     ),
   },
   {
-    title: "Shareable Report Cards",
-    body: "Beautiful, exportable cards you can share with coaches, trainers, or your wellness circle.",
+    title: "Your Coach Guide",
+    body: "A companion framework for turning your report insights into daily practice — structured, personal, and built around how you operate.",
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
         <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -57,15 +62,15 @@ const FEATURES = [
 const PILLARS = [
   {
     title: "Psychologically personalized",
-    body: "Every insight is mapped to your wellness personality profile — not a one-size-fits-all template.",
+    body: "Matched to your actual personality — not your age, weight, or goals on paper.",
   },
   {
-    title: "Behaviorally actionable",
-    body: "Recommendations are designed around how you actually think, feel, and respond to challenge.",
+    title: "Emotionally intelligent",
+    body: "No shame, no 'just stay disciplined.' Restarts are normal — we plan for them.",
   },
   {
-    title: "Built for real life",
-    body: "Your coach guide adapts to your persona's strengths and blind spots — so change sticks.",
+    title: "Made for real people",
+    body: "For busy lives, not ideal ones. Sustainable beats impressive, every time.",
   },
 ] as const;
 
@@ -85,38 +90,43 @@ function TraitBar({ label, value }: { label: string; value: number }) {
 
 export function ReportSection() {
   return (
-    <section className="bg-white" id="report" aria-labelledby="report-heading">
-      <div className="px-4 py-16 sm:px-6 sm:py-20 lg:py-24">
-        <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-2 lg:items-start lg:gap-16">
-          <div>
-            <p className={LABEL_CLASS}>Your report</p>
-            <h2
-              id="report-heading"
-              className="mt-3 text-balance text-3xl font-bold tracking-tight text-[#0D1B2A] sm:text-4xl"
-            >
-              A wellness report that reads like it knows you.
-            </h2>
+    <section className="scroll-mt-20 bg-white" id="report" aria-labelledby="report-heading">
+      <div className="mx-auto flex max-w-[1160px] flex-wrap items-start gap-[60px] px-6 py-[104px]">
+          <div className="min-w-[300px] flex-1 basis-[380px]">
+            <MarketingReveal>
+              <p className="mb-4 text-[13px] font-bold tracking-[1.5px] text-[var(--marketing-accent)] uppercase">
+                Your report
+              </p>
+              <h2
+                id="report-heading"
+                className="mb-[30px] text-balance text-[clamp(1.75rem,3.4vw,2.625rem)] font-bold leading-[1.12] tracking-[-0.02em] text-[#111827]"
+              >
+                A wellness report that reads like it knows you.
+              </h2>
+            </MarketingReveal>
 
-            <ul className="mt-8 space-y-5">
+            <MarketingStagger className="flex flex-col gap-6">
               {FEATURES.map((f) => (
-                <li key={f.title} className="flex gap-4">
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl pausibl-gradient-bg text-white shadow-sm">
-                    {f.icon}
-                  </span>
-                  <div>
-                    <h3 className="font-semibold text-[#0D1B2A]">{f.title}</h3>
-                    <p className="mt-1 text-sm leading-relaxed text-[#4D4D4D]">{f.body}</p>
+                <MarketingStaggerItem key={f.title}>
+                  <div className="flex items-start gap-4">
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[11px] bg-[image:var(--marketing-grad-soft)] text-[var(--marketing-accent)]">
+                      {f.icon}
+                    </span>
+                    <div>
+                      <h3 className="text-lg font-bold text-[#111827]">{f.title}</h3>
+                      <p className="mt-1 text-[15px] leading-[1.55] text-[#4B5563]">{f.body}</p>
+                    </div>
                   </div>
-                </li>
+                </MarketingStaggerItem>
               ))}
-            </ul>
+            </MarketingStagger>
           </div>
 
-          <div className="space-y-4 lg:sticky lg:top-24">
-            <article className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_12px_40px_-16px_rgba(13,27,42,0.15)]">
-              <div className="flex items-center justify-between px-4 py-2.5 pausibl-gradient-bg text-[10px] font-semibold uppercase tracking-wider text-white sm:px-5">
-                <span>PA · SSL</span>
-                <span className="text-white/90">Wellness Intelligence Report</span>
+          <MarketingReveal className="flex min-w-[300px] flex-1 basis-[380px] flex-col gap-3.5 lg:sticky lg:top-24" delay={0.1}>
+            <article className="overflow-hidden rounded-[20px] border border-[#EAEBEE] bg-white shadow-[0_12px_36px_-18px_rgba(17,24,39,0.18)]">
+              <div className="flex items-center justify-between bg-[image:var(--marketing-grad)] px-5 py-3.5 text-[11px] font-semibold tracking-[0.5px] text-white/85 uppercase">
+                <span className="text-sm font-bold tracking-[0.08em] text-white/90">PAUSIBL</span>
+                <span>Wellness Intelligence Report</span>
               </div>
               <div className="p-5 sm:p-6">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#00C9C8]">Primary Persona</p>
@@ -132,9 +142,9 @@ export function ReportSection() {
                     />
                   </div>
                   <div className="min-w-0 flex-1 space-y-2.5">
-                    <TraitBar label="Discipline" value={88} />
-                    <TraitBar label="Openness" value={62} />
-                    <TraitBar label="Social Energy" value={45} />
+                    <TraitBar label="Discipline" value={91} />
+                    <TraitBar label="Curiosity" value={46} />
+                    <TraitBar label="Social Energy" value={68} />
                   </div>
                 </div>
               </div>
@@ -178,37 +188,35 @@ export function ReportSection() {
                 ))}
               </ul>
             </article>
-          </div>
-        </div>
+          </MarketingReveal>
       </div>
 
-      <div className="bg-[#F9F9F9] px-4 py-16 sm:px-6 sm:py-20">
-        <div className="mx-auto max-w-6xl text-center">
-          <p className={LABEL_CLASS}>Why it works</p>
-          <h2 className="mx-auto mt-3 max-w-2xl text-balance text-3xl font-bold tracking-tight text-[#0D1B2A] sm:text-4xl">
-            Built on behavioral science, not trends.
-          </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-pretty text-[15px] leading-relaxed text-[#4D4D4D] sm:text-base">
-            Pausibl uses a validated five-trait wellness model to map how you think, feel, and act. Your
-            report isn&apos;t a horoscope. It&apos;s a behavioral profile you can use.
-          </p>
+      <div className="border-y border-[#F3F4F6] bg-[#F9FAFB] px-6 py-[104px]">
+        <div className="mx-auto max-w-[1160px] text-center">
+          <MarketingReveal>
+            <p className="mb-4 text-[13px] font-bold tracking-[1.5px] text-[var(--marketing-accent)] uppercase">
+              Why it works
+            </p>
+            <h2 className="mx-auto mb-[18px] max-w-[640px] text-balance text-[clamp(1.75rem,3.6vw,2.625rem)] font-bold leading-[1.12] tracking-[-0.02em] text-[#111827]">
+              Built on behavioral science, not trends.
+            </h2>
+            <p className="mx-auto max-w-[640px] text-pretty text-lg leading-[1.6] text-[#4B5563]">
+              Pausibl is grounded in the OCEAN personality framework — the most validated model in modern psychology —
+              translated into guidance that feels human.
+            </p>
+          </MarketingReveal>
 
-          <div className="mt-10 grid gap-5 sm:grid-cols-3 sm:gap-6">
+          <MarketingStagger className="mt-[60px] grid gap-[22px] [grid-template-columns:repeat(auto-fit,minmax(248px,1fr))]">
             {PILLARS.map((p) => (
-              <article
-                key={p.title}
-                className="rounded-2xl border border-slate-100 bg-white p-6 text-left shadow-[0_8px_30px_-12px_rgba(13,27,42,0.1)]"
-              >
-                <span className="grid h-10 w-10 place-items-center rounded-xl pausibl-gradient-bg text-white shadow-sm">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                  </svg>
-                </span>
-                <h3 className="mt-4 font-bold text-[#0D1B2A]">{p.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-[#4D4D4D]">{p.body}</p>
-              </article>
+              <MarketingStaggerItem key={p.title}>
+                <article className="h-full rounded-[22px] border border-[#F1F2F4] bg-white px-7 py-8 text-left">
+                  <span className="mb-5 inline-block h-[46px] w-[46px] rounded-[13px] bg-[image:var(--marketing-grad)] shadow-[0_10px_22px_-12px_rgba(2,132,199,0.6)]" />
+                  <h3 className="text-[19px] font-bold text-[#111827]">{p.title}</h3>
+                  <p className="mt-2 text-[15px] leading-[1.6] text-[#4B5563]">{p.body}</p>
+                </article>
+              </MarketingStaggerItem>
             ))}
-          </div>
+          </MarketingStagger>
         </div>
       </div>
     </section>

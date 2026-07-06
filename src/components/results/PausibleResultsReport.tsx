@@ -53,10 +53,12 @@ export function PausibleResultsReport({
   const rootRef = useRef<HTMLDivElement>(null);
   const loadedSigRef = useRef<string | null>(null);
   const autoDownloadedRef = useRef(false);
+  const [localForceRegen, setLocalForceRegen] = useState(false);
+  const effectiveForceRegen = forceRegenerate || localForceRegen;
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfErr, setPdfErr] = useState<string | null>(null);
 
-  const clientCache = isActionPlanClientCacheValid(attempt.actionPlanCache, reportLlmProvider, forceRegenerate)
+  const clientCache = isActionPlanClientCacheValid(attempt.actionPlanCache, reportLlmProvider, effectiveForceRegen)
     ? attempt.actionPlanCache
     : null;
   const [planData, setPlanData] = useState<ActionPlanApiResponse | null>(() =>
@@ -74,14 +76,14 @@ export function PausibleResultsReport({
   const sections = planData?.plan.synthesis.reportSections;
   const synthesis = planData?.plan.synthesis;
 
-  const loadSig = `${attempt.id}|${forceRegenerate}|${reportLlmProvider}|${hashActionPlanInputs(
+  const loadSig = `${attempt.id}|${effectiveForceRegen}|${reportLlmProvider}|${hashActionPlanInputs(
     attempt.answers,
     attempt.scores ?? null,
     reportLlmProvider,
   )}`;
 
   useEffect(() => {
-    const validCache = isActionPlanClientCacheValid(attempt.actionPlanCache, reportLlmProvider, forceRegenerate);
+    const validCache = isActionPlanClientCacheValid(attempt.actionPlanCache, reportLlmProvider, effectiveForceRegen);
     if (validCache) {
       setPlanData(responseFromCache(attempt.actionPlanCache!));
       setPlanLoading(false);
@@ -107,7 +109,7 @@ export function PausibleResultsReport({
             answers: attempt.answers,
             scores: attempt.scores ?? null,
             participantName: model.participantName,
-            forceRegenerate,
+            forceRegenerate: effectiveForceRegen,
           }),
         });
         const json = (await res.json()) as ActionPlanApiResponse & {
@@ -162,7 +164,7 @@ export function PausibleResultsReport({
     attempt.answers,
     attempt.id,
     attempt.scores,
-    forceRegenerate,
+    effectiveForceRegen,
     loadSig,
     onActionPlanCached,
     reportLlmProvider,
@@ -288,6 +290,19 @@ export function PausibleResultsReport({
                 Copy share link
               </button>
             ) : null}
+            <button
+              type="button"
+              disabled={planLoading}
+              onClick={() => {
+                loadedSigRef.current = null;
+                setPlanData(null);
+                setPlanMeta({});
+                setLocalForceRegen(true);
+              }}
+              className="rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-50"
+            >
+              {planLoading && localForceRegen ? "Refreshing…" : "Refresh report"}
+            </button>
             <Link
               href="/assessment/default"
               className="rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50"

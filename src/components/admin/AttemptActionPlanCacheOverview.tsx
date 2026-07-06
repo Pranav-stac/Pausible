@@ -2,6 +2,7 @@
 
 import type { ActionPlanApiResponse } from "@/lib/recommendations/client-types";
 import type { StoredActionPlanCache } from "@/lib/recommendations/action-plan-cache";
+import { ACTION_PLAN_SYNTHESIS_VERSION } from "@/lib/recommendations/action-plan-cache";
 import type { PillarName } from "@/lib/recommendations/types";
 import { personaLabel } from "@/lib/results/persona-display";
 import { fitTierLabel } from "@/lib/scoring/persona-fit";
@@ -16,6 +17,8 @@ function parseCache(raw: unknown): StoredActionPlanCache | null {
   if (!inputHash || !plan || typeof plan !== "object") return null;
   return {
     inputHash,
+    synthesisVersion:
+      typeof row.synthesisVersion === "string" ? row.synthesisVersion : ACTION_PLAN_SYNTHESIS_VERSION,
     plan: plan as ActionPlanApiResponse["plan"],
     llmProvider: typeof row.llmProvider === "string" ? (row.llmProvider as StoredActionPlanCache["llmProvider"]) : undefined,
     synthesizedAt: typeof row.synthesizedAt === "string" ? row.synthesizedAt : undefined,
