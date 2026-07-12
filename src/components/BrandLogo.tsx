@@ -2,85 +2,59 @@ import Image from "next/image";
 
 type BrandLogoProps = {
   className?: string;
-  /** @deprecated Use sizeClass for wordmark sizing */
+  /** Tailwind height class for the logo image (e.g. h-8). */
   heightClass?: string;
   priority?: boolean;
-  /** Show PAUSIBL wordmark (default true when heightClass omitted in marketing) */
+  /** @deprecated CSS wordmark removed — image logo is always used. */
   withWordmark?: boolean;
   /** @deprecated */
   wordmarkClassName?: string;
-  /** Tailwind text size for wordmark */
+  /** @deprecated Prefer heightClass. Kept for call-site compatibility. */
   sizeClass?: string;
-  variant?: "wordmark" | "image" | "footer";
+  /** `white` for dark backgrounds; default black wordmark for light UI. */
+  variant?: "wordmark" | "image" | "footer" | "white" | "mark";
 };
 
-function PauseMark({ className = "" }: { className?: string }) {
-  return (
-    <span
-      className={`inline-flex items-center justify-center gap-[3px] align-middle ${className}`.trim()}
-      aria-hidden
-    >
-      <span className="h-[0.85em] w-[0.18em] rounded-full bg-[#00C9C8]" />
-      <span className="h-[0.85em] w-[0.18em] rounded-full bg-[#0D1B2A]" />
-      <span className="h-[0.85em] w-[0.18em] rounded-full bg-[#2D82FF]" />
-    </span>
-  );
-}
+const SRC = {
+  black: "/Logo.png",
+  white: "/logo-white.png",
+  mark: "/logo-mark.png",
+} as const;
 
-function PausiblWordmark({ sizeClass }: { sizeClass: string }) {
-  return (
-    <span
-      className={`inline-flex items-center font-bold tracking-[0.06em] text-[#0D1B2A] ${sizeClass}`}
-      aria-label="Pausibl"
-    >
-      <span>PA</span>
-      <PauseMark className="mx-[0.08em]" />
-      <span>SIBL</span>
-    </span>
-  );
+function resolveHeightClass(heightClass?: string, sizeClass?: string, variant?: BrandLogoProps["variant"]) {
+  if (heightClass) return heightClass;
+  if (variant === "footer") return "h-8 sm:h-9";
+  if (variant === "mark") return "h-8 w-auto";
+  if (sizeClass?.includes("text-lg") || sizeClass?.includes("text-xl") || sizeClass?.includes("text-2xl")) {
+    return "h-7 sm:h-8";
+  }
+  if (sizeClass?.includes("text-base") || sizeClass?.includes("text-sm")) {
+    return "h-6 sm:h-7";
+  }
+  return "h-7 sm:h-8";
 }
 
 export function BrandLogo({
   className = "",
   heightClass,
   priority = false,
-  withWordmark = false,
-  wordmarkClassName = "",
   sizeClass,
   variant = "wordmark",
 }: BrandLogoProps) {
-  const useImageOnly = variant === "image" || (Boolean(heightClass) && !withWordmark);
-
-  if (useImageOnly) {
-    const imageClass = ["w-auto object-contain object-left", heightClass ?? "h-8", className]
-      .filter(Boolean)
-      .join(" ");
-
-    return (
-      <Image
-        src="/Logo.png"
-        alt="Pausibl"
-        width={48}
-        height={48}
-        priority={priority}
-        className={imageClass.trim()}
-      />
-    );
-  }
-
-  const resolvedSize =
-    sizeClass ??
-    (variant === "footer"
-      ? "text-lg sm:text-xl"
-      : wordmarkClassName
-        ? `font-semibold tracking-tight ${wordmarkClassName}`
-        : heightClass
-          ? "text-base sm:text-lg"
-          : "text-xl sm:text-2xl");
+  const isMark = variant === "mark";
+  const isWhite = variant === "white";
+  const src = isMark ? SRC.mark : isWhite ? SRC.white : SRC.black;
+  const resolvedHeight = resolveHeightClass(heightClass, sizeClass, variant);
+  const imageClass = ["w-auto object-contain object-left", resolvedHeight, className].filter(Boolean).join(" ");
 
   return (
-    <span className={`inline-flex items-center ${className}`.trim()}>
-      <PausiblWordmark sizeClass={resolvedSize} />
-    </span>
+    <Image
+      src={src}
+      alt="Pausibl"
+      width={isMark ? 48 : 260}
+      height={isMark ? 68 : 52}
+      priority={priority}
+      className={imageClass.trim()}
+    />
   );
 }

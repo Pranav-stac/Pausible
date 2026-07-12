@@ -12,7 +12,8 @@ const TECHNICAL_TRAIT_REPLACEMENTS: [RegExp, string][] = [
 /** Rhythm/action lines — strip engine jargon only; persona names allowed in narrative fields. */
 const RHYTHM_LINE_REPLACEMENTS: [RegExp, string][] = [
   ...TECHNICAL_TRAIT_REPLACEMENTS,
-  [/\bactivation\s+energy\b/gi, ""],
+  [/\blow\s+activation\s+energy\b/gi, "getting started"],
+  [/\bactivation\s+energy\b/gi, "getting started"],
   [/\breadiness\s+signal\b/gi, "You'll know you're ready when"],
   [/\bpillar\s+distribution\b/gi, "Your plan covers sleep, nutrition, movement, and mental wellness"],
   [/\bphase\s+assignment\b/gi, ""],
@@ -25,7 +26,8 @@ const RHYTHM_LINE_REPLACEMENTS: [RegExp, string][] = [
 /** Subtitle + plan rationale — technical traits only (§20.9 allows persona + fit score). */
 const NARRATIVE_REPLACEMENTS: [RegExp, string][] = [
   ...TECHNICAL_TRAIT_REPLACEMENTS,
-  [/\bactivation\s+energy\b/gi, ""],
+  [/\blow\s+activation\s+energy\b/gi, "getting started"],
+  [/\bactivation\s+energy\b/gi, "getting started"],
   [/\bblend\s+ratio\b/gi, "pattern blend"],
 ];
 

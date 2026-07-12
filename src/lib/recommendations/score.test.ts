@@ -3,6 +3,7 @@ import {
   compareScored,
   hasHighCapacityProfile,
   hasLowCapacityProfile,
+  passesPlanScoreGate,
   scoreRecommendation,
 } from "@/lib/recommendations/score";
 import type { RecommendationRow, ScoredRecommendation, UserProfile } from "@/lib/recommendations/types";
@@ -87,6 +88,39 @@ describe("PDA §14 effort fit", () => {
     });
     expect(hasLowCapacityProfile(profile)).toBe(true);
     expect(hasHighCapacityProfile(profile)).toBe(false);
+  });
+});
+
+describe("PDA §21.3 conditional plan gate", () => {
+  it("blocks travel conditional recs without travel context", () => {
+    const travel = scored(
+      {
+        id: "NUT024",
+        pillar: "Nutrition",
+        category: "travel_work_nutrition",
+        strength: "conditional",
+        contextFit: ["work_travel_heavy", "time_under_15_min"],
+        score: {
+          persona: 25,
+          barriers: 12,
+          goals: 16,
+          context: 3,
+          ocean: 4,
+          effort: 5,
+          strength: 0,
+          total: 65,
+          primaryPersonaMatch: true,
+          secondaryPersonaMatch: false,
+          allPersonasMatch: false,
+          matchedBarriers: ["barrier_lack_of_time"],
+          matchedGoals: ["goal_energy"],
+          matchedContext: ["time_under_15_min"],
+          matchedOcean: ["C_low"],
+        },
+      },
+      baseProfile({ context: ["time_under_15_min"] }),
+    );
+    expect(passesPlanScoreGate(travel)).toBe(false);
   });
 });
 

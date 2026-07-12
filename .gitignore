@@ -22,8 +22,14 @@ pausible-ed8e6-firebase-adminsdk-fbsvc-6934f4e606.json
 
 # misc
 /client-data/
+/backups/
 .DS_Store
 *.pem
+
+# MCP (local tooling — do not push)
+/mcp-server/
+/mcp-test/
+.playwright-mcp/
 
 # Firebase service account keys (use FIREBASE_ADMIN_CREDENTIALS_PATH locally)
 **/firebase-adminsdk*.json

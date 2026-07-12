@@ -16,7 +16,13 @@
     "seed:all": "npm run import:pda-v1 && npm run seed:firestore",
     "seed:firestore": "tsx --env-file=.env scripts/seed-firestore.ts",
     "wipe:firestore": "tsx --env-file=.env scripts/wipe-firestore.ts",
-    "reset:firestore": "npm run wipe:firestore && npm run seed:all"
+    "backup:firestore": "tsx --env-file=.env scripts/backup-firestore.ts",
+    "reset:firestore": "npm run wipe:firestore && npm run seed:all",
+    "mcp": "npm run start --prefix mcp-server",
+    "test:mcp": "tsx --tsconfig mcp-server/tsconfig.json --env-file=.env mcp-server/scripts/smoke-test.ts",
+    "test:mcp:deep": "tsx --tsconfig mcp-server/tsconfig.json --env-file=.env mcp-server/scripts/deep-test.ts",
+    "test:profiles:engine": "tsx --tsconfig mcp-server/tsconfig.json --env-file=.env mcp-server/scripts/run-engine-suite.ts",
+    "test:profiles:synthesis": "tsx --tsconfig mcp-server/tsconfig.json --env-file=.env mcp-server/scripts/run-synthesis-profile.ts"
   },
   "dependencies": {
     "@paypal/checkout-server-sdk": "^1.0.3",
@@ -31,6 +37,7 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "stripe": "^22.1.1",
+    "xlsx": "^0.18.5",
     "zod": "^4.4.3"
   },
   "devDependencies": {

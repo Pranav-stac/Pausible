@@ -7,7 +7,6 @@ export const FORBIDDEN_TECHNICAL_TRAITS = [
   "ocean",
   "big five",
   "facet",
-  "curiosity",
   "cooperation",
 ] as const;
 

@@ -6,6 +6,7 @@ import { clusterRecommendations } from "@/lib/recommendations/cluster";
 import { auditFilterExclusions } from "@/lib/recommendations/filter-audit";
 import { filterForProfile } from "@/lib/recommendations/filter";
 import { GOAL_PREFERENCE_BRIDGE_REC_ID, injectGoalPreferenceBridge } from "@/lib/recommendations/goal-preference-bridge";
+import { injectContextSignalAnchors } from "@/lib/recommendations/context-signal-anchors";
 import { injectModalityAnchors } from "@/lib/recommendations/modality-anchors";
 import { loadRecommendationConfig } from "@/lib/recommendations/load-recommendation-config";
 import { generatePlanOutput } from "@/lib/recommendations/plan/plan-generator";
@@ -80,6 +81,9 @@ export type AttemptEngineDebugPackage = {
     oceanCategoryTags: string[];
     derivedExclusions: string[];
     goalPreferenceBridge: boolean;
+    isElderly65: boolean;
+    isMinor: boolean;
+    computedAgeYears: number | null;
   };
   barrierOverridesActive: { key: BarrierOverrideKey; tags: readonly string[] }[];
   filterAudit: { id: string; pillar: string; type: string; reasons: string[] }[];
@@ -165,8 +169,12 @@ export async function buildAttemptEngineDebugPackage(
   const excluded = auditFilterExclusions(master, profile);
   const scored = scoreAll(filtered, profile);
   const preBridge = scored;
-  const ranked = injectModalityAnchors(
-    injectGoalPreferenceBridge(scored, profile, scored),
+  const ranked = injectContextSignalAnchors(
+    injectModalityAnchors(
+      injectGoalPreferenceBridge(scored, profile, scored),
+      profile,
+      scored,
+    ),
     profile,
     scored,
   );
@@ -232,6 +240,9 @@ export async function buildAttemptEngineDebugPackage(
       oceanCategoryTags: profile.oceanCategoryTags,
       derivedExclusions: profile.exclusions.filter((e) => e.startsWith("exclude_")),
       goalPreferenceBridge: profile.goalPreferenceBridge,
+      isElderly65: profile.isElderly65,
+      isMinor: profile.isMinor,
+      computedAgeYears: profile.computedAgeYears ?? null,
     },
     barrierOverridesActive: activeBarrierOverrides(profile),
     filterAudit: excluded.map(({ row, reasons }) => ({

@@ -21,13 +21,14 @@ import { PDA_REPORT_PILLAR_ORDER } from "@/lib/recommendations/scoring-constants
 const PILLARS: PillarName[] = [...PDA_REPORT_PILLAR_ORDER];
 
 const PREF_WORDS =
-  /\b(walk|run|jog|strength|weight|cardio|hiit|yoga|pilates|stretch|sport|dance|swim|pool|cycle|bike|home)\b/i;
+  /\b(walk(ing)?|run(ning)?|jog(ging)?|strength|weight(s)?|cardio|hiit|yoga|pilates|stretch(ing)?|sport(s)?|dance|swim(ming)?|pool|cycle|cycling|bike|home)\b/i;
 
 const MEAL_PREP_WORDS = /\b(cook|meal prep|kitchen|grocery|recipe)\b/i;
 const FAT_LOSS_WORDS = /\b(deficit|calorie|weight loss|lean out|fat loss)\b/i;
+const POSTPARTUM_TEXT = /\bpostpartum\b/i;
 const WORK_WORDS = /\b(work|office|meeting|commute|workday)\b/i;
 const STRENGTH_ASSERT =
-  /\b(disciplined|consistency comes naturally|gritty|naturally consistent|always follow through)\b/i;
+  /\b(disciplined|consistency comes naturally|gritty|naturally consistent|always follow through|strong follow-through)\b/i;
 
 const VALID_DISCLAIMERS = [
   PHYSICAL_DISCLAIMER_DEFAULT,
@@ -55,6 +56,15 @@ function scrubCaffeineMentions(text: string): string {
   return text.replace(/\b[^.!?]*\bcaffeine\b[^.!?]*[.!?]?/gi, "").replace(/\s{2,}/g, " ").trim();
 }
 
+function scrubPostpartumCopy(text: string): string {
+  return text
+    .replace(/\bpostpartum,\s*/gi, "")
+    .replace(/\bduring recovery\s*—\s*postpartum/gi, "during recovery")
+    .replace(/\bpostpartum\b/gi, "recovery")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 function scrubFatLossCopy(text: string): string {
   return text
     .replace(/\b(deficit|calorie|calories|weight loss|lean out|fat loss|body composition)\b/gi, "steady habits")
@@ -62,7 +72,9 @@ function scrubFatLossCopy(text: string): string {
     .trim();
 }
 
-function appendPersonaBarrierAck(narrative: string): string {
+function appendPersonaBarrierAck(narrative: string, profile: UserProfile): string {
+  if (!profile.barriers.includes("barrier_lack_of_consistency")) return narrative;
+
   const ack =
     "You've flagged consistency as a challenge, so this plan is built to grow that quality gradually. ";
   if (narrative.toLowerCase().includes("challenge")) return narrative;
@@ -74,13 +86,24 @@ function wordCount(text: string): number {
 }
 
 function prefLabel(tag: string): string {
-  return tag.replace(/^activity_pref_/, "").replace(/_/g, " ");
+  const raw = tag.replace(/^activity_pref_/, "").replace(/_/g, " ");
+  if (raw === "open") return "flexible";
+  return raw;
 }
 
-function truncateWords(text: string, maxWords: number): string {
-  const words = text.trim().split(/\s+/).filter(Boolean);
-  if (words.length <= maxWords) return text.trim();
-  return words.slice(0, maxWords).join(" ");
+const PHANTOM_CONSISTENCY_BARRIER =
+  /\b(you(?:'ve| have) (?:said|told us|flagged) consistency(?: is hard| as a challenge)?[^.]*\.?)/gi;
+
+function scrubPhantomConsistencyBarrier(text: string, profile: UserProfile): string {
+  if (profile.barriers.includes("barrier_lack_of_consistency")) return text;
+  return text
+    .replace(
+      /\bYour pattern points to strong follow-through,\s*but you(?:'ve| have) (?:said|told us|flagged) consistency[^.]*\.\s*/gi,
+      "",
+    )
+    .replace(PHANTOM_CONSISTENCY_BARRIER, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 function padPersonaNarrative(narrative: string, boxes: { content: string }[]): string {
@@ -90,11 +113,18 @@ function padPersonaNarrative(narrative: string, boxes: { content: string }[]): s
   const extras = boxes.map((b) => b.content.trim()).filter(Boolean);
   for (const extra of extras) {
     if (wordCount(out) >= 150) break;
+    const probe = extra.toLowerCase().slice(0, 48).trim();
+    if (probe.length >= 24 && out.toLowerCase().includes(probe)) continue;
     out = `${out} ${extra}`.replace(/\s{2,}/g, " ").trim();
   }
 
   if (wordCount(out) < 150) {
-    out = `${out} You respond best when guidance respects your natural rhythm and builds in small, repeatable steps.`.trim();
+    // Avoid repeated boilerplate that can trip post-gate duplicate-sentence checks.
+    // Keep this line short and specific, and only add if not already present.
+    const pad = "Make the plan small enough that it survives busy weeks, not just ideal days.";
+    if (!out.toLowerCase().includes(pad.toLowerCase().slice(0, 25))) {
+      out = `${out} ${pad}`.trim();
+    }
   }
 
   return out;
@@ -107,14 +137,20 @@ function ensureActivityPreferenceDos(
   if (!prefs.length) return dos;
 
   const next = dos.map((d) => ({ ...d }));
-  let hits = next.filter((d) => prefMatches(d.action)).length;
+  let hits = next.filter((d) => prefMatches(d.action, prefs)).length;
+  const isDisclaimer = (text: string) =>
+    /\b(check with your doctor|physiotherapist|ob\/gyn|clearance from your doctor)\b/i.test(text) ||
+    text.trim() === "A quick safety check before you begin.";
 
   for (let i = 0; i < next.length && hits < 2; i++) {
-    if (prefMatches(next[i].action)) continue;
+    if (prefMatches(next[i].action, prefs)) continue;
+    if (isDisclaimer(next[i].action) || isDisclaimer(next[i].why)) continue;
     const pref = prefLabel(prefs[hits % prefs.length]);
+    // Keep the action line clean and non-fragmented (avoid truncating mid-clause).
+    // Preference injection is meant to bias fit, not to create awkward copy.
     next[i] = {
       ...next[i],
-      action: truncateWords(`Include a ${pref} session: ${next[i].action}`, 12),
+      action: `Include a ${pref} session (10–15 min).`,
     };
     hits++;
   }
@@ -151,6 +187,55 @@ function applyQaAutoFixes(
         why: scrubForbiddenNutritionCopy(d.why),
       })),
     };
+  }
+
+  if (safety.eatsOutFrequently) {
+    const nutrition = data.pillarPlans.Nutrition;
+    data.pillarPlans.Nutrition = {
+      ...nutrition,
+      focusArea: scrubForbiddenNutritionCopy(nutrition.focusArea),
+      focusReason: scrubForbiddenNutritionCopy(nutrition.focusReason),
+      dos: nutrition.dos.map((d) => ({
+        action: scrubForbiddenNutritionCopy(d.action),
+        why: scrubForbiddenNutritionCopy(d.why),
+      })),
+      donts: nutrition.donts.map((d) => ({
+        behavior: scrubForbiddenNutritionCopy(d.behavior),
+        why: scrubForbiddenNutritionCopy(d.why),
+      })),
+    };
+  }
+
+  if (!profile.exclusions.includes("exclude_pregnancy_postpartum")) {
+    const scrubAll = (text: string) => scrubPostpartumCopy(text);
+    const nutrition = data.pillarPlans.Nutrition;
+    data.pillarPlans.Nutrition = {
+      ...nutrition,
+      focusArea: scrubAll(nutrition.focusArea),
+      focusReason: scrubAll(nutrition.focusReason),
+      dos: nutrition.dos.map((d) => ({
+        action: scrubAll(d.action),
+        why: scrubAll(d.why),
+      })),
+      donts: nutrition.donts.map((d) => ({
+        behavior: scrubAll(d.behavior),
+        why: scrubAll(d.why),
+      })),
+    };
+    data.primaryPattern = {
+      ...data.primaryPattern,
+      personaNarrative: scrubAll(data.primaryPattern.personaNarrative),
+      behaviouralBoxes: data.primaryPattern.behaviouralBoxes.map((b) => ({
+        ...b,
+        content: scrubAll(b.content),
+      })),
+    };
+    data.opportunityCards = data.opportunityCards.map((c) => ({
+      ...c,
+      headline: c.headline ? scrubAll(c.headline) : c.headline,
+      whyItMatters: c.whyItMatters ? scrubAll(c.whyItMatters) : c.whyItMatters,
+      startThisWeek: c.startThisWeek ? scrubAll(c.startThisWeek) : c.startThisWeek,
+    }));
   }
 
   if (safety.caffeineNone) {
@@ -206,15 +291,18 @@ function applyQaAutoFixes(
   data.primaryPattern = {
     ...data.primaryPattern,
     personaNarrative: finalizeCopy(
-      padPersonaNarrative(
-        appendPersonaBarrierAck(data.primaryPattern.personaNarrative),
-        data.primaryPattern.behaviouralBoxes,
+      scrubPhantomConsistencyBarrier(
+        padPersonaNarrative(
+          appendPersonaBarrierAck(data.primaryPattern.personaNarrative, profile),
+          data.primaryPattern.behaviouralBoxes,
+        ),
+        profile,
       ),
       profile,
     ),
     behaviouralBoxes: data.primaryPattern.behaviouralBoxes.map((b) => ({
       ...b,
-      content: finalizeCopy(b.content, profile),
+      content: finalizeCopy(scrubPhantomConsistencyBarrier(b.content, profile), profile),
     })),
   };
 
@@ -257,8 +345,12 @@ function collectPillarText(
   return [p.focusArea, p.focusReason, ...p.dos.map((d) => `${d.action} ${d.why}`)].join(" ");
 }
 
-function prefMatches(text: string): boolean {
-  return PREF_WORDS.test(text);
+function prefMatches(text: string, prefs: string[] = []): boolean {
+  if (PREF_WORDS.test(text)) return true;
+  if (prefs.includes("activity_pref_open") && /\b(open|anything|flexible)\b/i.test(text)) {
+    return true;
+  }
+  return false;
 }
 
 /** PDA v1.2 §39 — deterministic QA checks (post-generation). */
@@ -285,20 +377,33 @@ export function runQaSynthesisChecks(
   ].join(" ");
 
   if (safety.needsPhysicalDisclaimer) {
-    const firstLine = physical.dos[0]?.action ?? physical.focusReason;
-    const ok = VALID_DISCLAIMERS.some((d) => firstLine.toLowerCase().includes(d.toLowerCase().slice(0, 20)));
+    const physicalCopy = [physical.focusReason, ...physical.dos.map((d) => d.action)].join(" ");
+    const ok = VALID_DISCLAIMERS.some((d) =>
+      physicalCopy.toLowerCase().includes(d.toLowerCase().slice(0, 20)),
+    );
     if (!ok) failures.push("qa_disclaimer: Physical Activity missing safety disclaimer");
   }
 
   if (safety.activityPrefs.length > 0) {
-    const prefHits = physical.dos.filter((d) => prefMatches(d.action)).length;
+    const prefHits = physical.dos.filter((d) => prefMatches(d.action, safety.activityPrefs)).length;
     if (prefHits < 2) {
       warnings.push(`qa_activity_pref: only ${prefHits}/2 Physical Do items reflect preferences`);
     }
   }
 
+  if (
+    !profile.barriers.includes("barrier_lack_of_consistency") &&
+    /\bconsistency is hard\b/i.test(allText)
+  ) {
+    warnings.push("qa_phantom_barrier: consistency barrier referenced without user barrier");
+  }
+
   if (safety.mealsByOthers && MEAL_PREP_WORDS.test(nutritionText)) {
     failures.push("qa_meals_by_others: cooking/meal-prep language for meals-by-others user");
+  }
+
+  if (safety.eatsOutFrequently && MEAL_PREP_WORDS.test(nutritionText)) {
+    failures.push("qa_eat_out: cooking/meal-prep language for frequent-eat-out user");
   }
 
   if (safety.isNonWorker && WORK_WORDS.test(allText)) {
@@ -309,15 +414,25 @@ export function runQaSynthesisChecks(
     failures.push("qa_fat_loss: deficit language without fat-loss goal");
   }
 
+  if (
+    !profile.exclusions.includes("exclude_pregnancy_postpartum") &&
+    POSTPARTUM_TEXT.test(allText)
+  ) {
+    failures.push("qa_postpartum: postpartum language without pregnancy/postpartum restriction");
+  }
+
   if (safety.caffeineNone && /\bcaffeine\b/i.test(allText)) {
     failures.push("qa_caffeine: caffeine mention for caffeine_none user");
   }
 
   if (safety.fitActive) {
+    const walkingPref = safety.activityPrefs.some((p) => p.includes("walking"));
     const walkingPrimary = physical.dos.some(
       (d) => /\bwalk(ing)?\b/i.test(d.action) && !/recovery/i.test(d.action),
     );
-    if (walkingPrimary) warnings.push("qa_walking: walking-primary for fit/active user");
+    if (walkingPrimary && !walkingPref) {
+      warnings.push("qa_walking: walking-primary for fit/active user");
+    }
   }
 
   for (const card of data.opportunityCards) {
@@ -420,6 +535,15 @@ export function applyPdaV12SynthesisPostProcess(
   };
 
   applyQaAutoFixes(profile, processed);
+
+  // Activity-preference injection can overwrite the first Physical Do row; re-apply disclaimers last.
+  for (const pillar of PILLARS) {
+    processed.pillarPlans[pillar] = applySafetyDisclaimersToPillarPlan(
+      pillar,
+      processed.pillarPlans[pillar],
+      profile,
+    );
+  }
 
   const qa = runQaSynthesisChecks(profile, processed);
   return { ...processed, qa };

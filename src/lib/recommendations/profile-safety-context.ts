@@ -23,6 +23,7 @@ export type ProfileSafetyContext = {
   isShiftWorker: boolean;
   caffeineNone: boolean;
   mealsByOthers: boolean;
+  eatsOutFrequently: boolean;
   fatLossGoal: boolean;
   activityPrefs: string[];
   fitActive: boolean;
@@ -60,6 +61,7 @@ export function buildProfileSafetyContext(profile: UserProfile): ProfileSafetyCo
     isShiftWorker: ctx.has("work_shift_based"),
     caffeineNone: ctx.has("caffeine_none"),
     mealsByOthers: ctx.has("meal_control_prepared_by_others"),
+    eatsOutFrequently: ctx.has("meal_control_frequent_eating_out"),
     fatLossGoal: profile.goals.includes("goal_fat_loss"),
     activityPrefs: profile.context.filter((t) => t.startsWith(ACTIVITY_PREF_PREFIX)),
     fitActive:

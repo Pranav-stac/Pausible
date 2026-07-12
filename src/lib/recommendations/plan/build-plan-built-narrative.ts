@@ -8,6 +8,28 @@ function formatTag(tag: string): string {
   return tag.replace(/^goal_/, "").replace(/^barrier_/, "").replace(/_/g, " ");
 }
 
+function formatBarrier(tag: string): string {
+  const labels: Record<string, string> = {
+    barrier_low_activation_energy: "getting started",
+    barrier_starting_difficulty: "getting started",
+    barrier_lack_of_consistency: "staying consistent",
+    barrier_lack_of_time: "lack of time",
+    barrier_low_motivation: "low motivation",
+    barrier_lack_of_knowledge: "not knowing what to do",
+    barrier_emotional_eating_cravings: "emotional eating",
+    barrier_poor_sleep: "poor sleep",
+  };
+  return labels[tag] ?? formatTag(tag);
+}
+
+function barrierPhrase(barriers: string[]): string {
+  const unique = [...new Set(barriers.map(formatBarrier))];
+  if (!unique.length) return "everyday constraints";
+  if (unique.length === 1) return unique[0]!;
+  if (unique.length === 2) return `${unique[0]} and ${unique[1]}`;
+  return `${unique.slice(0, -1).join(", ")}, and ${unique[unique.length - 1]}`;
+}
+
 function priorityPhrases(cards: OpportunityCard[]): string {
   const phrases = cards
     .slice(0, 3)
@@ -21,7 +43,7 @@ function priorityPhrases(cards: OpportunityCard[]): string {
 
 function goalPhrase(goals: string[]): string {
   if (!goals.length) return "general wellness";
-  return goals.map(formatTag).join(" and ");
+  return goals.map((g) => g.replace(/^goal_/, "").replace(/_/g, " ")).join(" and ");
 }
 
 /** Deterministic fallback when A14 plan_built_narrative is unavailable. */
@@ -38,7 +60,7 @@ export function buildDeterministicPlanBuiltNarrative(args: {
   const fitScore = Math.round(input?.scores?.persona?.fitScore ?? 0);
   const fitTier = fitTierLabel(planOutput.fit_tier);
   const goals = goalPhrase(profile.goals);
-  const barrier = profile.barriers[0] ? formatTag(profile.barriers[0]) : "everyday constraints";
+  const barrier = barrierPhrase(profile.barriers);
   const blendPct = secondaryBlendPct ?? 0;
   const secondaryClause =
     secondaryLabel && blendPct > 0 && profile.secondaryPersona !== profile.primaryPersona

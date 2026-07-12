@@ -106,6 +106,21 @@ export type RankContext = {
 export function passesPlanScoreGate(row: ScoredRecommendation): boolean {
   if (row.score.total <= PDA_PLAN_SCORE_THRESHOLD) return false;
   if (row.strength === "conditional" && row.score.matchedContext.length === 0) return false;
+
+  const travelAnchorTags = new Set(["work_travel_heavy", "barrier_travel_schedule_disruption"]);
+  const travelCategories = new Set([
+    "travel_work_nutrition",
+    "travel_work_fitness",
+    "shift_work_travel_sleep",
+  ]);
+  if (
+    row.strength === "conditional" &&
+    travelCategories.has(row.category) &&
+    !row.score.matchedContext.some((t) => travelAnchorTags.has(t))
+  ) {
+    return false;
+  }
+
   return true;
 }
 

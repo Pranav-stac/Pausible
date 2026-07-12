@@ -7364,7 +7364,7 @@
     "pillar": "Nutrition",
     "category": "nutrition_recovery",
     "type": "do",
-    "text": "During recovery — postpartum, illness, or a very demanding period — focus on eating enough and eating well. Nourishment and steady energy matter far more than cutting back.",
+    "text": "During illness or a very demanding period, focus on eating enough and eating well. Nourishment and steady energy matter far more than cutting back.",
     "personaFit": [
       "all_personas"
     ],
@@ -7380,16 +7380,16 @@
     "excludeIf": [
       "exclude_none"
     ],
-    "strength": "core",
+    "strength": "conditional",
     "oceanCategoryTags": [],
     "notes": "v1.14 recovery nourishment (pairs with DR18 goal-safety override).",
     "personaContext": {
-      "shielded_turtle": "During recovery — postpartum, illness, or a very demanding period — focus on eating enough and eating well. Nourishment and steady energy matter far more than cutting back. No restriction needed — just steady nourishment.",
-      "curious_fox": "During recovery — postpartum, illness, or a very demanding period — focus on eating enough and eating well. Nourishment and steady energy matter far more than cutting back. Keep meals varied and satisfying.",
-      "watchful_deer": "During recovery — postpartum, illness, or a very demanding period — focus on eating enough and eating well. Nourishment and steady energy matter far more than cutting back. Permission to nourish, not restrict, eases pressure.",
-      "steadfast_bear": "During recovery — postpartum, illness, or a very demanding period — focus on eating enough and eating well. Nourishment and steady energy matter far more than cutting back. Fuel recovery as deliberately as training.",
-      "steady_elephant": "During recovery — postpartum, illness, or a very demanding period — focus on eating enough and eating well. Nourishment and steady energy matter far more than cutting back. Make regular, balanced meals the system.",
-      "pack_wolf": "During recovery — postpartum, illness, or a very demanding period — focus on eating enough and eating well. Nourishment and steady energy matter far more than cutting back. Accept help with meals during this time."
+      "shielded_turtle": "During illness or a very demanding period, focus on eating enough and eating well. Nourishment and steady energy matter far more than cutting back. No restriction needed — just steady nourishment.",
+      "curious_fox": "During illness or a very demanding period, focus on eating enough and eating well. Nourishment and steady energy matter far more than cutting back. Keep meals varied and satisfying.",
+      "watchful_deer": "During illness or a very demanding period, focus on eating enough and eating well. Nourishment and steady energy matter far more than cutting back. Permission to nourish, not restrict, eases pressure.",
+      "steadfast_bear": "During illness or a very demanding period, focus on eating enough and eating well. Nourishment and steady energy matter far more than cutting back. Fuel recovery as deliberately as training.",
+      "steady_elephant": "During illness or a very demanding period, focus on eating enough and eating well. Nourishment and steady energy matter far more than cutting back. Make regular, balanced meals the system.",
+      "pack_wolf": "During illness or a very demanding period, focus on eating enough and eating well. Nourishment and steady energy matter far more than cutting back. Accept help with meals during this time."
     },
     "oceanTraitTags": [],
     "effortLevel": "low"

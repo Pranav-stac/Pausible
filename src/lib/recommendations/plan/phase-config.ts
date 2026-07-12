@@ -257,7 +257,15 @@ export const PERSONA_PHASE_CONFIG: Record<PersonaKey, PersonaPhaseConfig> = {
       name: "Optimize Your System",
       intent:
         "Fine-tune nutrition timing, progressive overload, advanced recovery when goals need more refinement.",
-      eligibleTypes: ["strength_insight", "blind_spot", "pattern_prediction"],
+      eligibleTypes: [
+        "do",
+        "first_action",
+        "environment_change",
+        "recovery_rule",
+        "mindset_shift",
+        "success_condition",
+        "strength_insight",
+      ],
       readinessDescription: "When the system is producing measurable results.",
       primarySignal: "performance",
       secondarySignal: "consistency",

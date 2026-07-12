@@ -1,7 +1,7 @@
 {
   "name": "Pausible",
   "short_name": "Pausible",
-  "description": "Fitness behavioral insights you can act on.",
+  "description": "Wellness intelligence that fits how you're wired.",
   "icons": [
     {
       "src": "/favicon/web-app-manifest-192x192.png",
@@ -16,8 +16,8 @@
       "purpose": "maskable any"
     }
   ],
-  "theme_color": "#050816",
-  "background_color": "#050816",
+  "theme_color": "#0D1B2A",
+  "background_color": "#0D1B2A",
   "display": "standalone",
   "start_url": "/"
 }

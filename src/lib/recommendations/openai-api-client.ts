@@ -134,8 +134,12 @@ async function callOpenAiChatCompletions(args: {
   maxOutputTokens?: number;
 }): Promise<OpenAiSectionResult> {
   const primaryField = shouldUseResponsesApi(args.model) ? "max_completion_tokens" : "max_tokens";
-  const fallbackField = primaryField === "max_tokens" ? "max_completion_tokens" : "max_tokens";
-  const bodies = [buildChatCompletionBody(args, primaryField), buildChatCompletionBody(args, fallbackField)];
+  const bodies = shouldUseResponsesApi(args.model)
+    ? [buildChatCompletionBody(args, "max_completion_tokens")]
+    : [
+        buildChatCompletionBody(args, primaryField),
+        buildChatCompletionBody(args, "max_completion_tokens"),
+      ];
 
   let lastError = "OpenAI Chat Completions request failed";
 

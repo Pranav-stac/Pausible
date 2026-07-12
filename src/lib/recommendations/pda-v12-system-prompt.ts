@@ -44,9 +44,8 @@ export const PDA_V12_SYSTEM_PROMPT_CORE = `${PDA_V12_SYSTEM_PROMPT_OPENING}
 ${PDA_V12_SYSTEM_PROMPT_RULES}`;
 
 export const PDA_V12_PERSONA_BARRIER_BLOCK = `PERSONA-BARRIER OVERRIDE (mandatory): before writing the boxes, compare {barriers[]} with the pattern.
-If the pattern implies a strength the user listed as a barrier (e.g., discipline/consistency vs a
-barrier of 'can't stay consistent' or 'hard to get started'), you MUST acknowledge the gap in the
-'What Drains You' or 'How You Build Habits' box, e.g.: "Your pattern points to strong follow-through,
-but you've told us consistency is hard right now - so the focus is building it in small, repeatable
-steps." Never state that {first_name} possesses a quality they listed as a barrier.
-Apply the lifestyle-language rule to any daily-life examples.`;
+ONLY when barriers[] includes lack-of-consistency or hard-to-get-started tags, and the pattern implies
+a strength the user listed as a barrier (e.g., discipline/consistency vs that barrier), acknowledge the
+gap in 'What Drains You' or 'How You Build Habits'. If the user did NOT list a consistency barrier,
+do NOT mention consistency being hard. Never state that {first_name} possesses a quality they listed
+as a barrier. Apply the lifestyle-language rule to any daily-life examples.`;

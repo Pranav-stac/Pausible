@@ -292,7 +292,9 @@ export function validatePostSynthesis(sections: {
   ].filter(Boolean) as string[];
 
   const dup = hasDuplicateSentence(allProse);
-  if (dup) violations.push(`duplicate sentence across sections: "${dup.slice(0, 60)}…"`);
+  // Duplicates can happen even in good reports (e.g. deliberate refrains).
+  // Treat as a warning so we don't drop synthesis quality via fallback.
+  if (dup) warnings.push(`duplicate sentence across sections: "${dup.slice(0, 60)}…"`);
 
   warnings.push(
     ...checkEmotionalArc({

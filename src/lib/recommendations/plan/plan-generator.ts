@@ -184,20 +184,32 @@ function backfillRhythmBuckets(
   const fillBucket = (bucket: "daily" | "weekly", minCount: number, relaxStrength: boolean) => {
     const list = bucket === "daily" ? daily : weekly;
     while (list.length < minCount) {
-      const candidates = pool
-        .filter(
-          (r) =>
-            !used.has(r.id) &&
-            !skipIds.has(r.id) &&
-            isEligibleForPhase(r, capacity, phaseNumber, profile) &&
-            PLAN_RHYTHM_TYPES.has(r.type) &&
-            shouldAssignConditionalInPhase(r, phaseNumber, totalPhases, profile),
-        )
-        .sort((a, b) => {
-          const cp = cadencePrefersBucket(a.text, a.type, bucket) - cadencePrefersBucket(b.text, b.type, bucket);
-          if (cp !== 0) return cp;
-          return comparePlanRhythmCandidates(a, b);
-        });
+      const assignedIds = new Set([
+        ...daily.map((d) => d.id),
+        ...weekly.map((w) => w.id),
+        ...skipIds,
+      ]);
+
+      const baseFilter = (allowReuse: boolean) =>
+        pool
+          .filter(
+            (r) =>
+              (allowReuse ? !assignedIds.has(r.id) : !used.has(r.id)) &&
+              !skipIds.has(r.id) &&
+              isEligibleForPhase(r, capacity, phaseNumber, profile) &&
+              PLAN_RHYTHM_TYPES.has(r.type) &&
+              shouldAssignConditionalInPhase(r, phaseNumber, totalPhases, profile),
+          )
+          .sort((a, b) => {
+            const cp = cadencePrefersBucket(a.text, a.type, bucket) - cadencePrefersBucket(b.text, b.type, bucket);
+            if (cp !== 0) return cp;
+            return comparePlanRhythmCandidates(a, b);
+          });
+
+      let candidates = baseFilter(false);
+      if (candidates.length === 0 && phaseNumber === totalPhases) {
+        candidates = baseFilter(true);
+      }
 
       const row =
         candidates.find((r) => relaxStrength || strengthRank(r) <= maxStrength || r.strength === "conditional") ??
@@ -205,11 +217,11 @@ function backfillRhythmBuckets(
       if (!row) break;
 
       if (assignRhythmItem(row, daily, weekly, counts, true)) {
-        used.add(row.id);
+        if (!used.has(row.id)) used.add(row.id);
         continue;
       }
       if (forceAssignRhythmItem(row, bucket, daily, weekly, counts)) {
-        used.add(row.id);
+        if (!used.has(row.id)) used.add(row.id);
         continue;
       }
       break;
@@ -265,6 +277,11 @@ function itemCountsForPhase(
 
   if (secondaryActive && secondaryPersona === "curious_explorer") {
     weekly += 1;
+  }
+
+  if (phaseNumber === 3) {
+    daily = Math.min(daily, 2);
+    weekly = Math.min(weekly, 2);
   }
 
   return { daily, weekly };

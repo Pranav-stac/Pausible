@@ -11,6 +11,115 @@
   }
 }
 
+@keyframes pbFloat {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(0, -22px) scale(1.05);
+  }
+}
+
+@keyframes assessPopIn {
+  0% {
+    transform: scale(0);
+  }
+  55% {
+    transform: scale(1.12);
+  }
+  75% {
+    transform: scale(0.94);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes assessWobble {
+  0%,
+  100% {
+    transform: scale(1, 1);
+  }
+  50% {
+    transform: scale(1.05, 0.95);
+  }
+}
+
+@keyframes assessRipple {
+  0% {
+    transform: scale(0.75);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+@keyframes assessCheckDraw {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.assess-page {
+  --assess-grad: linear-gradient(120deg, #00bfa5 0%, #0ea5e9 50%, #3b82f6 100%);
+  --assess-accent: #0284c7;
+  --assess-grad-soft: linear-gradient(120deg, #ccfdf6 0%, #e0f2fe 100%);
+  font-family: var(--font-outfit), system-ui, sans-serif;
+  color: #1f2430;
+  background-color: #fafbfc;
+  background-image: radial-gradient(circle, #e7eaf0 1px, transparent 1px);
+  background-size: 26px 26px;
+}
+
+.assess-orb {
+  animation: pbFloat 13s ease-in-out infinite;
+}
+
+.assess-card {
+  transition:
+    opacity 0.45s ease,
+    transform 0.45s ease,
+    filter 0.45s ease,
+    padding 0.45s ease,
+    background-color 0.45s ease,
+    border-color 0.45s ease,
+    box-shadow 0.45s ease;
+}
+
+.assess-complete-pop {
+  animation:
+    assessPopIn 0.7s cubic-bezier(0.34, 1.56, 0.64, 1),
+    assessWobble 2.4s ease-in-out 0.8s infinite;
+}
+
+.assess-ripple {
+  animation: assessRipple 2.2s ease-out infinite;
+}
+
+.assess-check-path {
+  stroke-dasharray: 24;
+  animation: assessCheckDraw 0.5s ease-out 0.5s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assess-orb,
+  .assess-complete-pop,
+  .assess-ripple,
+  .assess-check-path {
+    animation: none !important;
+  }
+
+  .assess-card {
+    transition: none !important;
+  }
+}
+
 :root {
   color-scheme: light;
   --background: #ffffff;

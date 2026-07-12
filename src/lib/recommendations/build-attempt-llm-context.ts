@@ -14,6 +14,7 @@ import {
 } from "@/lib/recommendations/gemini-section-prompts";
 import { filterForProfile } from "@/lib/recommendations/filter";
 import { injectGoalPreferenceBridge } from "@/lib/recommendations/goal-preference-bridge";
+import { injectContextSignalAnchors } from "@/lib/recommendations/context-signal-anchors";
 import { injectModalityAnchors } from "@/lib/recommendations/modality-anchors";
 import { loadRecommendationConfig } from "@/lib/recommendations/load-recommendation-config";
 import type { ReportLlmProvider } from "@/lib/recommendations/report-llm-types";
@@ -257,8 +258,12 @@ export async function buildAttemptLlmContextPackage(input: BuildProfileInput): P
   const profile = buildUserProfile(input, config);
   const filtered = filterForProfile(config.recommendations, profile);
   const scored = scoreAll(filtered, profile);
-  const ranked = injectModalityAnchors(
-    injectGoalPreferenceBridge(scored, profile, scored),
+  const ranked = injectContextSignalAnchors(
+    injectModalityAnchors(
+      injectGoalPreferenceBridge(scored, profile, scored),
+      profile,
+      scored,
+    ),
     profile,
     scored,
   );

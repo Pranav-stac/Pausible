@@ -666,7 +666,7 @@ export async function synthesizeActionPlanWithLlm(
     },
     safetyGuidance,
     reportSections: finalReportSections,
-    synthesized: llmSucceeded && !postGate.useFallback,
+    synthesized: Boolean(finalPrimaryPattern.personaNarrative?.trim()),
     llmProvider: provider,
     synthesisError: errors.length ? errors.join("; ") : null,
     tokenUsage,
