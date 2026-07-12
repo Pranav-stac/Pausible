@@ -7,7 +7,7 @@
  *   npx tsx --env-file=.env scripts/export-user-persona-rec-excel.ts [uid]
  */
 import { getApps, initializeApp, cert, type ServiceAccount } from "firebase-admin/app";
-import { getFirestore, type QueryDocumentSnapshot } from "firebase-admin/firestore";
+import { getFirestore, type DocumentData, type QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { existsSync, readFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import ExcelJS from "exceljs";
@@ -71,6 +71,12 @@ function initDb() {
     initializeApp({ credential: cert(loadServiceAccount()) });
   }
   return getFirestore();
+}
+
+function createdAtMillis(data: Record<string, unknown> | DocumentData): number {
+  const v = data.createdAt as { toMillis?: () => number } | null | undefined;
+  if (v && typeof v.toMillis === "function") return v.toMillis();
+  return 0;
 }
 
 function animalName(keyOrAlias: string | null | undefined): string {
@@ -288,8 +294,8 @@ async function main() {
       const meta = parseTpMeta(data);
       const key = meta?.profileId ?? String(data.ownerEmail ?? d.id);
       const prev = latestByProfile.get(key);
-      const t = data.createdAt?.toMillis?.() ?? 0;
-      const pt = prev ? ((prev.data() as Record<string, unknown>).createdAt?.toMillis?.() ?? 0) : -1;
+      const t = createdAtMillis(data);
+      const pt = prev ? createdAtMillis(prev.data() as Record<string, unknown>) : -1;
       if (!prev || t >= pt) latestByProfile.set(key, d);
     }
 
@@ -304,8 +310,8 @@ async function main() {
     const snap = await db.collection("attempts").where("uid", "==", UID).get();
     console.log(`Found ${snap.size} attempt(s)`);
     docs = [...snap.docs].sort((a, b) => {
-      const ta = a.data().createdAt?.toMillis?.() ?? 0;
-      const tb = b.data().createdAt?.toMillis?.() ?? 0;
+      const ta = createdAtMillis(a.data());
+      const tb = createdAtMillis(b.data());
       return tb - ta;
     });
   }

@@ -92,7 +92,10 @@ export function SubmissionConfirmationScreen({ attemptId }: { attemptId: string 
 
   const handleSaveAnswers = useCallback(
     async (patch: Record<string, unknown>) => {
-      const nextAnswers: AttemptAnswers = { ...answers, ...patch };
+      const nextAnswers: AttemptAnswers = {
+        ...answers,
+        ...(patch as AttemptAnswers),
+      };
       const personaConfig = await fetchPersonaScoringConfig();
       const scores = computeAttemptScores(nextAnswers, personaConfig);
       await patchAttempt(attemptId, {
