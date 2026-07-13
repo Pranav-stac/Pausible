@@ -50,6 +50,8 @@ import {
 import type { AssessmentDefinition, AssessmentQuestion, AssessmentSection, AttemptAnswers } from "@/types/models";
 
 const WELLNESS_AGE_RANGE_KEY = `${WELLNESS_CONTEXT_PREFIX}age_range`;
+const WELLNESS_PREF_KEY = `${WELLNESS_CONTEXT_PREFIX}preferred_activities`;
+const WELLNESS_DETAILS_KEY = `${WELLNESS_CONTEXT_PREFIX}preferred_activity_details`;
 
 const AGE_BAND_TAG_TO_OPTION: Record<string, string> = {
   age_under_18: "Under 18",
@@ -379,20 +381,19 @@ export function WellnessContextQuestionnaire({
     };
   }, [attemptId, attemptUid, questionnaire, ready, router]);
 
-  const DETAILS_KEY = `${WELLNESS_CONTEXT_PREFIX}preferred_activity_details`;
-  const PREF_KEY = `${WELLNESS_CONTEXT_PREFIX}preferred_activities`;
-
   const setAnswer = useCallback((qid: string, value: number | string | string[]) => {
     setAnswers((prev) => {
       const next: AttemptAnswers = { ...prev, [qid]: value };
-      if (qid === PREF_KEY) {
+      if (qid === WELLNESS_PREF_KEY) {
         const probe = { ...next };
-        const detailsQ = questionnaire?.questions[DETAILS_KEY];
+        const detailsQ = questionnaire?.questions[WELLNESS_DETAILS_KEY];
         if (detailsQ && !isQuestionVisible(detailsQ, probe)) {
-          delete next[DETAILS_KEY];
-        } else if (detailsQ && Array.isArray(next[DETAILS_KEY])) {
+          delete next[WELLNESS_DETAILS_KEY];
+        } else if (detailsQ && Array.isArray(next[WELLNESS_DETAILS_KEY])) {
           const allowed = new Set(resolveQuestionOptions(detailsQ, probe));
-          next[DETAILS_KEY] = (next[DETAILS_KEY] as string[]).filter((o) => allowed.has(o));
+          next[WELLNESS_DETAILS_KEY] = (next[WELLNESS_DETAILS_KEY] as string[]).filter((o) =>
+            allowed.has(o),
+          );
         }
       }
       return next;
@@ -430,8 +431,10 @@ export function WellnessContextQuestionnaire({
     const idx = questions.findIndex((q) => q.id === focusQuestionId);
     if (idx < 0) return;
     focusAppliedRef.current = true;
-    setActiveIndex(idx);
-    setComplete(false);
+    queueMicrotask(() => {
+      setActiveIndex(idx);
+      setComplete(false);
+    });
   }, [focusQuestionId, questions, sessionLoading]);
 
   const allComplete = useMemo(
