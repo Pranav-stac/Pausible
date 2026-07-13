@@ -455,7 +455,9 @@ export function WellnessContextQuestionnaire({
         ...answers,
       });
 
+      // Only require answers for currently visible questions (conditional items stay optional when hidden).
       for (const q of Object.values(questionnaire.questions)) {
+        if (!isQuestionVisible(q, merged)) continue;
         if (coerceAnswer(q, merged[q.id]) === null) {
           throw new Error("Some answers are still incomplete. Please review each question.");
         }
