@@ -1,4 +1,10 @@
-/** PDA v1.4 — migrate deprecated tag vocabulary to canonical master tags. */
+/**
+ * Tag vocabulary migration / expansion.
+ * - Legacy → canonical (v1.3/v1.4 drift)
+ * - CQ v1.5 → Recommendation Master v1.15 compatibility (until master is retagged)
+ */
+
+/** One-to-one renames (replace). */
 const TAG_ALIASES: Record<string, string> = {
   location_home: "environment_home",
   location_gym: "environment_gym",
@@ -19,15 +25,42 @@ const TAG_ALIASES: Record<string, string> = {
   social_preference_group: "social_preference_high",
 };
 
+/**
+ * CQ v1.5 emits newer tags; master still keys Goal/Barrier/Context Fit on older names.
+ * Keep the v1.5 tag and also add master-compat tags so scoring/filters still match.
+ */
+const TAG_EXPAND: Record<string, string[]> = {
+  time_under_30_min: ["time_under_15_min"],
+  time_30_45_min: ["time_15_30_min", "time_30_45_min"],
+  time_45_60_min: ["time_45_plus_min"],
+  time_over_60_min: ["time_45_plus_min"],
+  goal_sleep_recovery: ["goal_sleep_improvement", "goal_better_recovery"],
+  goal_consistency: ["goal_consistency_discipline", "goal_sustainable_routines"],
+  barrier_stress_emotional_eating: ["barrier_emotional_eating_cravings"],
+  barrier_self_consciousness: ["barrier_gym_anxiety"],
+  barrier_physical_limitation: ["barrier_injury_discomfort"],
+  barrier_unpredictable_schedule: ["barrier_travel_schedule_disruption"],
+  activity_cat_strength: ["activity_pref_strength"],
+  activity_cat_cardio: ["activity_pref_cardio"],
+  activity_cat_mindbody: ["activity_pref_yoga"],
+  goal_strength: ["goal_muscle_gain"],
+};
+
 function migrateTag(tag: string): string {
   return TAG_ALIASES[tag] ?? tag;
 }
 
-function migrateList(tags: string[]): string[] {
+function expandList(tags: string[]): string[] {
   const out: string[] = [];
+  const push = (t: string) => {
+    if (!out.includes(t)) out.push(t);
+  };
   for (const tag of tags) {
     const mapped = migrateTag(tag);
-    if (!out.includes(mapped)) out.push(mapped);
+    push(mapped);
+    for (const extra of TAG_EXPAND[mapped] ?? TAG_EXPAND[tag] ?? []) {
+      push(extra);
+    }
   }
   return out;
 }
@@ -39,8 +72,8 @@ export function migrateProfileTags(profile: {
   barriers: string[];
   exclusions: string[];
 }): void {
-  profile.context = migrateList(profile.context);
-  profile.goals = migrateList(profile.goals);
-  profile.barriers = migrateList(profile.barriers);
-  profile.exclusions = migrateList(profile.exclusions);
+  profile.context = expandList(profile.context);
+  profile.goals = expandList(profile.goals);
+  profile.barriers = expandList(profile.barriers);
+  profile.exclusions = expandList(profile.exclusions);
 }

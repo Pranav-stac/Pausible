@@ -49,9 +49,9 @@ export const APP_HEADER =
   "sticky top-0 z-40 border-b border-slate-200/90 bg-white/90 backdrop-blur-xl shadow-[0_8px_30px_-20px_rgba(13,27,42,0.08)]";
 
 export const APP_HEADER_INNER =
-  "mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6";
+  "mx-auto flex max-w-[1200px] items-center justify-between gap-4 px-5 py-3 sm:px-8 lg:px-10";
 
-export const APP_CONTENT = "mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14 lg:py-16";
+export const APP_CONTENT = "mx-auto max-w-[1200px] px-5 py-10 sm:px-8 sm:py-14 lg:px-10 lg:py-16";
 
 export const APP_LINK_BACK = "text-sm font-medium text-[#4D4D4D] transition hover:text-[#0D1B2A]";
 

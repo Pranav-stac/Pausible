@@ -9,7 +9,10 @@ import type {
 } from "@/lib/recommendations/firestore-config-types";
 import { normalizeRecommendationRow } from "@/lib/recommendations/firestore-config-types";
 
-/** DR01–DR08 safety guardrails (PDA §12 / Contextual Tags v1.4). DR09–DR10 via inferBarrierTags. */
+/**
+ * Safety / context exclusion rules wired into `derivedExclusionRules`.
+ * Aligns with Contextual Tags v1.5 DR01–DR07 suppressions (DR08+ handled elsewhere).
+ */
 function buildDerivedRules(): DerivedExclusionRule[] {
   return [
     {
@@ -30,23 +33,23 @@ function buildDerivedRules(): DerivedExclusionRule[] {
     },
     {
       id: "DR05",
-      exclusionTag: "exclude_shift_work_strict_sleep_schedule",
-      anyContext: ["work_shift_based"],
-    },
-    {
-      id: "DR06",
       exclusionTag: "exclude_travel_heavy_rigid_routine",
       anyContext: ["work_travel_heavy"],
     },
     {
-      id: "DR07",
+      id: "DR06",
       exclusionTag: "exclude_low_time_long_workouts",
-      anyContext: ["time_under_15_min"],
+      // v1.5 tag + master-compat alias
+      anyContext: ["time_under_30_min", "time_under_15_min"],
     },
     {
-      id: "DR08",
+      id: "DR07",
       exclusionTag: "exclude_emotional_eating_extreme_restriction",
-      anyBarriers: ["barrier_emotional_eating_cravings", "barrier_emotional_eating"],
+      anyBarriers: [
+        "barrier_stress_emotional_eating",
+        "barrier_emotional_eating_cravings",
+        "barrier_emotional_eating",
+      ],
     },
   ];
 }
@@ -58,7 +61,7 @@ export function buildRecommendationSeedPayload(): RecommendationConfig {
   const tagMappingRules = tagMappingRulesJson as TagMappingRule[];
 
   return {
-    version: "3",
+    version: "4",
     masterVersion: "v1.15",
     recommendations,
     tagMappingRules,

@@ -1,13 +1,20 @@
-import type { AssessmentDefinition } from "@/types/models";
+import type { AssessmentDefinition, AssessmentQuestion } from "@/types/models";
 
 /** Prefix for wellness-context answer keys (stored alongside OCEAN item codes on the attempt). */
 export const WELLNESS_CONTEXT_PREFIX = "wc_";
 
 export const wellnessContextAssessmentId = "wellness-context";
 
+const CQ08_TRIGGERS_08A = [
+  "Cardio or endurance",
+  "Mind-body or flexibility",
+  "Learning a skill or sport",
+] as const;
+
 /**
- * Wellness Context Questionnaire v1.4 — 20 questions (CQ01–CQ20), 8 sections.
- * @see FinalData/NewFinalData/Pausibl_Contextual_Questions_tags_v1.4.xlsx
+ * Wellness Context Questionnaire v1.5 — 17 active questions (+ CQ08a conditional).
+ * CQ10 and CQ19 removed; CQ08a added for activity preferences.
+ * @see FinalData/NewFinalData/Pausibl_Contextual_Questions_tags_v1.5.xlsx
  */
 export function buildWellnessContextQuestionnaire(): AssessmentDefinition {
   const w = (id: string) => `${WELLNESS_CONTEXT_PREFIX}${id}`;
@@ -30,17 +37,14 @@ export function buildWellnessContextQuestionnaire(): AssessmentDefinition {
     },
     [w("work_lifestyle")]: {
       id: w("work_lifestyle"),
-      prompt: "Which best describe your current work and lifestyle?",
-      caption: "Select all that apply",
-      type: "multi",
+      prompt: "What is the nature of your work?",
+      type: "single",
       options: [
-        "Desk-based (office / remote / hybrid)",
-        "Shift-based",
+        "Desk-based",
         "Physically demanding",
         "Travel-heavy",
-        "Homemaker or caregiver",
         "Student",
-        "Not currently working",
+        "Not in active employment",
       ],
       weights: {},
     },
@@ -53,9 +57,9 @@ export function buildWellnessContextQuestionnaire(): AssessmentDefinition {
     },
     [w("wellness_time")]: {
       id: w("wellness_time"),
-      prompt: "How much time can you realistically give most days?",
+      prompt: "How much time can you set aside for physical activity on most days?",
       type: "single",
-      options: ["Under 15 min", "15–30 min", "30–45 min", "45+ min"],
+      options: ["Under 30 minutes", "30–45 minutes", "45–60 minutes", "Over 60 minutes"],
       weights: {},
     },
     [w("fitness_level")]: {
@@ -67,35 +71,77 @@ export function buildWellnessContextQuestionnaire(): AssessmentDefinition {
         "Returning after a break",
         "Exercise occasionally",
         "Train regularly",
-        "Train with a structured program",
       ],
       weights: {},
     },
     [w("daily_activity")]: {
       id: w("daily_activity"),
-      prompt: "Your usual daily activity level?",
+      prompt: "How active are you on a typical day?",
       type: "single",
-      options: ["Sedentary", "Lightly active", "Moderately active", "Very active"],
+      options: ["Mostly sitting", "Lightly active", "Moderately active", "Very active"],
       weights: {},
     },
     [w("preferred_activities")]: {
       id: w("preferred_activities"),
-      prompt: "What kinds of physical activity do you enjoy or prefer?",
+      prompt: "What kind of physical activity interests you?",
+      caption: "Select up to 2",
+      type: "multi",
+      maxSelections: 2,
+      options: [
+        "Strength or resistance training",
+        "Cardio or endurance",
+        "Mind-body or flexibility",
+        "Learning a skill or sport",
+        "Open to anything",
+      ],
+      weights: {},
+    },
+    [w("preferred_activity_details")]: {
+      id: w("preferred_activity_details"),
+      prompt: "Which of these specifically?",
       caption: "Select all that apply",
       type: "multi",
       options: [
-        "Walking",
-        "Running / jogging",
-        "Strength or weights",
-        "Cardio / HIIT",
-        "Yoga, Pilates or stretching",
-        "Sports or games",
-        "Dancing",
-        "Swimming",
+        "Running/jogging",
         "Cycling",
-        "Home follow-along workouts",
-        "Open to anything",
+        "Swimming",
+        "Walking",
+        "HIIT",
+        "Yoga",
+        "Pilates",
+        "Stretching",
+        "Dance",
+        "Tai chi",
+        "Martial arts",
+        "A team sport",
+        "A racquet sport",
+        "Dance form",
+        "Swimming (learning)",
       ],
+      optionGroups: [
+        {
+          whenParentIncludes: "Cardio or endurance",
+          options: ["Running/jogging", "Cycling", "Swimming", "Walking", "HIIT"],
+        },
+        {
+          whenParentIncludes: "Mind-body or flexibility",
+          options: ["Yoga", "Pilates", "Stretching", "Dance", "Tai chi"],
+        },
+        {
+          whenParentIncludes: "Learning a skill or sport",
+          options: [
+            "Martial arts",
+            "A team sport",
+            "A racquet sport",
+            "Dance form",
+            "Swimming (learning)",
+          ],
+        },
+      ],
+      visibleWhen: {
+        questionId: w("preferred_activities"),
+        anyOf: [...CQ08_TRIGGERS_08A],
+      },
       weights: {},
     },
     [w("workout_environment")]: {
@@ -103,13 +149,6 @@ export function buildWellnessContextQuestionnaire(): AssessmentDefinition {
       prompt: "Where do you prefer to be active?",
       type: "single",
       options: ["At home", "At a gym or training centre", "Outdoors", "No preference"],
-      weights: {},
-    },
-    [w("time_of_day")]: {
-      id: w("time_of_day"),
-      prompt: "When do you prefer to be active?",
-      type: "single",
-      options: ["Early morning", "Daytime", "Evening", "Late night", "No fixed preference"],
       weights: {},
     },
     [w("sleep_quality")]: {
@@ -128,108 +167,87 @@ export function buildWellnessContextQuestionnaire(): AssessmentDefinition {
     },
     [w("caffeine_habit")]: {
       id: w("caffeine_habit"),
-      prompt: "Your caffeine habit?",
+      prompt: "How do you usually have caffeine?",
       type: "single",
-      options: ["None", "Morning only", "Through the day", "Evening too"],
+      options: [
+        "I don't have caffeine",
+        "Only in the morning",
+        "Through the day, but not after 4 PM",
+        "Through the day, including evenings",
+      ],
       weights: {},
     },
     [w("food_pattern")]: {
       id: w("food_pattern"),
       prompt: "Which best describes your usual food pattern?",
       type: "single",
-      options: [
-        "Vegetarian",
-        "Vegan",
-        "Eggetarian",
-        "Non-vegetarian",
-        "Pescatarian",
-        "No specific preference",
-      ],
+      options: ["Vegetarian", "Vegan", "Eggetarian", "Non-vegetarian", "No specific pattern"],
       weights: {},
     },
     [w("meal_control")]: {
       id: w("meal_control"),
-      prompt: "How much control do you have over your meals?",
+      prompt: "Who usually decides what you eat?",
       type: "single",
       options: [
-        "I cook most of my meals",
-        "Someone else prepares most (home or cafeteria)",
+        "I decide and prepare most meals",
+        "Someone else at home decides",
         "I mostly eat out or order in",
-        "Mixed / varies by day",
+        "It varies",
       ],
       weights: {},
     },
     [w("wellness_goals")]: {
       id: w("wellness_goals"),
-      prompt: "What are your main wellness goals?",
-      caption: "Select up to 3",
-      type: "multi",
-      maxSelections: 3,
+      prompt: "What matters most to you right now?",
+      type: "single",
       options: [
-        "Fat loss / weight management",
-        "Build muscle / get stronger",
-        "More energy through the day",
-        "Better sleep",
-        "Less stress / mental calm",
-        "Flexibility / mobility",
+        "Lose weight or manage body fat",
+        "Build strength or muscle",
+        "Have more energy and feel better",
+        "Sleep better and recover well",
+        "Reduce stress and feel calmer",
         "Build a consistent routine",
-        "Get back into fitness after a break",
-        "Better recovery",
-        "Overall health",
-        "Body confidence / appearance",
       ],
       weights: {},
     },
     [w("wellness_barriers")]: {
       id: w("wellness_barriers"),
-      prompt: "What usually stops you from staying consistent?",
-      caption: "Select up to 3",
+      prompt: "What are the main challenges in your wellness journey?",
+      caption: "Select up to 2",
       type: "multi",
-      maxSelections: 3,
+      maxSelections: 2,
       options: [
-        "Lack of time",
-        "Hard to get started",
-        "Hard to stay consistent",
-        "Low motivation",
-        "Emotional eating or cravings",
-        "Gym anxiety / self-consciousness",
-        "I don't know what to do",
-        "Plans feel too complex / overwhelming",
-        "Travel or schedule disruption",
-        "Family / caregiving responsibilities",
-        "Injury or physical discomfort",
+        "Shortage of time",
+        "Lack of consistency",
+        "Lack of knowledge or clarity",
+        "Stress or emotional eating",
+        "Self-consciousness about exercising",
+        "Physical limitation or injury",
+        "Unpredictable schedule or routine",
       ],
       weights: {},
     },
     [w("support_system")]: {
       id: w("support_system"),
-      prompt: "How supportive is your environment for your wellness goals?",
+      prompt: "How supportive are the people around you when it comes to your wellness?",
       type: "single",
-      options: ["Very supportive", "Somewhat supportive", "Neutral or mixed", "Unsupportive"],
-      weights: {},
-    },
-    [w("solo_vs_social")]: {
-      id: w("solo_vs_social"),
-      prompt: "Do you prefer to pursue wellness mostly on your own or with others?",
-      type: "single",
-      options: ["Mostly on my own", "A mix", "Mostly with others or a group"],
+      options: ["Very supportive", "Somewhat supportive", "Neutral or mixed", "Not supportive"],
       weights: {},
     },
     [w("health_flags")]: {
       id: w("health_flags"),
-      prompt:
-        "Any health, injury, pregnancy/postpartum, or doctor-advised restrictions? (and current symptoms)",
+      prompt: "Is there anything we should know about your health?",
       caption: "Select all that apply",
       type: "multi",
       options: [
-        "No known restriction",
-        "Medical condition",
-        "Injury",
+        "No known issues",
+        "A medical condition",
+        "An injury",
         "Pregnancy or postpartum",
-        "Doctor-advised restriction",
+        "A doctor-advised restriction",
+        "Ongoing fatigue",
+        "Persistent pain",
         "Prefer not to say",
-        "Severe fatigue (symptom)",
-        "Persistent pain (symptom)",
       ],
       weights: {},
     },
@@ -244,12 +262,12 @@ export function buildWellnessContextQuestionnaire(): AssessmentDefinition {
       {
         id: "about_you",
         title: "Section A — About You",
-        questionIds: [w("age_range"), w("gender")],
+        questionIds: [w("age_range"), w("gender"), w("work_lifestyle")],
       },
       {
         id: "routine_capacity",
         title: "Section B — Routine & Capacity",
-        questionIds: [w("work_lifestyle"), w("stress_level"), w("wellness_time")],
+        questionIds: [w("stress_level"), w("wellness_time")],
       },
       {
         id: "movement_fitness",
@@ -258,8 +276,8 @@ export function buildWellnessContextQuestionnaire(): AssessmentDefinition {
           w("fitness_level"),
           w("daily_activity"),
           w("preferred_activities"),
+          w("preferred_activity_details"),
           w("workout_environment"),
-          w("time_of_day"),
         ],
       },
       {
@@ -274,13 +292,13 @@ export function buildWellnessContextQuestionnaire(): AssessmentDefinition {
       },
       {
         id: "goals_barriers",
-        title: "Section F — Goals & Barriers",
+        title: "Section F — Goals & Challenges",
         questionIds: [w("wellness_goals"), w("wellness_barriers")],
       },
       {
         id: "support_style",
-        title: "Section G — Support & Style",
-        questionIds: [w("support_system"), w("solo_vs_social")],
+        title: "Section G — Support",
+        questionIds: [w("support_system")],
       },
       {
         id: "health_safety",
@@ -294,6 +312,28 @@ export function buildWellnessContextQuestionnaire(): AssessmentDefinition {
 
 export function isWellnessContextAnswerKey(key: string): boolean {
   return key.startsWith(WELLNESS_CONTEXT_PREFIX);
+}
+
+export function isQuestionVisible(q: AssessmentQuestion, answers: Record<string, unknown>): boolean {
+  const rule = q.visibleWhen;
+  if (!rule) return true;
+  const raw = answers[rule.questionId];
+  const selected = Array.isArray(raw) ? raw.map(String) : raw != null && raw !== "" ? [String(raw)] : [];
+  return rule.anyOf.some((opt) => selected.includes(opt));
+}
+
+/** Resolve options for conditional questions (e.g. CQ08a groups). */
+export function resolveQuestionOptions(q: AssessmentQuestion, answers: Record<string, unknown>): string[] {
+  if (!q.optionGroups?.length || !q.visibleWhen) return q.options ?? [];
+  const raw = answers[q.visibleWhen.questionId];
+  const selected = Array.isArray(raw) ? raw.map(String) : raw != null && raw !== "" ? [String(raw)] : [];
+  const opts = new Set<string>();
+  for (const group of q.optionGroups) {
+    if (selected.includes(group.whenParentIncludes)) {
+      for (const o of group.options) opts.add(o);
+    }
+  }
+  return opts.size > 0 ? [...opts] : (q.options ?? []);
 }
 
 export { buildWellnessContextQuestionnaire as getWellnessContextQuestionnaire };

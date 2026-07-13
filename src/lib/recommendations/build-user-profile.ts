@@ -26,8 +26,10 @@ function answerString(answers: AttemptAnswers, key: string): string | null {
 }
 
 const WELLNESS_MULTI_LIMITS: Record<string, number> = {
+  wc_preferred_activities: 2,
+  wc_wellness_barriers: 2,
+  // Legacy attempts may still store multi goals
   wc_wellness_goals: 3,
-  wc_wellness_barriers: 3,
 };
 
 function answerStrings(answers: AttemptAnswers, key: string): string[] {
@@ -184,12 +186,14 @@ function derivedExclusions(
   return [...ex];
 }
 
-/** DR11 — strength/muscle goal without resistance preference (§21.14). */
+/** DR13 / former DR11 — strength goal without resistance preference (§21.14). */
 export function computeGoalPreferenceBridge(goals: string[], context: string[]): boolean {
   const strengthGoal =
     goals.includes("goal_muscle_gain") || goals.includes("goal_strength");
   if (!strengthGoal) return false;
-  return !context.includes("activity_pref_strength");
+  return (
+    !context.includes("activity_cat_strength") && !context.includes("activity_pref_strength")
+  );
 }
 
 export type BuildProfileInput = {

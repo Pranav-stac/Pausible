@@ -1,7 +1,7 @@
 /**
  * Import authoritative PDA data from FinalData/NewFinalData:
  *   - Recommendation Master v1.15 (184 recs, 21 cols)
- *   - Contextual Questions & Tags v1.4 (tag mapping + derived rules reference)
+ *   - Contextual Questions & Tags v1.5 (tag mapping)
  *
  * Usage: node scripts/import-pda-v1.mjs
  */
@@ -86,32 +86,39 @@ async function importMaster() {
 }
 
 async function importTagMapping() {
-  const file = path.join(newDataDir, "Pausibl_Contextual_Questions_tags_v1.4.xlsx");
+  const file = path.join(newDataDir, "Pausibl_Contextual_Questions_tags_v1.5.xlsx");
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.readFile(file);
   const sheet = wb.getWorksheet("Context Tag Mapping") ?? wb.worksheets[0];
   if (!sheet) throw new Error("Context Tag Mapping workbook empty");
 
   const tagRows = [];
+  let last = { questionId: "", question: "", responseType: "", tagCategory: "" };
   sheet.eachRow((row, rowNumber) => {
-    if (rowNumber <= 2) return;
-    const questionId = cellStr(row.getCell(2));
-    if (!questionId.startsWith("CQ")) return;
+    if (rowNumber === 1) return;
+    const questionId = cellStr(row.getCell(2)) || last.questionId;
+    const question = cellStr(row.getCell(3)) || last.question;
+    const responseType = cellStr(row.getCell(4)) || last.responseType;
+    const responseValue = cellStr(row.getCell(5));
+    const tagCategory = cellStr(row.getCell(6)) || last.tagCategory;
     const tag = cellStr(row.getCell(7));
-    if (!tag) return;
+    if (questionId.startsWith("CQ")) {
+      last = { questionId, question, responseType, tagCategory };
+    }
+    if (!questionId.startsWith("CQ") || !tag || !responseValue) return;
     tagRows.push({
       questionId,
-      question: cellStr(row.getCell(3)),
-      responseType: cellStr(row.getCell(4)),
-      responseValue: cellStr(row.getCell(5)),
-      tagCategory: cellStr(row.getCell(6)),
+      question,
+      responseType,
+      responseValue,
+      tagCategory,
       tag,
     });
   });
 
   const outDir = path.join(root, "src", "data", "recommendations");
   writeFileSync(path.join(outDir, "tag-mapping-rules.json"), JSON.stringify(tagRows, null, 2));
-  console.log(`✓ tag-mapping-rules.json — ${tagRows.length} tag rules (CQ v1.4)`);
+  console.log(`✓ tag-mapping-rules.json — ${tagRows.length} tag rules (CQ v1.5)`);
   return tagRows.length;
 }
 

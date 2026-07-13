@@ -22,6 +22,19 @@ export type AssessmentQuestion = {
   scaleMaxLabel?: string;
   /** Multi-select: cap selections (omit = unlimited) */
   maxSelections?: number;
+  /**
+   * Show this question only when another question has one of the listed answers
+   * (e.g. CQ08a after CQ08 cardio / mind-body / skill).
+   */
+  visibleWhen?: {
+    questionId: string;
+    anyOf: string[];
+  };
+  /** Option subsets keyed by a parent multi-select value (union when several parents selected). */
+  optionGroups?: Array<{
+    whenParentIncludes: string;
+    options: string[];
+  }>;
   /** Scoring: dimension key and weight per option index (single/multi) or per score (likert uses value as score) */
   weights: Record<string, number>;
 };

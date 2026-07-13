@@ -417,7 +417,7 @@ function bestPhaseForConditional(
 
   const ctx = row.score.matchedContext;
   if (ctx.some((t) => t.startsWith("barrier_"))) return 1;
-  if (ctx.some((t) => t.includes("sleep") || t.includes("stress") || t === "time_under_15_min")) {
+  if (ctx.some((t) => t.includes("sleep") || t.includes("stress") || t === "time_under_15_min" || t === "time_under_30_min")) {
     return Math.min(2, totalPhases);
   }
   if (ctx.some((t) => t.includes("advanced") || t.includes("experienced"))) {

@@ -71,7 +71,8 @@ export function hasLowCapacityProfile(profile: UserProfile): boolean {
     profile.barriers.includes("barrier_low_activation_energy") ||
     profile.barriers.includes("barrier_overwhelm_from_complexity") ||
     profile.context.includes("stress_high") ||
-    profile.context.includes("time_under_15_min")
+    profile.context.includes("time_under_15_min") ||
+    profile.context.includes("time_under_30_min")
   );
 }
 
@@ -82,7 +83,10 @@ export function hasHighCapacityProfile(profile: UserProfile): boolean {
     profile.context.includes("fitness_advanced") ||
     profile.context.includes("fitness_intermediate");
   const ampleTime =
-    profile.context.includes("time_45_plus_min") || profile.context.includes("time_30_45_min");
+    profile.context.includes("time_45_plus_min") ||
+    profile.context.includes("time_30_45_min") ||
+    profile.context.includes("time_45_60_min") ||
+    profile.context.includes("time_over_60_min");
   return disciplined || ampleTime;
 }
 
@@ -208,7 +212,9 @@ export function compareScored(
     ? hasLowCapacityProfile(profileForCapacity)
     : a.score.matchedBarriers.includes("barrier_low_activation_energy") ||
       a.score.matchedBarriers.includes("barrier_overwhelm_from_complexity") ||
-      a.score.matchedContext.some((t) => t === "stress_high" || t === "time_under_15_min");
+      a.score.matchedContext.some(
+        (t) => t === "stress_high" || t === "time_under_15_min" || t === "time_under_30_min",
+      );
   if (lowCapacity && a.effortLevel !== b.effortLevel) {
     const order = { low: 0, medium: 1, high: 2 };
     return (order[a.effortLevel] ?? 1) - (order[b.effortLevel] ?? 1);

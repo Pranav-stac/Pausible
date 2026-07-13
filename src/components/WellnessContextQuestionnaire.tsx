@@ -5,15 +5,22 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { BrandLogo } from "@/components/BrandLogo";
 import {
-  ACTIVE_CARD_RING,
-  APP_HEADER,
-  APP_LINK_BACK,
-  APP_PAGE_BG_SOFT,
-  BRAND_ACCENT_TEXT,
-  CTA_PRIMARY_CLASS,
-  PROGRESS_FILL_CLASS,
-  PROGRESS_TRACK_CLASS,
-} from "@/components/marketing/marketing-brand";
+  ADVANCE_DELAY_MS,
+  ASSESS_CONTENT_MAX,
+  ASSESS_PAD,
+  AssessAtmosphere,
+  AssessCompleteOverlay,
+  AssessGlassHeader,
+  AssessIntro,
+  AssessProgressBar,
+  assessCardStyle,
+  cardVisual,
+  LikertCircles,
+  MultiChoiceStack,
+  SCROLL_SETTLE_MS,
+  SingleChoiceStack,
+} from "@/components/assessment/assess-ui";
+import { APP_LINK_BACK } from "@/components/marketing/marketing-brand";
 import { trackAssessmentComplete } from "@/lib/analytics/track";
 import { fetchAssessment } from "@/lib/data/assessment-service";
 import { fetchAttempt, upsertAttempt } from "@/lib/data/attempt-service";
@@ -25,10 +32,12 @@ import { useFirebaseAuth } from "@/lib/firebase/auth-context";
 import { isFirebaseConfigured } from "@/lib/firebase/config";
 import { useAppSettings } from "@/lib/hooks/useAppSettings";
 import { getOrCreateLocalUid } from "@/lib/local/uid";
-import { assessmentShellClass, assessmentShellPadClass, WELLNESS_FRESH_ATTEMPT_KEY } from "@/lib/assessment/layout";
+import { WELLNESS_FRESH_ATTEMPT_KEY } from "@/lib/assessment/layout";
 import { mergeProfileDraftIntoAnswers } from "@/lib/assessment/session-recovery";
 import {
   getWellnessContextQuestionnaire,
+  isQuestionVisible,
+  resolveQuestionOptions,
   WELLNESS_CONTEXT_PREFIX,
   wellnessContextAssessmentId,
 } from "@/data/wellness-context-questionnaire";
@@ -58,12 +67,12 @@ function ageBandOptionFromDob(iso: string): string | null {
   return AGE_BAND_TAG_TO_OPTION[tag] ?? null;
 }
 
-function flattenQuestions(def: AssessmentDefinition): AssessmentQuestion[] {
+function flattenQuestions(def: AssessmentDefinition, answers: AttemptAnswers = {}): AssessmentQuestion[] {
   const order: AssessmentQuestion[] = [];
   for (const sec of def.sections) {
     for (const qid of sec.questionIds) {
       const q = def.questions[qid];
-      if (q) order.push(q);
+      if (q && isQuestionVisible(q, answers)) order.push(q);
     }
   }
   return order;
@@ -73,30 +82,18 @@ function allSectionsComplete(def: AssessmentDefinition, answers: AttemptAnswers)
   return def.sections.every((sec) =>
     sec.questionIds.every((qid) => {
       const q = def.questions[qid];
-      return q ? coerceAnswer(q, answers[q.id]) !== null : true;
+      if (!q) return true;
+      if (!isQuestionVisible(q, answers)) return true;
+      return coerceAnswer(q, answers[q.id]) !== null;
     }),
   );
 }
 
-function computeInitialRevealedCount(questions: AssessmentQuestion[], answers: AttemptAnswers): number {
+function computeInitialActiveIndex(questions: AssessmentQuestion[], answers: AttemptAnswers): number {
   for (let i = 0; i < questions.length; i++) {
-    if (coerceAnswer(questions[i], answers[questions[i].id]) === null) {
-      return Math.max(1, i + 1);
-    }
+    if (coerceAnswer(questions[i], answers[questions[i].id]) === null) return i;
   }
-  return Math.max(1, questions.length);
-}
-
-function summarizeAnswerSnippet(q: AssessmentQuestion, raw: unknown): string {
-  const coerced = coerceAnswer(q, raw as number | string | string[] | undefined);
-  if (coerced === null) return "";
-  if (q.type === "likert") return `Chosen: ${coerced}`;
-  if (q.type === "single") {
-    const s = String(coerced);
-    return s.length > 48 ? `${s.slice(0, 46)}…` : s;
-  }
-  if (q.type === "multi" && Array.isArray(coerced)) return `${coerced.length} selected`;
-  return "";
+  return Math.max(0, questions.length - 1);
 }
 
 function sectionHeaderForQuestion(
@@ -134,11 +131,15 @@ export function WellnessContextQuestionnaire({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [answers, setAnswers] = useState<AttemptAnswers>({});
-  const [revealedCount, setRevealedCount] = useState(1);
-  const [expandedPastIndex, setExpandedPastIndex] = useState<number | null>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [complete, setComplete] = useState(false);
   const [oceanAnswerCount, setOceanAnswerCount] = useState(0);
   const questionRefs = useRef<(HTMLDivElement | null)[]>([]);
   const focusAppliedRef = useRef(false);
+  const advanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clampMaxRef = useRef<number | null>(null);
+  const scrollLockedRef = useRef(false);
 
   useEffect(() => {
     queueMicrotask(() => setLocalUid(getOrCreateLocalUid()));
@@ -181,7 +182,10 @@ export function WellnessContextQuestionnaire({
   }, [bootstrapQuestionnaire]);
 
   const attemptUid = effectiveUid ?? localUid;
-  const questions = useMemo(() => (questionnaire ? flattenQuestions(questionnaire) : []), [questionnaire]);
+  const questions = useMemo(
+    () => (questionnaire ? flattenQuestions(questionnaire, answers) : []),
+    [questionnaire, answers],
+  );
   const total = questions.length;
 
   const answeredCount = useMemo(
@@ -191,31 +195,81 @@ export function WellnessContextQuestionnaire({
 
   const progressPct = total ? Math.round((answeredCount / total) * 100) : 0;
 
-  useEffect(() => {
-    queueMicrotask(() => setExpandedPastIndex(null));
-  }, [revealedCount]);
+  const updateClamp = useCallback(
+    (index: number) => {
+      if (typeof window === "undefined") return;
+      let neededForCenter = 0;
+      const activeEl = questionRefs.current[index];
+      if (activeEl) {
+        const r = activeEl.getBoundingClientRect();
+        const center = r.top + window.pageYOffset + r.height / 2;
+        neededForCenter = Math.max(0, center - window.innerHeight / 2);
+      }
+
+      let neededForFaded = 0;
+      const lastVisible = Math.min(index + 2, Math.max(total - 1, 0));
+      const fadedEl = questionRefs.current[lastVisible];
+      if (fadedEl) {
+        const rect = fadedEl.getBoundingClientRect();
+        const bottom = rect.bottom + window.pageYOffset;
+        neededForFaded = Math.max(0, bottom - window.innerHeight + 24);
+      }
+
+      clampMaxRef.current = Math.max(neededForCenter, neededForFaded);
+    },
+    [total],
+  );
+
+  const scrollToActive = useCallback(
+    (i: number) => {
+      if (typeof window === "undefined") return;
+      if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
+      scrollLockedRef.current = true;
+      const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+      settleTimerRef.current = setTimeout(() => {
+        const el = questionRefs.current[i];
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          const cardCenter = rect.top + window.pageYOffset + rect.height / 2;
+          const targetTop = Math.max(cardCenter - window.innerHeight / 2, 0);
+          clampMaxRef.current = Math.max(clampMaxRef.current || 0, targetTop);
+          window.scrollTo({ top: targetTop, behavior: reduceMotion ? "auto" : "smooth" });
+        }
+        window.setTimeout(() => {
+          scrollLockedRef.current = false;
+          updateClamp(i);
+        }, 500);
+      }, SCROLL_SETTLE_MS);
+    },
+    [updateClamp],
+  );
 
   useLayoutEffect(() => {
-    if (revealedCount < 1 || typeof window === "undefined") return;
-    const idx = revealedCount - 1;
-    let frame2 = 0;
-    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-    const frame1 = window.requestAnimationFrame(() => {
-      frame2 = window.requestAnimationFrame(() => {
-        const el = questionRefs.current[idx];
-        if (el)
-          el.scrollIntoView({
-            behavior: reduceMotion ? "auto" : "smooth",
-            block: "start",
-            inline: "nearest",
-          });
-      });
-    });
-    return () => {
-      window.cancelAnimationFrame(frame1);
-      window.cancelAnimationFrame(frame2);
+    if (typeof window === "undefined" || complete || sessionLoading) return;
+    scrollToActive(activeIndex);
+  }, [activeIndex, complete, scrollToActive, sessionLoading]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onScroll = () => {
+      if (clampMaxRef.current == null || scrollLockedRef.current) return;
+      if (window.pageYOffset > clampMaxRef.current) window.scrollTo(0, clampMaxRef.current);
     };
-  }, [revealedCount]);
+    const onResize = () => updateClamp(activeIndex);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [activeIndex, updateClamp]);
+
+  useEffect(() => {
+    return () => {
+      if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
+      if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (!attemptId || !ready || attemptUid === null || !questionnaire) return;
@@ -304,11 +358,12 @@ export function WellnessContextQuestionnaire({
           });
         }
 
-        const flat = flattenQuestions(questionnaire);
+        const flat = flattenQuestions(questionnaire, withProfile);
+        const startIdx = computeInitialActiveIndex(flat, withProfile);
         setOceanAnswerCount(ocean);
         setAnswers(withProfile);
-        setRevealedCount(computeInitialRevealedCount(flat, withProfile));
-        setExpandedPastIndex(null);
+        setActiveIndex(startIdx);
+        setComplete(flat.length > 0 && flat.every((q) => coerceAnswer(q, withProfile[q.id]) !== null));
         if (ocean < 1) {
           setLoadError("Personality inventory answers are missing. Please complete the main assessment first.");
         }
@@ -324,45 +379,65 @@ export function WellnessContextQuestionnaire({
     };
   }, [attemptId, attemptUid, questionnaire, ready, router]);
 
-  const setAnswer = useCallback((qid: string, value: number | string | string[]) => {
-    setAnswers((prev) => ({ ...prev, [qid]: value }));
-  }, []);
+  const DETAILS_KEY = `${WELLNESS_CONTEXT_PREFIX}preferred_activity_details`;
+  const PREF_KEY = `${WELLNESS_CONTEXT_PREFIX}preferred_activities`;
 
-  const tryRevealNextAfterIndex = useCallback(
-    (answeredIndex: number) => {
-      setRevealedCount((r) => (answeredIndex === r - 1 && r < total ? r + 1 : r));
+  const setAnswer = useCallback((qid: string, value: number | string | string[]) => {
+    setAnswers((prev) => {
+      const next: AttemptAnswers = { ...prev, [qid]: value };
+      if (qid === PREF_KEY) {
+        const probe = { ...next };
+        const detailsQ = questionnaire?.questions[DETAILS_KEY];
+        if (detailsQ && !isQuestionVisible(detailsQ, probe)) {
+          delete next[DETAILS_KEY];
+        } else if (detailsQ && Array.isArray(next[DETAILS_KEY])) {
+          const allowed = new Set(resolveQuestionOptions(detailsQ, probe));
+          next[DETAILS_KEY] = (next[DETAILS_KEY] as string[]).filter((o) => allowed.has(o));
+        }
+      }
+      return next;
+    });
+  }, [questionnaire]);
+
+  const advanceAfterAnswer = useCallback(
+    (qi: number) => {
+      if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current);
+      advanceTimerRef.current = setTimeout(() => {
+        if (qi === total - 1) setComplete(true);
+        else {
+          setActiveIndex(qi + 1);
+          setComplete(false);
+        }
+      }, ADVANCE_DELAY_MS);
     },
     [total],
   );
 
-  const scrollToQuestion = useCallback((index: number) => {
-    questionRefs.current[index]?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, []);
-
-  const scrollToPreviousBlock = useCallback(() => {
-    if (revealedCount < 2) return;
-    scrollToQuestion(Math.max(0, revealedCount - 2));
-  }, [revealedCount, scrollToQuestion]);
+  const onLikertOrSingle = useCallback(
+    (qi: number, value: number | string) => {
+      const q = questions[qi];
+      if (!q) return;
+      setAnswer(q.id, value);
+      if (qi < activeIndex) return;
+      if (qi !== activeIndex) return;
+      advanceAfterAnswer(qi);
+    },
+    [activeIndex, advanceAfterAnswer, questions, setAnswer],
+  );
 
   useEffect(() => {
     if (!focusQuestionId || !questions.length || sessionLoading || focusAppliedRef.current) return;
     const idx = questions.findIndex((q) => q.id === focusQuestionId);
     if (idx < 0) return;
     focusAppliedRef.current = true;
-    setRevealedCount((prev) => Math.max(prev, idx + 1));
-    setExpandedPastIndex(idx);
-    window.requestAnimationFrame(() => {
-      questionRefs.current[idx]?.scrollIntoView({ behavior: "smooth", block: "start", inline: "nearest" });
-    });
+    setActiveIndex(idx);
+    setComplete(false);
   }, [focusQuestionId, questions, sessionLoading]);
 
   const allComplete = useMemo(
     () => (questionnaire ? allSectionsComplete(questionnaire, answers) : false),
     [questionnaire, answers],
   );
-
-  const canScrollPrev = revealedCount >= 2;
-  const showCompletion = revealedCount >= total;
 
   const handleSubmit = useCallback(async () => {
     if (!allComplete || !attemptUid || !questionnaire) return;
@@ -429,10 +504,11 @@ export function WellnessContextQuestionnaire({
 
       const afterNext = requirePayment ? "checkout" : "results";
       const afterPath = `/after-assessment/${encodeURIComponent(attemptId)}?next=${afterNext}`;
-      router.push(returnPath ?? `/submission-confirmed/${encodeURIComponent(attemptId)}?next=${encodeURIComponent(afterPath)}`);
+      router.push(
+        returnPath ?? `/submission-confirmed/${encodeURIComponent(attemptId)}?next=${encodeURIComponent(afterPath)}`,
+      );
     } catch (e) {
       setSubmitError(e instanceof Error ? e.message : "Could not submit. Please try again.");
-    } finally {
       setSubmitting(false);
     }
   }, [
@@ -448,7 +524,6 @@ export function WellnessContextQuestionnaire({
   ]);
 
   const loading = sessionLoading || !questionnaire;
-  const marginUnderHeader = "scroll-mt-[10.75rem] sm:scroll-mt-[12.5rem]";
 
   if (!ready || attemptUid === null) {
     return (
@@ -489,463 +564,222 @@ export function WellnessContextQuestionnaire({
   }
 
   return (
-    <div className={`${APP_PAGE_BG_SOFT} pb-[10rem] sm:pb-44`}>
-      <header className={APP_HEADER}>
-        <div className={`${assessmentShellClass} ${assessmentShellPadClass} flex flex-col gap-2 py-3`}>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <Link href="/" className="rounded-lg outline-offset-4" aria-label="Pausible home">
-              <BrandLogo heightClass="h-7 sm:h-8" withWordmark wordmarkClassName="text-base sm:text-[1.05rem]" />
-            </Link>
-            <div className="flex items-center gap-2">
+    <div className="assess-page relative min-h-screen overflow-x-hidden antialiased">
+      <AssessGlassHeader>
+        <Link href="/" className="shrink-0 rounded-lg outline-offset-4" aria-label="Pausible home">
+          <BrandLogo heightClass="h-[34px]" priority />
+        </Link>
+        <AssessProgressBar
+          answeredCount={answeredCount}
+          total={total}
+          percent={progressPct}
+          trailing={
+            <>
               {returnPath ? (
                 <Link
                   href={returnPath}
-                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                  className="rounded-full border border-slate-200 bg-white/80 px-2.5 py-1 text-[10px] font-semibold text-slate-700 hover:bg-white"
                 >
-                  ← Back to review
+                  ← Review
                 </Link>
               ) : null}
-              <span className="text-[11px] font-semibold text-slate-600">Step 2 of 2 · Context</span>
-            </div>
-          </div>
-          <div>
-            <h1 className="text-base font-bold text-slate-900 sm:text-lg">{questionnaire.title}</h1>
-            <p className="mt-0.5 text-xs text-slate-600 sm:text-sm">
-              {oceanAnswerCount > 0
-                ? "Almost done — answer one question at a time. Scroll up anytime to review."
-                : questionnaire.description}
-            </p>
-          </div>
-          {questionnaireError ? (
-            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-950">
-              {questionnaireError}
-            </p>
-          ) : null}
-          <div className="flex min-w-0 items-center gap-2">
-            <div className={PROGRESS_TRACK_CLASS}>
-              <div className={PROGRESS_FILL_CLASS} style={{ width: `${progressPct}%` }} />
-            </div>
-            <span className="shrink-0 text-[11px] font-semibold tabular-nums text-[#4D4D4D]">{progressPct}%</span>
-          </div>
-          <div className="flex justify-end">
-            <button
-              type="button"
-              disabled={!canScrollPrev}
-              onClick={() => scrollToPreviousBlock()}
-              className="min-h-[40px] rounded-full border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-800 shadow-sm hover:border-slate-400 hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-40 sm:text-sm"
-            >
-              ↑ Earlier question
-            </button>
-          </div>
+              <span className="hidden text-[10px] font-semibold uppercase tracking-wide text-slate-500 sm:inline">
+                Step 2 · Context
+              </span>
+            </>
+          }
+        />
+      </AssessGlassHeader>
+
+      <AssessAtmosphere />
+
+      <AssessIntro
+        badge="Wellness context"
+        title="A few details so your plan fits real life."
+        subtitle={
+          oceanAnswerCount > 0
+            ? "Sleep, stress, goals, and barriers — answer one at a time. Scroll up anytime to change an earlier answer."
+            : (questionnaire.description ?? "A short set of questions so recommendations fit your life.")
+        }
+      />
+
+      {questionnaireError ? (
+        <div className={`relative z-[1] ${ASSESS_CONTENT_MAX} ${ASSESS_PAD}`}>
+          <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-center text-xs text-amber-950">
+            {questionnaireError}
+          </p>
         </div>
-      </header>
-
-      <main className={`relative z-10 ${assessmentShellClass} ${assessmentShellPadClass} py-8 sm:py-10`}>
-        <div className="flex min-w-0 flex-col gap-3 sm:gap-4">
-          {questions.slice(0, revealedCount).map((q, idx) => {
-            const raw = answers[q.id];
-            const likertVal = q.type === "likert" && typeof raw === "number" ? raw : undefined;
-            const singleVal = q.type === "single" && typeof raw === "string" ? raw : undefined;
-            const multiVal = q.type === "multi" && Array.isArray(raw) ? (raw as string[]) : [];
-            const activeIdx = revealedCount - 1;
-            const isActive = idx === activeIdx;
-            const isPast = idx < activeIdx;
-            const pastAnswered = isPast && coerceAnswer(q, raw) !== null;
-            const snippet = summarizeAnswerSnippet(q, raw);
-            const sectionHeader = questionnaire ? sectionHeaderForQuestion(questionnaire, q.id) : null;
-
-            if (pastAnswered && expandedPastIndex !== idx) {
-              return (
-                <div key={q.id}>
-                  {sectionHeader ? (
-                    <p className={`mb-2 text-[10px] font-bold uppercase tracking-[0.2em] ${BRAND_ACCENT_TEXT}`}>
-                      {sectionHeader.title.replace(/^Section \d+ — /, "")}
-                    </p>
-                  ) : null}
-                  <div
-                    ref={(el) => {
-                      questionRefs.current[idx] = el;
-                    }}
-                    className={marginUnderHeader}
-                  >
-                    <button
-                      type="button"
-                      className="flex w-full items-start gap-3 rounded-2xl border border-slate-200/95 bg-white/95 px-4 py-3 text-left shadow-sm ring-1 ring-slate-100/85 transition-colors hover:border-[#2D82FF]/40 hover:bg-white active:bg-[#F7F9FB] sm:rounded-3xl sm:py-3.5"
-                      onClick={() => {
-                        setExpandedPastIndex(idx);
-                        window.requestAnimationFrame(() => {
-                          questionRefs.current[idx]?.scrollIntoView({
-                            behavior: "smooth",
-                            block: "start",
-                            inline: "nearest",
-                          });
-                        });
-                      }}
-                    >
-                      <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#00C9C8]/15 text-sm font-bold text-[#00A8A7]">
-                        ✓
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="text-[11px] font-semibold text-slate-500">
-                          Question {idx + 1} of {total} · Answered
-                        </span>
-                        <p className="mt-1 line-clamp-2 text-sm font-medium leading-snug text-slate-800">{q.prompt}</p>
-                        {snippet ? <p className="mt-1.5 truncate text-xs text-slate-500">{snippet}</p> : null}
-                        <p className={`mt-2 text-[11px] font-semibold ${BRAND_ACCENT_TEXT}`}>Tap to change answer</p>
-                      </span>
-                    </button>
-                  </div>
-                </div>
-              );
-            }
-
-            return (
-              <div key={q.id}>
-                {sectionHeader ? (
-                  <div className={`mb-3 ${idx === 0 ? "" : "mt-2"}`}>
-                    <h2 className="text-sm font-bold tracking-tight text-slate-900 sm:text-base">{sectionHeader.title}</h2>
-                    {sectionHeader.description ? (
-                      <p className="mt-1 text-xs text-slate-600 sm:text-sm">{sectionHeader.description}</p>
-                    ) : null}
-                  </div>
-                ) : null}
-                <div
-                  ref={(el) => {
-                    questionRefs.current[idx] = el;
-                  }}
-                  className={marginUnderHeader}
-                >
-                  <article
-                    className={`rounded-3xl border bg-white p-5 shadow-[0_22px_50px_-32px_rgba(15,23,42,0.18)] sm:p-8 ${
-                      isActive
-                        ? ACTIVE_CARD_RING
-                        : "border-slate-200/80"
-                    }`}
-                  >
-                    {isPast && expandedPastIndex === idx ? (
-                      <div className="-mt-1 mb-4 flex justify-end">
-                        <button
-                          type="button"
-                          className={`text-[11px] font-semibold ${BRAND_ACCENT_TEXT} underline decoration-[#00C9C8]/40 underline-offset-2 hover:text-[#0D1B2A]`}
-                          onClick={() => setExpandedPastIndex(null)}
-                        >
-                          Collapse summary
-                        </button>
-                      </div>
-                    ) : null}
-                    <p className="mb-3 text-[11px] font-semibold tabular-nums tracking-wide text-slate-500 sm:text-xs">
-                      Question {idx + 1} of {total}
-                      {isActive ? <span className={`ml-2 font-bold ${BRAND_ACCENT_TEXT}`}>· Current</span> : null}
-                    </p>
-                    <h3 className="text-lg font-bold leading-snug tracking-tight text-slate-950 sm:text-xl">{q.prompt}</h3>
-                    {q.caption ? <p className="mt-2 text-xs font-medium text-slate-500">{q.caption}</p> : null}
-
-                    <div className="mt-7 max-w-3xl">
-                      {q.type === "likert" ? (
-                        <StressLikertScale
-                          scaleMin={q.scaleMin ?? 1}
-                          scaleMax={q.scaleMax ?? 7}
-                          minLabel={q.scaleMinLabel ?? "Low"}
-                          maxLabel={q.scaleMaxLabel ?? "High"}
-                          value={likertVal}
-                          onChange={(n) => {
-                            setAnswer(q.id, n);
-                            if (idx === activeIdx) tryRevealNextAfterIndex(idx);
-                          }}
-                        />
-                      ) : null}
-                      {q.type === "single" ? (
-                        <>
-                          {q.id === WELLNESS_AGE_RANGE_KEY ? (
-                            <div className="mb-5">
-                              <label
-                                htmlFor={`${q.id}-dob`}
-                                className="mb-2 block text-xs font-semibold text-slate-700"
-                              >
-                                Date of birth
-                              </label>
-                              <input
-                                id={`${q.id}-dob`}
-                                type="date"
-                                max={new Date().toISOString().slice(0, 10)}
-                                value={
-                                  typeof answers[WELLNESS_DATE_OF_BIRTH_KEY] === "string"
-                                    ? answers[WELLNESS_DATE_OF_BIRTH_KEY]
-                                    : ""
-                                }
-                                onChange={(e) => {
-                                  const iso = e.target.value;
-                                  setAnswers((prev) => {
-                                    const next: AttemptAnswers = { ...prev, [WELLNESS_DATE_OF_BIRTH_KEY]: iso };
-                                    const band = ageBandOptionFromDob(iso);
-                                    if (band) next[WELLNESS_AGE_RANGE_KEY] = band;
-                                    return next;
-                                  });
-                                  if (iso && idx === activeIdx) {
-                                    const band = ageBandOptionFromDob(iso);
-                                    if (band) tryRevealNextAfterIndex(idx);
-                                  }
-                                }}
-                                className="w-full max-w-xs rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-[#2D82FF] focus:outline-none focus:ring-2 focus:ring-[#2D82FF]/25"
-                              />
-                              <p className="mt-2 text-[11px] text-slate-500">
-                                Or pick an age band below if you prefer not to enter your exact date.
-                              </p>
-                            </div>
-                          ) : null}
-                          <SingleChoice
-                            options={q.options ?? []}
-                            value={singleVal}
-                            onChange={(v) => {
-                              setAnswer(q.id, v);
-                              if (idx === activeIdx) tryRevealNextAfterIndex(idx);
-                            }}
-                          />
-                        </>
-                      ) : null}
-                      {q.type === "multi" ? (
-                        <MultiChoiceAdvance
-                          options={q.options ?? []}
-                          maxSelections={q.maxSelections}
-                          value={multiVal}
-                          onAnswersChange={(v) => setAnswer(q.id, v)}
-                          onContinue={(selected) => {
-                            if (!selected.length) return;
-                            if (coerceAnswer(q, selected) === null) return;
-                            if (idx === activeIdx) tryRevealNextAfterIndex(idx);
-                          }}
-                        />
-                      ) : null}
-                    </div>
-                  </article>
-                </div>
-              </div>
-            );
-          })}
-
-          {!showCompletion && revealedCount < total
-            ? questions.slice(revealedCount, Math.min(revealedCount + 2, total)).map((q, k) => {
-                const qi = revealedCount + k;
-                return <UpcomingQuestionPreview key={q.id} q={q} qNum={qi + 1} total={total} />;
-              })
-            : null}
-
-          {showCompletion ? (
-            <div className="rounded-3xl border border-slate-200/80 bg-white p-8 text-center shadow-[0_18px_48px_-32px_rgba(15,23,42,0.14)]">
-              <p className="text-lg font-semibold text-slate-900">You&apos;ve reached the end</p>
-              <p className="mt-2 text-sm text-slate-600">
-                {allComplete
-                  ? "Tap answered rows above if you want to change anything, then submit when you're ready."
-                  : "Some answers still look incomplete."}
-              </p>
-            </div>
-          ) : null}
-
-          {submitError ? (
-            <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-center text-xs text-red-800">
-              {submitError}
-            </p>
-          ) : null}
-        </div>
-      </main>
-
-      <footer className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200/75 bg-white/95 px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-10px_36px_-24px_rgba(15,23,42,0.12)] backdrop-blur-md">
-        <div className={`${assessmentShellClass} ${assessmentShellPadClass} flex flex-col gap-2`}>
-          <div className="flex flex-wrap items-center justify-end gap-3">
-            <p className="text-[11px] font-medium text-slate-700">
-              {answeredCount}/{total} answered
-            </p>
-            <button
-              type="button"
-              disabled={!allComplete || submitting}
-              onClick={() => void handleSubmit()}
-              className={`${CTA_PRIMARY_CLASS} disabled:opacity-40`}
-            >
-              {submitting ? "Saving your responses…" : returnPath ? "Save & return to review" : "Submit responses"}
-            </button>
-          </div>
-        </div>
-      </footer>
-    </div>
-  );
-}
-
-function UpcomingQuestionPreview({ q, qNum, total }: { q: AssessmentQuestion; qNum: number; total: number }) {
-  return (
-    <div
-      className="pointer-events-none select-none rounded-3xl border border-dashed border-slate-300/90 bg-white/72 p-5 shadow-inner shadow-slate-200/30 saturate-[0.9] sm:p-7"
-      aria-hidden
-    >
-      <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">Preview · up next</p>
-      <p className="mt-2 text-[11px] font-semibold tabular-nums tracking-wide text-slate-400 sm:text-xs">
-        Question {qNum} of {total}
-      </p>
-      <h3 className="mt-3 text-sm font-semibold leading-snug text-slate-500 sm:text-[0.95rem]">{q.prompt}</h3>
-      {q.type === "likert" ? (
-        <p className="mt-6 text-xs leading-relaxed text-slate-400">Choose a number once you reach this step.</p>
       ) : null}
-      {q.type === "single" ? (
-        <p className="mt-6 text-xs leading-relaxed text-slate-400">Tap an option once you reach this step.</p>
-      ) : null}
-      {q.type === "multi" ? (
-        <p className="mt-6 text-xs leading-relaxed text-slate-400">Select options once you unlock this prompt.</p>
-      ) : null}
-    </div>
-  );
-}
 
-function StressLikertScale({
-  value,
-  onChange,
-  scaleMin = 1,
-  scaleMax = 7,
-  minLabel,
-  maxLabel,
-}: {
-  value?: number;
-  onChange: (n: number) => void;
-  scaleMin?: number;
-  scaleMax?: number;
-  minLabel: string;
-  maxLabel: string;
-}) {
-  const min = Math.min(scaleMin, scaleMax);
-  const max = Math.max(scaleMin, scaleMax);
-  const nums: number[] = [];
-  for (let n = min; n <= max; n++) nums.push(n);
-  const colTemplate = `repeat(${nums.length}, minmax(0, 1fr))`;
+      <main className={`relative z-[1] flex flex-col gap-7 pt-14 pb-[60vh] sm:gap-8 ${ASSESS_CONTENT_MAX} ${ASSESS_PAD}`}>
+        {questions.map((q, idx) => {
+          const distance = idx - activeIndex;
+          const absDist = Math.abs(distance);
+          const isPrevious = distance < 0;
+          const shouldRender = isPrevious || absDist <= 2;
+          if (!shouldRender) return null;
 
-  return (
-    <div>
-      <div className="mb-3 flex justify-between gap-2 text-[10px] font-medium leading-tight text-slate-500 sm:text-xs">
-        <span className="min-w-0 shrink text-left">
-          {min} = {minLabel}
-        </span>
-        <span className="min-w-0 shrink text-right">
-          {max} = {maxLabel}
-        </span>
-      </div>
-      <div className="grid gap-1.5 sm:gap-2" style={{ gridTemplateColumns: colTemplate }}>
-        {nums.map((n) => {
-          const pressed = value === n;
+          const visual = cardVisual(distance);
+          const raw = answers[q.id];
+          const likertVal = q.type === "likert" && typeof raw === "number" ? raw : undefined;
+          const singleVal = q.type === "single" && typeof raw === "string" ? raw : undefined;
+          const multiVal = q.type === "multi" && Array.isArray(raw) ? (raw as string[]) : [];
+          const sectionHeader = questionnaire ? sectionHeaderForQuestion(questionnaire, q.id) : null;
+
           return (
-            <button
-              key={n}
-              type="button"
-              onClick={() => onChange(n)}
-              aria-pressed={pressed}
-              className={`flex min-h-[2.75rem] w-full flex-col items-center justify-center rounded-xl border px-0.5 py-2.5 text-sm font-bold transition sm:min-h-[3.1rem] sm:rounded-2xl sm:text-base ${
-                pressed
-                  ? "border-transparent bg-linear-to-br from-[#00C9C8] to-[#2D82FF] text-white shadow-md"
-                  : "border-slate-200 bg-white text-[#0D1B2A] hover:border-[#2D82FF]/50"
-              }`}
+            <div
+              key={q.id}
+              ref={(el) => {
+                questionRefs.current[idx] = el;
+              }}
+              className="assess-card"
+              style={assessCardStyle(visual)}
             >
-              <span className="tabular-nums">{n}</span>
-            </button>
+              {sectionHeader ? (
+                <p
+                  className="mb-2 text-[11px] font-bold uppercase tracking-[0.18em]"
+                  style={{ color: visual.isActive ? "rgba(255,255,255,.45)" : "#00A8A7" }}
+                >
+                  {sectionHeader.title.replace(/^Section \d+ — /, "")}
+                </p>
+              ) : null}
+              <div className="mb-3.5 text-xs font-bold tracking-[0.5px]" style={{ color: visual.numberColor }}>
+                Question {idx + 1} of {total}
+              </div>
+              <h2
+                className="m-0 mb-3 leading-[1.42] font-bold tracking-[-0.01em]"
+                style={{ fontSize: visual.textSize, color: visual.textColor }}
+              >
+                {q.prompt}
+              </h2>
+              {q.caption ? (
+                <p className="mb-7 text-sm" style={{ color: visual.captionColor }}>
+                  {q.caption}
+                </p>
+              ) : (
+                <div className="mb-7" />
+              )}
+
+              {q.type === "likert" ? (
+                <LikertCircles
+                  scaleMin={q.scaleMin ?? 1}
+                  scaleMax={q.scaleMax ?? 7}
+                  minLabel={q.scaleMinLabel ?? "Low"}
+                  midLabel="Neutral"
+                  maxLabel={q.scaleMaxLabel ?? "High"}
+                  value={likertVal}
+                  isActive={visual.isActive}
+                  disabled={visual.pointerEvents === "none"}
+                  onChange={(n) => onLikertOrSingle(idx, n)}
+                />
+              ) : null}
+
+              {q.type === "single" ? (
+                <div className="space-y-5">
+                  {q.id === WELLNESS_AGE_RANGE_KEY ? (
+                    <div>
+                      <label
+                        htmlFor={`${q.id}-dob`}
+                        className="mb-2 block text-xs font-semibold"
+                        style={{ color: visual.isActive ? "rgba(255,255,255,.7)" : "#374151" }}
+                      >
+                        Date of birth
+                      </label>
+                      <input
+                        id={`${q.id}-dob`}
+                        type="date"
+                        max={new Date().toISOString().slice(0, 10)}
+                        value={
+                          typeof answers[WELLNESS_DATE_OF_BIRTH_KEY] === "string"
+                            ? answers[WELLNESS_DATE_OF_BIRTH_KEY]
+                            : ""
+                        }
+                        onChange={(e) => {
+                          const iso = e.target.value;
+                          setAnswers((prev) => {
+                            const next: AttemptAnswers = { ...prev, [WELLNESS_DATE_OF_BIRTH_KEY]: iso };
+                            const band = ageBandOptionFromDob(iso);
+                            if (band) next[WELLNESS_AGE_RANGE_KEY] = band;
+                            return next;
+                          });
+                          if (iso && idx === activeIndex) {
+                            const band = ageBandOptionFromDob(iso);
+                            if (band) advanceAfterAnswer(idx);
+                          }
+                        }}
+                        className="w-full max-w-sm rounded-xl border px-3 py-2.5 text-sm shadow-sm outline-none focus:ring-2"
+                        style={
+                          visual.isActive
+                            ? {
+                                borderColor: "rgba(255,255,255,.22)",
+                                background: "rgba(255,255,255,.08)",
+                                color: "#fff",
+                              }
+                            : {
+                                borderColor: "#E5E7EB",
+                                background: "#fff",
+                                color: "#0D1B2A",
+                              }
+                        }
+                      />
+                      <p className="mt-2 text-[11px]" style={{ color: visual.captionColor }}>
+                        Or pick an age band below if you prefer not to enter your exact date.
+                      </p>
+                    </div>
+                  ) : null}
+                  <SingleChoiceStack
+                    options={q.options ?? []}
+                    value={singleVal}
+                    isActive={visual.isActive}
+                    disabled={visual.pointerEvents === "none"}
+                    columns={(q.options?.length ?? 0) > 4}
+                    onChange={(v) => onLikertOrSingle(idx, v)}
+                  />
+                </div>
+              ) : null}
+
+              {q.type === "multi" ? (
+                <MultiChoiceStack
+                  options={resolveQuestionOptions(q, answers)}
+                  value={multiVal}
+                  maxSelections={q.maxSelections}
+                  isActive={visual.isActive}
+                  disabled={visual.pointerEvents === "none"}
+                  onAnswersChange={(v) => setAnswer(q.id, v)}
+                  onContinue={(selected) => {
+                    if (!selected.length) return;
+                    if (coerceAnswer(q, selected) === null) return;
+                    if (idx < activeIndex) return;
+                    if (idx !== activeIndex) return;
+                    advanceAfterAnswer(idx);
+                  }}
+                />
+              ) : null}
+            </div>
           );
         })}
-      </div>
-    </div>
-  );
-}
+      </main>
 
-function SingleChoice({
-  options,
-  value,
-  onChange,
-}: {
-  options: string[];
-  value?: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <div className="grid gap-2 lg:grid-cols-2 lg:gap-2.5">
-      {options.map((opt) => {
-        const active = value === opt;
-        return (
-          <button
-            key={opt}
-            type="button"
-            onClick={() => onChange(opt)}
-            className={`flex w-full min-h-[3rem] items-center rounded-2xl border px-4 py-3 text-left text-sm transition ${
-              active
-                ? "border-[#2D82FF]/50 bg-[#F7F9FB] text-[#0D1B2A] shadow-inner"
-                : "border-slate-200 bg-white text-slate-800 hover:border-slate-300"
-            }`}
-          >
-            {opt}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function MultiChoiceAdvance({
-  options,
-  value,
-  maxSelections,
-  onAnswersChange,
-  onContinue,
-}: {
-  options: string[];
-  value: string[];
-  maxSelections?: number;
-  onAnswersChange: (v: string[]) => void;
-  onContinue: (selected: string[]) => void;
-}) {
-  const cap = maxSelections ?? options.length;
-  const atCap = value.length >= cap;
-
-  const toggle = (opt: string) => {
-    if (value.includes(opt)) {
-      onAnswersChange(value.filter((x) => x !== opt));
-      return;
-    }
-    if (atCap) return;
-    onAnswersChange([...value, opt]);
-  };
-
-  const canContinue = value.length > 0;
-
-  return (
-    <div className="space-y-2">
-      <p className="text-xs text-slate-500">
-        {value.length}/{cap} selected{maxSelections ? ` (max ${maxSelections})` : ""}
-      </p>
-      {options.map((opt) => {
-        const active = value.includes(opt);
-        const disabled = !active && atCap;
-        return (
-          <button
-            key={opt}
-            type="button"
-            disabled={disabled}
-            onClick={() => toggle(opt)}
-            className={`flex w-full min-h-[3rem] items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm transition ${
-              active
-                ? "border-teal-500 bg-teal-50 text-slate-900"
-                : disabled
-                  ? "cursor-not-allowed border-slate-100 bg-slate-50 text-slate-400"
-                  : "border-slate-200 bg-white text-slate-800 hover:border-slate-300"
-            }`}
-          >
-            <span>{opt}</span>
-            <span className="text-[11px] font-semibold text-slate-500">
-              {active ? "Selected" : disabled ? "Limit reached" : "Tap"}
-            </span>
-          </button>
-        );
-      })}
-      <p className="text-xs text-slate-500">Select any that apply, then continue.</p>
-      <button
-        type="button"
-        disabled={!canContinue}
-        onClick={() => onContinue(value)}
-        className={`mt-2 w-full ${CTA_PRIMARY_CLASS} !min-h-[44px] !py-2.5 disabled:opacity-40`}
-      >
-        Continue
-      </button>
+      {complete ? (
+        <AssessCompleteOverlay
+          title="Context complete."
+          body={
+            allComplete
+              ? "We'll use this alongside your personality profile to personalize your report."
+              : "Some answers still look incomplete — scroll up to review."
+          }
+          ctaLabel={
+            submitting ? "Saving…" : returnPath ? "Save & return to review" : "Submit responses"
+          }
+          disabled={!allComplete}
+          busy={submitting}
+          error={submitError}
+          hint={!allComplete ? "Finish every question before submitting." : null}
+          onCta={() => {
+            void handleSubmit();
+          }}
+        />
+      ) : null}
     </div>
   );
 }

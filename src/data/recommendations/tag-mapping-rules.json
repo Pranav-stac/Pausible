@@ -2,7 +2,7 @@
   {
     "questionId": "CQ01",
     "question": "What is your date of birth?",
-    "responseType": "Date picker (derive age band)",
+    "responseType": "Date picker",
     "responseValue": "Under 18",
     "tagCategory": "Context Fit",
     "tag": "age_under_18"
@@ -10,7 +10,7 @@
   {
     "questionId": "CQ01",
     "question": "What is your date of birth?",
-    "responseType": "Date picker (derive age band)",
+    "responseType": "Date picker",
     "responseValue": "18–24",
     "tagCategory": "Context Fit",
     "tag": "age_18_24"
@@ -18,7 +18,7 @@
   {
     "questionId": "CQ01",
     "question": "What is your date of birth?",
-    "responseType": "Date picker (derive age band)",
+    "responseType": "Date picker",
     "responseValue": "25–34",
     "tagCategory": "Context Fit",
     "tag": "age_25_34"
@@ -26,7 +26,7 @@
   {
     "questionId": "CQ01",
     "question": "What is your date of birth?",
-    "responseType": "Date picker (derive age band)",
+    "responseType": "Date picker",
     "responseValue": "35–44",
     "tagCategory": "Context Fit",
     "tag": "age_35_44"
@@ -34,7 +34,7 @@
   {
     "questionId": "CQ01",
     "question": "What is your date of birth?",
-    "responseType": "Date picker (derive age band)",
+    "responseType": "Date picker",
     "responseValue": "45–54",
     "tagCategory": "Context Fit",
     "tag": "age_45_54"
@@ -42,7 +42,7 @@
   {
     "questionId": "CQ01",
     "question": "What is your date of birth?",
-    "responseType": "Date picker (derive age band)",
+    "responseType": "Date picker",
     "responseValue": "55+",
     "tagCategory": "Context Fit",
     "tag": "age_55_plus"
@@ -81,57 +81,41 @@
   },
   {
     "questionId": "CQ03",
-    "question": "Which best describe your current work and lifestyle?",
-    "responseType": "Multi-select",
-    "responseValue": "Desk-based (office / remote / hybrid)",
+    "question": "What is the nature of your work?",
+    "responseType": "Single select",
+    "responseValue": "Desk-based",
     "tagCategory": "Context Fit",
     "tag": "work_desk_based"
   },
   {
     "questionId": "CQ03",
-    "question": "Which best describe your current work and lifestyle?",
-    "responseType": "Multi-select",
-    "responseValue": "Shift-based",
-    "tagCategory": "Context Fit",
-    "tag": "work_shift_based"
-  },
-  {
-    "questionId": "CQ03",
-    "question": "Which best describe your current work and lifestyle?",
-    "responseType": "Multi-select",
+    "question": "What is the nature of your work?",
+    "responseType": "Single select",
     "responseValue": "Physically demanding",
     "tagCategory": "Context Fit",
     "tag": "work_physically_demanding"
   },
   {
     "questionId": "CQ03",
-    "question": "Which best describe your current work and lifestyle?",
-    "responseType": "Multi-select",
+    "question": "What is the nature of your work?",
+    "responseType": "Single select",
     "responseValue": "Travel-heavy",
     "tagCategory": "Context Fit",
     "tag": "work_travel_heavy"
   },
   {
     "questionId": "CQ03",
-    "question": "Which best describe your current work and lifestyle?",
-    "responseType": "Multi-select",
-    "responseValue": "Homemaker or caregiver",
-    "tagCategory": "Context Fit",
-    "tag": "lifestyle_caregiving"
-  },
-  {
-    "questionId": "CQ03",
-    "question": "Which best describe your current work and lifestyle?",
-    "responseType": "Multi-select",
+    "question": "What is the nature of your work?",
+    "responseType": "Single select",
     "responseValue": "Student",
     "tagCategory": "Context Fit",
     "tag": "lifestyle_student"
   },
   {
     "questionId": "CQ03",
-    "question": "Which best describe your current work and lifestyle?",
-    "responseType": "Multi-select",
-    "responseValue": "Not currently working",
+    "question": "What is the nature of your work?",
+    "responseType": "Single select",
+    "responseValue": "Not in active employment",
     "tagCategory": "Context Fit",
     "tag": "lifestyle_not_working"
   },
@@ -161,35 +145,35 @@
   },
   {
     "questionId": "CQ05",
-    "question": "How much time can you realistically give most days?",
+    "question": "How much time can you set aside for physical activity on most days?",
     "responseType": "Single select",
-    "responseValue": "Under 15 min",
+    "responseValue": "Under 30 minutes",
     "tagCategory": "Context Fit",
-    "tag": "time_under_15_min"
+    "tag": "time_under_30_min"
   },
   {
     "questionId": "CQ05",
-    "question": "How much time can you realistically give most days?",
+    "question": "How much time can you set aside for physical activity on most days?",
     "responseType": "Single select",
-    "responseValue": "15–30 min",
-    "tagCategory": "Context Fit",
-    "tag": "time_15_30_min"
-  },
-  {
-    "questionId": "CQ05",
-    "question": "How much time can you realistically give most days?",
-    "responseType": "Single select",
-    "responseValue": "30–45 min",
+    "responseValue": "30–45 minutes",
     "tagCategory": "Context Fit",
     "tag": "time_30_45_min"
   },
   {
     "questionId": "CQ05",
-    "question": "How much time can you realistically give most days?",
+    "question": "How much time can you set aside for physical activity on most days?",
     "responseType": "Single select",
-    "responseValue": "45+ min",
+    "responseValue": "45–60 minutes",
     "tagCategory": "Context Fit",
-    "tag": "time_45_plus_min"
+    "tag": "time_45_60_min"
+  },
+  {
+    "questionId": "CQ05",
+    "question": "How much time can you set aside for physical activity on most days?",
+    "responseType": "Single select",
+    "responseValue": "Over 60 minutes",
+    "tagCategory": "Context Fit",
+    "tag": "time_over_60_min"
   },
   {
     "questionId": "CQ06",
@@ -224,24 +208,16 @@
     "tag": "fitness_consistent"
   },
   {
-    "questionId": "CQ06",
-    "question": "Which best describes your current fitness level?",
-    "responseType": "Single select",
-    "responseValue": "Train with a structured program",
-    "tagCategory": "Context Fit",
-    "tag": "fitness_advanced"
-  },
-  {
     "questionId": "CQ07",
-    "question": "Your usual daily activity level?",
+    "question": "How active are you on a typical day?",
     "responseType": "Single select",
-    "responseValue": "Sedentary",
+    "responseValue": "Mostly sitting",
     "tagCategory": "Context Fit",
     "tag": "activity_sedentary"
   },
   {
     "questionId": "CQ07",
-    "question": "Your usual daily activity level?",
+    "question": "How active are you on a typical day?",
     "responseType": "Single select",
     "responseValue": "Lightly active",
     "tagCategory": "Context Fit",
@@ -249,7 +225,7 @@
   },
   {
     "questionId": "CQ07",
-    "question": "Your usual daily activity level?",
+    "question": "How active are you on a typical day?",
     "responseType": "Single select",
     "responseValue": "Moderately active",
     "tagCategory": "Context Fit",
@@ -257,7 +233,7 @@
   },
   {
     "questionId": "CQ07",
-    "question": "Your usual daily activity level?",
+    "question": "How active are you on a typical day?",
     "responseType": "Single select",
     "responseValue": "Very active",
     "tagCategory": "Context Fit",
@@ -265,91 +241,163 @@
   },
   {
     "questionId": "CQ08",
-    "question": "What kinds of physical activity do you enjoy or prefer?",
-    "responseType": "Multi-select",
-    "responseValue": "Walking",
+    "question": "What kind of physical activity interests you?",
+    "responseType": "Multi-select (max 2)",
+    "responseValue": "Strength or resistance training",
     "tagCategory": "Activity Preference",
-    "tag": "activity_pref_walking"
+    "tag": "activity_cat_strength"
   },
   {
     "questionId": "CQ08",
-    "question": "What kinds of physical activity do you enjoy or prefer?",
+    "question": "What kind of physical activity interests you?",
+    "responseType": "Multi-select (max 2)",
+    "responseValue": "Cardio or endurance",
+    "tagCategory": "Activity Preference",
+    "tag": "activity_cat_cardio"
+  },
+  {
+    "questionId": "CQ08",
+    "question": "What kind of physical activity interests you?",
+    "responseType": "Multi-select (max 2)",
+    "responseValue": "Mind-body or flexibility",
+    "tagCategory": "Activity Preference",
+    "tag": "activity_cat_mindbody"
+  },
+  {
+    "questionId": "CQ08",
+    "question": "What kind of physical activity interests you?",
+    "responseType": "Multi-select (max 2)",
+    "responseValue": "Learning a skill or sport",
+    "tagCategory": "Activity Preference",
+    "tag": "activity_cat_skill_learning"
+  },
+  {
+    "questionId": "CQ08",
+    "question": "What kind of physical activity interests you?",
+    "responseType": "Multi-select (max 2)",
+    "responseValue": "Open to anything",
+    "tagCategory": "Activity Preference",
+    "tag": "activity_pref_open"
+  },
+  {
+    "questionId": "CQ08a",
+    "question": "Conditional: Cardio",
     "responseType": "Multi-select",
-    "responseValue": "Running / jogging",
+    "responseValue": "Running/jogging",
     "tagCategory": "Activity Preference",
     "tag": "activity_pref_running"
   },
   {
-    "questionId": "CQ08",
-    "question": "What kinds of physical activity do you enjoy or prefer?",
-    "responseType": "Multi-select",
-    "responseValue": "Strength or weights",
-    "tagCategory": "Activity Preference",
-    "tag": "activity_pref_strength"
-  },
-  {
-    "questionId": "CQ08",
-    "question": "What kinds of physical activity do you enjoy or prefer?",
-    "responseType": "Multi-select",
-    "responseValue": "Cardio / HIIT",
-    "tagCategory": "Activity Preference",
-    "tag": "activity_pref_cardio"
-  },
-  {
-    "questionId": "CQ08",
-    "question": "What kinds of physical activity do you enjoy or prefer?",
-    "responseType": "Multi-select",
-    "responseValue": "Yoga, Pilates or stretching",
-    "tagCategory": "Activity Preference",
-    "tag": "activity_pref_yoga"
-  },
-  {
-    "questionId": "CQ08",
-    "question": "What kinds of physical activity do you enjoy or prefer?",
-    "responseType": "Multi-select",
-    "responseValue": "Sports or games",
-    "tagCategory": "Activity Preference",
-    "tag": "activity_pref_sports"
-  },
-  {
-    "questionId": "CQ08",
-    "question": "What kinds of physical activity do you enjoy or prefer?",
-    "responseType": "Multi-select",
-    "responseValue": "Dancing",
-    "tagCategory": "Activity Preference",
-    "tag": "activity_pref_dance"
-  },
-  {
-    "questionId": "CQ08",
-    "question": "What kinds of physical activity do you enjoy or prefer?",
-    "responseType": "Multi-select",
-    "responseValue": "Swimming",
-    "tagCategory": "Activity Preference",
-    "tag": "activity_pref_swimming"
-  },
-  {
-    "questionId": "CQ08",
-    "question": "What kinds of physical activity do you enjoy or prefer?",
+    "questionId": "CQ08a",
+    "question": "Conditional: Cardio",
     "responseType": "Multi-select",
     "responseValue": "Cycling",
     "tagCategory": "Activity Preference",
     "tag": "activity_pref_cycling"
   },
   {
-    "questionId": "CQ08",
-    "question": "What kinds of physical activity do you enjoy or prefer?",
+    "questionId": "CQ08a",
+    "question": "Conditional: Cardio",
     "responseType": "Multi-select",
-    "responseValue": "Home follow-along workouts",
+    "responseValue": "Swimming",
     "tagCategory": "Activity Preference",
-    "tag": "activity_pref_home_followalong"
+    "tag": "activity_pref_swimming"
   },
   {
-    "questionId": "CQ08",
-    "question": "What kinds of physical activity do you enjoy or prefer?",
+    "questionId": "CQ08a",
+    "question": "Conditional: Cardio",
     "responseType": "Multi-select",
-    "responseValue": "Open to anything",
+    "responseValue": "Walking",
     "tagCategory": "Activity Preference",
-    "tag": "activity_pref_open"
+    "tag": "activity_pref_walking"
+  },
+  {
+    "questionId": "CQ08a",
+    "question": "Conditional: Cardio",
+    "responseType": "Multi-select",
+    "responseValue": "HIIT",
+    "tagCategory": "Activity Preference",
+    "tag": "activity_pref_cardio"
+  },
+  {
+    "questionId": "CQ08a",
+    "question": "Conditional: Mind-body",
+    "responseType": "Multi-select",
+    "responseValue": "Yoga",
+    "tagCategory": "Activity Preference",
+    "tag": "activity_pref_yoga"
+  },
+  {
+    "questionId": "CQ08a",
+    "question": "Conditional: Mind-body",
+    "responseType": "Multi-select",
+    "responseValue": "Pilates",
+    "tagCategory": "Activity Preference",
+    "tag": "activity_pref_pilates"
+  },
+  {
+    "questionId": "CQ08a",
+    "question": "Conditional: Mind-body",
+    "responseType": "Multi-select",
+    "responseValue": "Stretching",
+    "tagCategory": "Activity Preference",
+    "tag": "activity_pref_stretching"
+  },
+  {
+    "questionId": "CQ08a",
+    "question": "Conditional: Mind-body",
+    "responseType": "Multi-select",
+    "responseValue": "Dance",
+    "tagCategory": "Activity Preference",
+    "tag": "activity_pref_dance"
+  },
+  {
+    "questionId": "CQ08a",
+    "question": "Conditional: Mind-body",
+    "responseType": "Multi-select",
+    "responseValue": "Tai chi",
+    "tagCategory": "Activity Preference",
+    "tag": "activity_pref_taichi"
+  },
+  {
+    "questionId": "CQ08a",
+    "question": "Conditional: Skill/sport",
+    "responseType": "Multi-select",
+    "responseValue": "Martial arts",
+    "tagCategory": "Activity Preference",
+    "tag": "activity_pref_martial_arts"
+  },
+  {
+    "questionId": "CQ08a",
+    "question": "Conditional: Skill/sport",
+    "responseType": "Multi-select",
+    "responseValue": "A team sport",
+    "tagCategory": "Activity Preference",
+    "tag": "activity_pref_sports"
+  },
+  {
+    "questionId": "CQ08a",
+    "question": "Conditional: Skill/sport",
+    "responseType": "Multi-select",
+    "responseValue": "A racquet sport",
+    "tagCategory": "Activity Preference",
+    "tag": "activity_pref_racquet_sport"
+  },
+  {
+    "questionId": "CQ08a",
+    "question": "Conditional: Skill/sport",
+    "responseType": "Multi-select",
+    "responseValue": "Dance form",
+    "tagCategory": "Activity Preference",
+    "tag": "activity_pref_dance_form"
+  },
+  {
+    "questionId": "CQ08a",
+    "question": "Conditional: Skill/sport",
+    "responseType": "Multi-select",
+    "responseValue": "Swimming (learning)",
+    "tagCategory": "Activity Preference",
+    "tag": "activity_pref_swimming_learn"
   },
   {
     "questionId": "CQ09",
@@ -384,49 +432,9 @@
     "tag": "environment_no_preference"
   },
   {
-    "questionId": "CQ10",
-    "question": "When do you prefer to be active?",
-    "responseType": "Single select",
-    "responseValue": "Early morning",
-    "tagCategory": "Context Fit",
-    "tag": "time_of_day_morning"
-  },
-  {
-    "questionId": "CQ10",
-    "question": "When do you prefer to be active?",
-    "responseType": "Single select",
-    "responseValue": "Daytime",
-    "tagCategory": "Context Fit",
-    "tag": "time_of_day_daytime"
-  },
-  {
-    "questionId": "CQ10",
-    "question": "When do you prefer to be active?",
-    "responseType": "Single select",
-    "responseValue": "Evening",
-    "tagCategory": "Context Fit",
-    "tag": "time_of_day_evening"
-  },
-  {
-    "questionId": "CQ10",
-    "question": "When do you prefer to be active?",
-    "responseType": "Single select",
-    "responseValue": "Late night",
-    "tagCategory": "Context Fit",
-    "tag": "time_of_day_latenight"
-  },
-  {
-    "questionId": "CQ10",
-    "question": "When do you prefer to be active?",
-    "responseType": "Single select",
-    "responseValue": "No fixed preference",
-    "tagCategory": "Context Fit",
-    "tag": "time_of_day_no_preference"
-  },
-  {
     "questionId": "CQ11",
     "question": "How would you rate your sleep quality?",
-    "responseType": "Scale (1–5)",
+    "responseType": "Single select",
     "responseValue": "Very poor",
     "tagCategory": "Context Fit",
     "tag": "sleep_quality_very_poor"
@@ -434,7 +442,7 @@
   {
     "questionId": "CQ11",
     "question": "How would you rate your sleep quality?",
-    "responseType": "Scale (1–5)",
+    "responseType": "Single select",
     "responseValue": "Poor",
     "tagCategory": "Context Fit",
     "tag": "sleep_quality_poor"
@@ -442,7 +450,7 @@
   {
     "questionId": "CQ11",
     "question": "How would you rate your sleep quality?",
-    "responseType": "Scale (1–5)",
+    "responseType": "Single select",
     "responseValue": "Average",
     "tagCategory": "Context Fit",
     "tag": "sleep_quality_average"
@@ -450,7 +458,7 @@
   {
     "questionId": "CQ11",
     "question": "How would you rate your sleep quality?",
-    "responseType": "Scale (1–5)",
+    "responseType": "Single select",
     "responseValue": "Good",
     "tagCategory": "Context Fit",
     "tag": "sleep_quality_good"
@@ -458,7 +466,7 @@
   {
     "questionId": "CQ11",
     "question": "How would you rate your sleep quality?",
-    "responseType": "Scale (1–5)",
+    "responseType": "Single select",
     "responseValue": "Excellent",
     "tagCategory": "Context Fit",
     "tag": "sleep_quality_excellent"
@@ -505,33 +513,33 @@
   },
   {
     "questionId": "CQ13",
-    "question": "Your caffeine habit?",
+    "question": "How do you usually have caffeine?",
     "responseType": "Single select",
-    "responseValue": "None",
+    "responseValue": "I don't have caffeine",
     "tagCategory": "Context Fit",
     "tag": "caffeine_none"
   },
   {
     "questionId": "CQ13",
-    "question": "Your caffeine habit?",
+    "question": "How do you usually have caffeine?",
     "responseType": "Single select",
-    "responseValue": "Morning only",
+    "responseValue": "Only in the morning",
     "tagCategory": "Context Fit",
     "tag": "caffeine_morning"
   },
   {
     "questionId": "CQ13",
-    "question": "Your caffeine habit?",
+    "question": "How do you usually have caffeine?",
     "responseType": "Single select",
-    "responseValue": "Through the day",
+    "responseValue": "Through the day, but not after 4 PM",
     "tagCategory": "Context Fit",
     "tag": "caffeine_daytime"
   },
   {
     "questionId": "CQ13",
-    "question": "Your caffeine habit?",
+    "question": "How do you usually have caffeine?",
     "responseType": "Single select",
-    "responseValue": "Evening too",
+    "responseValue": "Through the day, including evenings",
     "tagCategory": "Context Fit",
     "tag": "caffeine_evening"
   },
@@ -571,37 +579,29 @@
     "questionId": "CQ14",
     "question": "Which best describes your usual food pattern?",
     "responseType": "Single select",
-    "responseValue": "Pescatarian",
-    "tagCategory": "Context Fit",
-    "tag": "food_pescatarian"
-  },
-  {
-    "questionId": "CQ14",
-    "question": "Which best describes your usual food pattern?",
-    "responseType": "Single select",
-    "responseValue": "No specific preference",
+    "responseValue": "No specific pattern",
     "tagCategory": "Context Fit",
     "tag": "food_no_preference"
   },
   {
     "questionId": "CQ15",
-    "question": "How much control do you have over your meals?",
+    "question": "Who usually decides what you eat?",
     "responseType": "Single select",
-    "responseValue": "I cook most of my meals",
+    "responseValue": "I decide and prepare most meals",
     "tagCategory": "Context Fit",
     "tag": "meal_control_self_prepared"
   },
   {
     "questionId": "CQ15",
-    "question": "How much control do you have over your meals?",
+    "question": "Who usually decides what you eat?",
     "responseType": "Single select",
-    "responseValue": "Someone else prepares most (home or cafeteria)",
+    "responseValue": "Someone else at home decides",
     "tagCategory": "Context Fit",
     "tag": "meal_control_prepared_by_others"
   },
   {
     "questionId": "CQ15",
-    "question": "How much control do you have over your meals?",
+    "question": "Who usually decides what you eat?",
     "responseType": "Single select",
     "responseValue": "I mostly eat out or order in",
     "tagCategory": "Context Fit",
@@ -609,191 +609,119 @@
   },
   {
     "questionId": "CQ15",
-    "question": "How much control do you have over your meals?",
+    "question": "Who usually decides what you eat?",
     "responseType": "Single select",
-    "responseValue": "Mixed / varies by day",
+    "responseValue": "It varies",
     "tagCategory": "Context Fit",
     "tag": "meal_control_mixed"
   },
   {
     "questionId": "CQ16",
-    "question": "What are your main wellness goals?  (max 3)",
-    "responseType": "Multi-select",
-    "responseValue": "Fat loss / weight management",
+    "question": "What matters most to you right now?",
+    "responseType": "Single select",
+    "responseValue": "Lose weight or manage body fat",
     "tagCategory": "Goal Fit",
     "tag": "goal_fat_loss"
   },
   {
     "questionId": "CQ16",
-    "question": "What are your main wellness goals?  (max 3)",
-    "responseType": "Multi-select",
-    "responseValue": "Build muscle / get stronger",
+    "question": "What matters most to you right now?",
+    "responseType": "Single select",
+    "responseValue": "Build strength or muscle",
     "tagCategory": "Goal Fit",
-    "tag": "goal_muscle_gain; goal_strength"
+    "tag": "goal_strength"
   },
   {
     "questionId": "CQ16",
-    "question": "What are your main wellness goals?  (max 3)",
-    "responseType": "Multi-select",
-    "responseValue": "More energy through the day",
+    "question": "What matters most to you right now?",
+    "responseType": "Single select",
+    "responseValue": "Have more energy and feel better",
     "tagCategory": "Goal Fit",
     "tag": "goal_energy"
   },
   {
     "questionId": "CQ16",
-    "question": "What are your main wellness goals?  (max 3)",
-    "responseType": "Multi-select",
-    "responseValue": "Better sleep",
+    "question": "What matters most to you right now?",
+    "responseType": "Single select",
+    "responseValue": "Sleep better and recover well",
     "tagCategory": "Goal Fit",
-    "tag": "goal_sleep_improvement"
+    "tag": "goal_sleep_recovery"
   },
   {
     "questionId": "CQ16",
-    "question": "What are your main wellness goals?  (max 3)",
-    "responseType": "Multi-select",
-    "responseValue": "Less stress / mental calm",
+    "question": "What matters most to you right now?",
+    "responseType": "Single select",
+    "responseValue": "Reduce stress and feel calmer",
     "tagCategory": "Goal Fit",
-    "tag": "goal_stress_reduction; goal_mental_calm"
+    "tag": "goal_stress_reduction"
   },
   {
     "questionId": "CQ16",
-    "question": "What are your main wellness goals?  (max 3)",
-    "responseType": "Multi-select",
-    "responseValue": "Flexibility / mobility",
-    "tagCategory": "Goal Fit",
-    "tag": "goal_flexibility_mobility"
-  },
-  {
-    "questionId": "CQ16",
-    "question": "What are your main wellness goals?  (max 3)",
-    "responseType": "Multi-select",
+    "question": "What matters most to you right now?",
+    "responseType": "Single select",
     "responseValue": "Build a consistent routine",
     "tagCategory": "Goal Fit",
-    "tag": "goal_consistency_discipline; goal_sustainable_routines"
-  },
-  {
-    "questionId": "CQ16",
-    "question": "What are your main wellness goals?  (max 3)",
-    "responseType": "Multi-select",
-    "responseValue": "Get back into fitness after a break",
-    "tagCategory": "Goal Fit",
-    "tag": "goal_return_to_fitness"
-  },
-  {
-    "questionId": "CQ16",
-    "question": "What are your main wellness goals?  (max 3)",
-    "responseType": "Multi-select",
-    "responseValue": "Better recovery",
-    "tagCategory": "Goal Fit",
-    "tag": "goal_better_recovery"
-  },
-  {
-    "questionId": "CQ16",
-    "question": "What are your main wellness goals?  (max 3)",
-    "responseType": "Multi-select",
-    "responseValue": "Overall health",
-    "tagCategory": "Goal Fit",
-    "tag": "goal_overall_health"
-  },
-  {
-    "questionId": "CQ16",
-    "question": "What are your main wellness goals?  (max 3)",
-    "responseType": "Multi-select",
-    "responseValue": "Body confidence / appearance",
-    "tagCategory": "Goal Fit",
-    "tag": "goal_body_confidence"
+    "tag": "goal_consistency"
   },
   {
     "questionId": "CQ17",
-    "question": "What usually stops you from staying consistent?  (max 3)",
-    "responseType": "Multi-select",
-    "responseValue": "Lack of time",
+    "question": "What are the main challenges in your wellness journey?",
+    "responseType": "Multi-select (max 2)",
+    "responseValue": "Shortage of time",
     "tagCategory": "Barrier Fit",
     "tag": "barrier_lack_of_time"
   },
   {
     "questionId": "CQ17",
-    "question": "What usually stops you from staying consistent?  (max 3)",
-    "responseType": "Multi-select",
-    "responseValue": "Hard to get started",
-    "tagCategory": "Barrier Fit",
-    "tag": "barrier_starting_difficulty; barrier_low_activation_energy"
-  },
-  {
-    "questionId": "CQ17",
-    "question": "What usually stops you from staying consistent?  (max 3)",
-    "responseType": "Multi-select",
-    "responseValue": "Hard to stay consistent",
+    "question": "What are the main challenges in your wellness journey?",
+    "responseType": "Multi-select (max 2)",
+    "responseValue": "Lack of consistency",
     "tagCategory": "Barrier Fit",
     "tag": "barrier_lack_of_consistency"
   },
   {
     "questionId": "CQ17",
-    "question": "What usually stops you from staying consistent?  (max 3)",
-    "responseType": "Multi-select",
-    "responseValue": "Low motivation",
-    "tagCategory": "Barrier Fit",
-    "tag": "barrier_low_motivation"
-  },
-  {
-    "questionId": "CQ17",
-    "question": "What usually stops you from staying consistent?  (max 3)",
-    "responseType": "Multi-select",
-    "responseValue": "Emotional eating or cravings",
-    "tagCategory": "Barrier Fit",
-    "tag": "barrier_emotional_eating_cravings"
-  },
-  {
-    "questionId": "CQ17",
-    "question": "What usually stops you from staying consistent?  (max 3)",
-    "responseType": "Multi-select",
-    "responseValue": "Gym anxiety / self-consciousness",
-    "tagCategory": "Barrier Fit",
-    "tag": "barrier_gym_anxiety"
-  },
-  {
-    "questionId": "CQ17",
-    "question": "What usually stops you from staying consistent?  (max 3)",
-    "responseType": "Multi-select",
-    "responseValue": "I don't know what to do",
+    "question": "What are the main challenges in your wellness journey?",
+    "responseType": "Multi-select (max 2)",
+    "responseValue": "Lack of knowledge or clarity",
     "tagCategory": "Barrier Fit",
     "tag": "barrier_lack_of_knowledge"
   },
   {
     "questionId": "CQ17",
-    "question": "What usually stops you from staying consistent?  (max 3)",
-    "responseType": "Multi-select",
-    "responseValue": "Plans feel too complex / overwhelming",
+    "question": "What are the main challenges in your wellness journey?",
+    "responseType": "Multi-select (max 2)",
+    "responseValue": "Stress or emotional eating",
     "tagCategory": "Barrier Fit",
-    "tag": "barrier_overwhelm_from_complexity"
+    "tag": "barrier_stress_emotional_eating"
   },
   {
     "questionId": "CQ17",
-    "question": "What usually stops you from staying consistent?  (max 3)",
-    "responseType": "Multi-select",
-    "responseValue": "Travel or schedule disruption",
+    "question": "What are the main challenges in your wellness journey?",
+    "responseType": "Multi-select (max 2)",
+    "responseValue": "Self-consciousness about exercising",
     "tagCategory": "Barrier Fit",
-    "tag": "barrier_travel_schedule_disruption"
+    "tag": "barrier_self_consciousness"
   },
   {
     "questionId": "CQ17",
-    "question": "What usually stops you from staying consistent?  (max 3)",
-    "responseType": "Multi-select",
-    "responseValue": "Family / caregiving responsibilities",
+    "question": "What are the main challenges in your wellness journey?",
+    "responseType": "Multi-select (max 2)",
+    "responseValue": "Physical limitation or injury",
     "tagCategory": "Barrier Fit",
-    "tag": "barrier_family_responsibilities"
+    "tag": "barrier_physical_limitation"
   },
   {
     "questionId": "CQ17",
-    "question": "What usually stops you from staying consistent?  (max 3)",
-    "responseType": "Multi-select",
-    "responseValue": "Injury or physical discomfort",
+    "question": "What are the main challenges in your wellness journey?",
+    "responseType": "Multi-select (max 2)",
+    "responseValue": "Unpredictable schedule or routine",
     "tagCategory": "Barrier Fit",
-    "tag": "barrier_injury_discomfort"
+    "tag": "barrier_unpredictable_schedule"
   },
   {
     "questionId": "CQ18",
-    "question": "How supportive is your environment for your wellness goals?",
+    "question": "How supportive are the people around you when it comes to your wellness?",
     "responseType": "Single select",
     "responseValue": "Very supportive",
     "tagCategory": "Context Fit",
@@ -801,7 +729,7 @@
   },
   {
     "questionId": "CQ18",
-    "question": "How supportive is your environment for your wellness goals?",
+    "question": "How supportive are the people around you when it comes to your wellness?",
     "responseType": "Single select",
     "responseValue": "Somewhat supportive",
     "tagCategory": "Context Fit",
@@ -809,7 +737,7 @@
   },
   {
     "questionId": "CQ18",
-    "question": "How supportive is your environment for your wellness goals?",
+    "question": "How supportive are the people around you when it comes to your wellness?",
     "responseType": "Single select",
     "responseValue": "Neutral or mixed",
     "tagCategory": "Context Fit",
@@ -817,63 +745,39 @@
   },
   {
     "questionId": "CQ18",
-    "question": "How supportive is your environment for your wellness goals?",
+    "question": "How supportive are the people around you when it comes to your wellness?",
     "responseType": "Single select",
-    "responseValue": "Unsupportive",
+    "responseValue": "Not supportive",
     "tagCategory": "Context Fit",
     "tag": "support_unsupportive"
   },
   {
-    "questionId": "CQ19",
-    "question": "Do you prefer to pursue wellness mostly on your own or with others?",
-    "responseType": "Single select",
-    "responseValue": "Mostly on my own",
-    "tagCategory": "Context Fit",
-    "tag": "support_self_directed"
-  },
-  {
-    "questionId": "CQ19",
-    "question": "Do you prefer to pursue wellness mostly on your own or with others?",
-    "responseType": "Single select",
-    "responseValue": "A mix",
-    "tagCategory": "Context Fit",
-    "tag": "social_balanced"
-  },
-  {
-    "questionId": "CQ19",
-    "question": "Do you prefer to pursue wellness mostly on your own or with others?",
-    "responseType": "Single select",
-    "responseValue": "Mostly with others or a group",
-    "tagCategory": "Context Fit",
-    "tag": "social_preference_high"
-  },
-  {
     "questionId": "CQ20",
-    "question": "Any health, injury, pregnancy/postpartum, or doctor-advised restrictions? (and current symptoms)",
+    "question": "Is there anything we should know about your health?",
     "responseType": "Multi-select",
-    "responseValue": "No known restriction",
+    "responseValue": "No known issues",
     "tagCategory": "Exclude If",
     "tag": "exclude_none"
   },
   {
     "questionId": "CQ20",
-    "question": "Any health, injury, pregnancy/postpartum, or doctor-advised restrictions? (and current symptoms)",
+    "question": "Is there anything we should know about your health?",
     "responseType": "Multi-select",
-    "responseValue": "Medical condition",
+    "responseValue": "A medical condition",
     "tagCategory": "Exclude If",
     "tag": "exclude_medical_condition"
   },
   {
     "questionId": "CQ20",
-    "question": "Any health, injury, pregnancy/postpartum, or doctor-advised restrictions? (and current symptoms)",
+    "question": "Is there anything we should know about your health?",
     "responseType": "Multi-select",
-    "responseValue": "Injury",
+    "responseValue": "An injury",
     "tagCategory": "Exclude If",
     "tag": "exclude_injury"
   },
   {
     "questionId": "CQ20",
-    "question": "Any health, injury, pregnancy/postpartum, or doctor-advised restrictions? (and current symptoms)",
+    "question": "Is there anything we should know about your health?",
     "responseType": "Multi-select",
     "responseValue": "Pregnancy or postpartum",
     "tagCategory": "Exclude If",
@@ -881,34 +785,34 @@
   },
   {
     "questionId": "CQ20",
-    "question": "Any health, injury, pregnancy/postpartum, or doctor-advised restrictions? (and current symptoms)",
+    "question": "Is there anything we should know about your health?",
     "responseType": "Multi-select",
-    "responseValue": "Doctor-advised restriction",
+    "responseValue": "A doctor-advised restriction",
     "tagCategory": "Exclude If",
     "tag": "exclude_doctor_advised_restriction"
   },
   {
     "questionId": "CQ20",
-    "question": "Any health, injury, pregnancy/postpartum, or doctor-advised restrictions? (and current symptoms)",
+    "question": "Is there anything we should know about your health?",
     "responseType": "Multi-select",
-    "responseValue": "Prefer not to say",
-    "tagCategory": "Exclude If",
-    "tag": "exclude_prefer_not_to_say_health"
-  },
-  {
-    "questionId": "CQ20",
-    "question": "Any health, injury, pregnancy/postpartum, or doctor-advised restrictions? (and current symptoms)",
-    "responseType": "Multi-select",
-    "responseValue": "Severe fatigue (symptom)",
+    "responseValue": "Ongoing fatigue",
     "tagCategory": "Exclude If",
     "tag": "exclude_severe_fatigue"
   },
   {
     "questionId": "CQ20",
-    "question": "Any health, injury, pregnancy/postpartum, or doctor-advised restrictions? (and current symptoms)",
+    "question": "Is there anything we should know about your health?",
     "responseType": "Multi-select",
-    "responseValue": "Persistent pain (symptom)",
+    "responseValue": "Persistent pain",
     "tagCategory": "Exclude If",
     "tag": "exclude_persistent_pain"
+  },
+  {
+    "questionId": "CQ20",
+    "question": "Is there anything we should know about your health?",
+    "responseType": "Multi-select",
+    "responseValue": "Prefer not to say",
+    "tagCategory": "Exclude If",
+    "tag": "exclude_prefer_not_to_say_health"
   }
 ]

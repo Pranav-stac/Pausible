@@ -12,26 +12,26 @@ function norm(s: string): string {
     .replace(/\s+/g, " ");
 }
 
+/** CQ v1.5 → answer keys (CQ10 / CQ19 removed; CQ08a → preferred_activity_details). */
 const CQ_FIELD: Record<string, { answerKey: string; kind: "single" | "multi" }> = {
   CQ01: { answerKey: w("age_range"), kind: "single" },
   CQ02: { answerKey: w("gender"), kind: "single" },
-  CQ03: { answerKey: w("work_lifestyle"), kind: "multi" },
+  CQ03: { answerKey: w("work_lifestyle"), kind: "single" },
   CQ04: { answerKey: w("stress_level"), kind: "single" },
   CQ05: { answerKey: w("wellness_time"), kind: "single" },
   CQ06: { answerKey: w("fitness_level"), kind: "single" },
   CQ07: { answerKey: w("daily_activity"), kind: "single" },
   CQ08: { answerKey: w("preferred_activities"), kind: "multi" },
+  CQ08a: { answerKey: w("preferred_activity_details"), kind: "multi" },
   CQ09: { answerKey: w("workout_environment"), kind: "single" },
-  CQ10: { answerKey: w("time_of_day"), kind: "single" },
   CQ11: { answerKey: w("sleep_quality"), kind: "single" },
   CQ12: { answerKey: w("sleep_hours"), kind: "single" },
   CQ13: { answerKey: w("caffeine_habit"), kind: "single" },
   CQ14: { answerKey: w("food_pattern"), kind: "single" },
   CQ15: { answerKey: w("meal_control"), kind: "single" },
-  CQ16: { answerKey: w("wellness_goals"), kind: "multi" },
+  CQ16: { answerKey: w("wellness_goals"), kind: "single" },
   CQ17: { answerKey: w("wellness_barriers"), kind: "multi" },
   CQ18: { answerKey: w("support_system"), kind: "single" },
-  CQ19: { answerKey: w("solo_vs_social"), kind: "single" },
   CQ20: { answerKey: w("health_flags"), kind: "multi" },
 };
 
@@ -41,7 +41,7 @@ function parseTags(raw: string): string | string[] {
   return parts;
 }
 
-/** Build wellness field config from Contextual Tags v1.4 tag-mapping-rules.json (PDA §10). */
+/** Build wellness field config from Contextual Tags v1.5 tag-mapping-rules.json. */
 export function buildWellnessFieldsFromTagMapping(
   rules: TagMappingRule[] = tagMappingRulesJson as TagMappingRule[],
 ): WellnessFieldConfig[] {
