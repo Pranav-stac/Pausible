@@ -482,17 +482,11 @@ export function MultiChoiceStack({
             className="flex min-h-12 w-full cursor-pointer items-center justify-between rounded-2xl border px-4 py-3.5 text-left text-sm transition disabled:cursor-not-allowed sm:text-[15px]"
             style={
               active
-                ? isActive
-                  ? {
-                      border: "1px solid rgba(255,255,255,.28)",
-                      background: "rgba(255,255,255,.12)",
-                      color: "#fff",
-                    }
-                  : {
-                      border: "1px solid #BFDBFE",
-                      background: "#F0F9FF",
-                      color: "#0D1B2A",
-                    }
+                ? {
+                    border: "none",
+                    background: "linear-gradient(120deg,#00BFA5,#3B82F6)",
+                    color: "#fff",
+                  }
                 : optionDisabled
                   ? {
                       border: "1px solid #F3F4F6",
@@ -512,9 +506,12 @@ export function MultiChoiceStack({
                       }
             }
           >
-            <span>{opt}</span>
-            <span className="text-[11px] font-semibold opacity-70">
-              {active ? "Selected" : optionDisabled ? "Limit reached" : "Tap"}
+            <span className="pr-3">{opt}</span>
+            <span
+              className="shrink-0 text-[11px] font-bold tracking-wide"
+              style={{ color: active ? "rgba(255,255,255,.95)" : undefined, opacity: active ? 1 : 0.7 }}
+            >
+              {active ? "✓ Selected" : optionDisabled ? "Limit reached" : "Tap"}
             </span>
           </button>
         );

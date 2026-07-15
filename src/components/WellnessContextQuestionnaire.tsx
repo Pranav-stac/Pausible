@@ -36,38 +36,16 @@ import { WELLNESS_FRESH_ATTEMPT_KEY } from "@/lib/assessment/layout";
 import { mergeProfileDraftIntoAnswers } from "@/lib/assessment/session-recovery";
 import {
   getWellnessContextQuestionnaire,
+  isProfileSourcedWellnessKey,
   isQuestionVisible,
   resolveQuestionOptions,
   WELLNESS_CONTEXT_PREFIX,
   wellnessContextAssessmentId,
 } from "@/data/wellness-context-questionnaire";
-import {
-  ageBandTagFromYears,
-  computeAgeYearsFromDate,
-  parseIsoDate,
-  WELLNESS_DATE_OF_BIRTH_KEY,
-} from "@/lib/recommendations/compute-wellness-age";
 import type { AssessmentDefinition, AssessmentQuestion, AssessmentSection, AttemptAnswers } from "@/types/models";
 
-const WELLNESS_AGE_RANGE_KEY = `${WELLNESS_CONTEXT_PREFIX}age_range`;
 const WELLNESS_PREF_KEY = `${WELLNESS_CONTEXT_PREFIX}preferred_activities`;
 const WELLNESS_DETAILS_KEY = `${WELLNESS_CONTEXT_PREFIX}preferred_activity_details`;
-
-const AGE_BAND_TAG_TO_OPTION: Record<string, string> = {
-  age_under_18: "Under 18",
-  age_18_24: "18–24",
-  age_25_34: "25–34",
-  age_35_44: "35–44",
-  age_45_54: "45–54",
-  age_55_plus: "55+",
-};
-
-function ageBandOptionFromDob(iso: string): string | null {
-  const dob = parseIsoDate(iso);
-  if (!dob) return null;
-  const tag = ageBandTagFromYears(computeAgeYearsFromDate(dob));
-  return AGE_BAND_TAG_TO_OPTION[tag] ?? null;
-}
 
 function flattenQuestions(def: AssessmentDefinition, answers: AttemptAnswers = {}): AssessmentQuestion[] {
   const order: AssessmentQuestion[] = [];
@@ -314,11 +292,14 @@ export function WellnessContextQuestionnaire({
         const wellnessOnly = Object.fromEntries(
           Object.entries(attempt.answers ?? {}).filter(([key]) => key.startsWith(WELLNESS_CONTEXT_PREFIX)),
         );
+        const profileFromAttempt = Object.fromEntries(
+          Object.entries(attempt.answers ?? {}).filter(([key]) => isProfileSourcedWellnessKey(key)),
+        );
         const wellnessPrefilled = allSectionsComplete(questionnaire, wellnessOnly);
         const source = freshWellness
           ? wellnessPrefilled
             ? { ...oceanOnly, ...wellnessOnly }
-            : oceanOnly
+            : { ...oceanOnly, ...profileFromAttempt }
           : (attempt.answers ?? {});
 
         for (const [key, val] of Object.entries(source)) {
@@ -330,15 +311,19 @@ export function WellnessContextQuestionnaire({
         const profileAdded = Object.keys(withProfile).some((key) => withProfile[key] !== existing[key]);
 
         if (freshWellness && !wellnessPrefilled && Object.keys(existing).length === 0) {
-          const cleaned: AttemptAnswers = mergeProfileDraftIntoAnswers({ ...source });
+          // Clear prior wc_* progress for a fresh contextual pass, but keep profile demographics.
+          const cleaned: AttemptAnswers = { ...source };
           for (const k of Object.keys(cleaned)) {
-            if (k.startsWith(WELLNESS_CONTEXT_PREFIX)) delete cleaned[k];
+            if (k.startsWith(WELLNESS_CONTEXT_PREFIX) && !isProfileSourcedWellnessKey(k)) {
+              delete cleaned[k];
+            }
           }
+          const withDemographics = mergeProfileDraftIntoAnswers(cleaned);
           void upsertAttempt({
             id: attemptId,
             uid: attempt.uid,
             assessmentId: attempt.assessmentId,
-            answers: cleaned,
+            answers: withDemographics,
             scores: attempt.scores ?? null,
             personaAnalysis: attempt.personaAnalysis ?? null,
             paymentStatus: attempt.paymentStatus,
@@ -450,17 +435,24 @@ export function WellnessContextQuestionnaire({
     try {
       const attempt = await fetchAttempt(attemptId);
       if (!attempt) throw new Error("Session not found.");
-      const merged: AttemptAnswers = normalizeAnswersForQuestionnaire(questionnaire, {
-        ...attempt.answers,
-        ...answers,
-      });
+      const merged: AttemptAnswers = mergeProfileDraftIntoAnswers(
+        normalizeAnswersForQuestionnaire(questionnaire, {
+          ...attempt.answers,
+          ...answers,
+        }),
+      );
 
-      // Only require answers for currently visible questions (conditional items stay optional when hidden).
-      for (const q of Object.values(questionnaire.questions)) {
-        if (!isQuestionVisible(q, merged)) continue;
+      // Ask only questions in the contextual sections (age/gender come from /profile).
+      const asked = flattenQuestions(questionnaire, merged);
+      for (const q of asked) {
         if (coerceAnswer(q, merged[q.id]) === null) {
           throw new Error("Some answers are still incomplete. Please review each question.");
         }
+      }
+      if (!merged.wc_age_range || !merged.wc_gender) {
+        throw new Error(
+          "Age or gender from your profile is missing. Please go back and complete the profile step.",
+        );
       }
 
       let saveUid = attemptUid;
@@ -681,57 +673,6 @@ export function WellnessContextQuestionnaire({
 
               {q.type === "single" ? (
                 <div className="space-y-5">
-                  {q.id === WELLNESS_AGE_RANGE_KEY ? (
-                    <div>
-                      <label
-                        htmlFor={`${q.id}-dob`}
-                        className="mb-2 block text-xs font-semibold"
-                        style={{ color: visual.isActive ? "rgba(255,255,255,.7)" : "#374151" }}
-                      >
-                        Date of birth
-                      </label>
-                      <input
-                        id={`${q.id}-dob`}
-                        type="date"
-                        max={new Date().toISOString().slice(0, 10)}
-                        value={
-                          typeof answers[WELLNESS_DATE_OF_BIRTH_KEY] === "string"
-                            ? answers[WELLNESS_DATE_OF_BIRTH_KEY]
-                            : ""
-                        }
-                        onChange={(e) => {
-                          const iso = e.target.value;
-                          setAnswers((prev) => {
-                            const next: AttemptAnswers = { ...prev, [WELLNESS_DATE_OF_BIRTH_KEY]: iso };
-                            const band = ageBandOptionFromDob(iso);
-                            if (band) next[WELLNESS_AGE_RANGE_KEY] = band;
-                            return next;
-                          });
-                          if (iso && idx === activeIndex) {
-                            const band = ageBandOptionFromDob(iso);
-                            if (band) advanceAfterAnswer(idx);
-                          }
-                        }}
-                        className="w-full max-w-sm rounded-xl border px-3 py-2.5 text-sm shadow-sm outline-none focus:ring-2"
-                        style={
-                          visual.isActive
-                            ? {
-                                borderColor: "rgba(255,255,255,.22)",
-                                background: "rgba(255,255,255,.08)",
-                                color: "#fff",
-                              }
-                            : {
-                                borderColor: "#E5E7EB",
-                                background: "#fff",
-                                color: "#0D1B2A",
-                              }
-                        }
-                      />
-                      <p className="mt-2 text-[11px]" style={{ color: visual.captionColor }}>
-                        Or pick an age band below if you prefer not to enter your exact date.
-                      </p>
-                    </div>
-                  ) : null}
                   <SingleChoiceStack
                     options={q.options ?? []}
                     value={singleVal}

@@ -14,7 +14,7 @@ import { validatePreGeneration } from "@/lib/recommendations/report-validation";
 import { compareScored, passesPlanScoreGate, scoreAll } from "@/lib/recommendations/score";
 import { PDA_MAX_SCORE, PDA_PLAN_SCORE_THRESHOLD } from "@/lib/recommendations/scoring-constants";
 import { selectActionPlan } from "@/lib/recommendations/select-action-plan";
-import type { PlanOutput, ScoredRecommendation, UserProfile } from "@/lib/recommendations/types";
+import type { EffortLevel, PlanOutput, ScoredRecommendation, UserProfile } from "@/lib/recommendations/types";
 
 const BARRIER_OVERRIDE_KEYS = Object.keys(BARRIER_OVERRIDE_TAGS) as BarrierOverrideKey[];
 
@@ -24,7 +24,7 @@ export type EngineDebugScoredRow = {
   category: string;
   type: string;
   strength: string;
-  effortLevel: string;
+  effortLevel: EffortLevel;
   text: string;
   oceanTraitTags: string[];
   oceanCategoryTags: string[];

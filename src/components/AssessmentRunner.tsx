@@ -398,7 +398,7 @@ export function AssessmentRunner({
         /* private mode */
       }
       clearOceanProgress();
-      router.push(`/transition/${encodeURIComponent(id)}`);
+      router.push(`/wellness-context/${encodeURIComponent(id)}`);
       return;
     }
 

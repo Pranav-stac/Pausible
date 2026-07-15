@@ -75,6 +75,7 @@ export function profileDraftToAttemptAnswers(draft: ProfileDraft | null | undefi
   }
   if (draft.ageRange) out.wc_age_range = draft.ageRange;
   if (draft.gender) out.wc_gender = draft.gender;
+  if (draft.dateOfBirth) out.wc_date_of_birth = draft.dateOfBirth;
   return out;
 }
 

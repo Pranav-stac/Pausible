@@ -3,6 +3,17 @@ import type { AssessmentDefinition, AssessmentQuestion } from "@/types/models";
 /** Prefix for wellness-context answer keys (stored alongside OCEAN item codes on the attempt). */
 export const WELLNESS_CONTEXT_PREFIX = "wc_";
 
+/** Collected on /profile — not re-asked in the contextual questionnaire UI. */
+export const PROFILE_SOURCED_WELLNESS_KEYS = [
+  `${WELLNESS_CONTEXT_PREFIX}age_range`,
+  `${WELLNESS_CONTEXT_PREFIX}gender`,
+  `${WELLNESS_CONTEXT_PREFIX}date_of_birth`,
+] as const;
+
+export function isProfileSourcedWellnessKey(key: string): boolean {
+  return (PROFILE_SOURCED_WELLNESS_KEYS as readonly string[]).includes(key);
+}
+
 export const wellnessContextAssessmentId = "wellness-context";
 
 const CQ08_TRIGGERS_08A = [
@@ -12,7 +23,8 @@ const CQ08_TRIGGERS_08A = [
 ] as const;
 
 /**
- * Wellness Context Questionnaire v1.5 — 17 active questions (+ CQ08a conditional).
+ * Wellness Context Questionnaire v1.5 — lifestyle questions (+ CQ08a conditional).
+ * Age + gender are collected on /profile and injected as wc_age_range / wc_gender (not re-asked).
  * CQ10 and CQ19 removed; CQ08a added for activity preferences.
  * @see FINALFINAL/Pausibl_Contextual_Questions_tags_v1.5.xlsx
  */
@@ -262,7 +274,8 @@ export function buildWellnessContextQuestionnaire(): AssessmentDefinition {
       {
         id: "about_you",
         title: "Section A — About You",
-        questionIds: [w("age_range"), w("gender"), w("work_lifestyle")],
+        // Age + gender come from /profile — only ask lifestyle here.
+        questionIds: [w("work_lifestyle")],
       },
       {
         id: "routine_capacity",

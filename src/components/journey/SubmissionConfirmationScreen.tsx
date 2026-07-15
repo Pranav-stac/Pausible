@@ -144,7 +144,7 @@ export function SubmissionConfirmationScreen({ attemptId }: { attemptId: string 
         </p>
       </div>
 
-      <div className="mt-6 grid gap-6 lg:mt-8 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-8 xl:grid-cols-[minmax(0,1fr)_360px] xl:gap-10">
+      <div className="mt-6 grid gap-6 max-lg:pb-72 lg:mt-8 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-8 lg:pb-0 xl:grid-cols-[minmax(0,1fr)_360px] xl:gap-10">
         <SubmissionAnswersReview
           blocks={answerBlocks}
           answeredCount={answeredCount}
@@ -154,7 +154,9 @@ export function SubmissionConfirmationScreen({ attemptId }: { attemptId: string 
           onSaveAnswers={handleSaveAnswers}
         />
 
-        <aside className={`${FORM_CARD_CLASS} lg:sticky lg:top-6 p-6 text-left sm:p-7`}>
+        <aside
+          className={`${FORM_CARD_CLASS} z-30 self-start p-6 text-left sm:p-7 max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:max-h-[min(52vh,28rem)] max-lg:overflow-y-auto max-lg:rounded-b-none max-lg:rounded-t-[22px] max-lg:border-x-0 max-lg:border-b-0 max-lg:shadow-[0_-18px_50px_-20px_rgba(17,24,39,0.35)] lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:shadow-[0_24px_60px_-28px_rgba(17,24,39,0.28)]`}
+        >
           <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#6E7191]">What happens next</p>
           <ul className="mt-4 space-y-3">
             {NEXT_STEPS.map((step) => (

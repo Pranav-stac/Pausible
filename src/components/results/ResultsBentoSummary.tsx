@@ -3,8 +3,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import type { User } from "firebase/auth";
-import { ResultsStoryPosterSection } from "@/components/results/ResultsStoryPosterSection";
 import { OceanRadarChart } from "@/components/results/OceanRadarChart";
 import { personaAnimal, personaLabel } from "@/lib/results/persona-display";
 import { DEFAULT_PERSONA_CENTROIDS } from "@/lib/scoring/persona-defaults";
@@ -30,13 +28,6 @@ import {
 
 type PersonaCopy = { label: string; summary: string; bullets: string[] };
 type PersonaMixRow = { key: PersonaKey; label: string; pct: number };
-type StoryPoster = {
-  archetypeLabel: string;
-  line: string;
-  dimensions: { label: string; pct: number }[];
-  hashtags: string[];
-  siteSlug: string;
-};
 
 const TRAIT_COLORS = ["#2D82FF", "#00C9C8", "#6366f1", "#f59e0b", "#ec4899"] as const;
 
@@ -127,15 +118,11 @@ export function ResultsBentoSummary({
   secondaryCopy,
   personaMix,
   dimensionRows,
-  storyPoster,
   shareUrl,
   history,
-  hasGoogleIdentity,
-  user,
   onCopyShare,
   onOpenReport,
   hasReport,
-  participantName,
 }: {
   attempt: SerializedAttempt;
   attemptId: string;
@@ -150,15 +137,11 @@ export function ResultsBentoSummary({
   secondaryCopy: PersonaCopy | null;
   personaMix: PersonaMixRow[];
   dimensionRows: DimensionRow[];
-  storyPoster: StoryPoster;
   shareUrl: string | null;
   history: SerializedAttempt[];
-  hasGoogleIdentity: boolean;
-  user: User | null;
   onCopyShare: () => void;
   onOpenReport: () => void;
   hasReport: boolean;
-  participantName?: string;
 }) {
   const primaryLabel = personaLabel(primaryPersona);
   const animal = personaAnimal(primaryPersona);
@@ -363,30 +346,6 @@ export function ResultsBentoSummary({
           </ol>
         </Panel>
       ) : null}
-
-      {/* Story poster */}
-      <div className="mt-4 lg:mt-5">
-        <ResultsStoryPosterSection
-          variant="light"
-          poster={storyPoster}
-          filenameSlug={`results-${attemptId}`}
-          shareSnippetUrl={shareUrl}
-          participant={
-            hasGoogleIdentity && user
-              ? {
-                  displayName:
-                    participantName?.trim() ||
-                    user.displayName?.trim() ||
-                    user.email?.split("@")[0] ||
-                    "Member",
-                  googlePhotoUrl: user.photoURL ?? null,
-                }
-              : participantName
-                ? { displayName: participantName, googlePhotoUrl: null }
-                : null
-          }
-        />
-      </div>
 
       {/* Share + history */}
       <div className="mt-4 grid gap-4 lg:mt-5 lg:grid-cols-12">

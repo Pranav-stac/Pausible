@@ -15,7 +15,6 @@ import type { SerializedAttempt } from "@/lib/local/attempts";
 import { PausibleCoachGuideReport } from "@/components/results/PausibleCoachGuideReport";
 import { PausibleResultsReport } from "@/components/results/PausibleResultsReport";
 import { ResultsBentoSummary } from "@/components/results/ResultsBentoSummary";
-import { buildStoryPoster } from "@/lib/results/build-story-poster";
 import { sanitizePersonaSummaryText } from "@/lib/results/trait-labels";
 import { PERSONA_DISPLAY } from "@/lib/scoring/persona-defaults";
 import { buildResultsReportModel } from "@/lib/results/build-results-report";
@@ -193,11 +192,6 @@ export function ResultsClient() {
     if (typeof window === "undefined") return null;
     return `${window.location.origin}/share/${attempt.shareToken}`;
   }, [attempt]);
-
-  const storyPoster = useMemo(() => {
-    if (!reportModel) return null;
-    return buildStoryPoster(reportModel);
-  }, [reportModel]);
 
   const primaryCopy = useMemo(() => {
     if (!reportModel?.primaryKey) return null;
@@ -378,7 +372,7 @@ export function ResultsClient() {
         ) : (
           <div className="p-10 text-center text-sm text-slate-600">Loading report configuration…</div>
         )
-      ) : storyPoster && primaryCopy ? (
+      ) : primaryCopy ? (
         <ResultsBentoSummary
           attempt={attempt}
           attemptId={attemptId}
@@ -393,15 +387,11 @@ export function ResultsClient() {
           secondaryCopy={secondaryCopy}
           personaMix={reportModel.personaMix}
           dimensionRows={reportModel.dimensions}
-          storyPoster={storyPoster}
           shareUrl={shareUrl}
           history={history}
-          hasGoogleIdentity={hasGoogleIdentity}
-          user={user}
           onCopyShare={() => void copyShare()}
           onOpenReport={() => setShowFullReport(true)}
           hasReport
-          participantName={reportModel.participantName}
         />
       ) : (
         <div className="p-10 text-center text-sm text-slate-600">Preparing your results…</div>
