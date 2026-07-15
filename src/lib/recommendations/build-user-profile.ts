@@ -188,8 +188,7 @@ function derivedExclusions(
 
 /** DR13 / former DR11 — strength goal without resistance preference (§21.14). */
 export function computeGoalPreferenceBridge(goals: string[], context: string[]): boolean {
-  const strengthGoal =
-    goals.includes("goal_muscle_gain") || goals.includes("goal_strength");
+  const strengthGoal = goals.includes("goal_strength") || goals.includes("goal_muscle_gain");
   if (!strengthGoal) return false;
   return (
     !context.includes("activity_cat_strength") && !context.includes("activity_pref_strength")

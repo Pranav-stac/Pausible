@@ -24,13 +24,13 @@ describe("wellness legacy option aliases", () => {
 describe("PDA §21.14 DR11 goal-preference bridge", () => {
   it("surfaces bridge when strength goal lacks resistance preference", () => {
     expect(
-      computeGoalPreferenceBridge(["goal_muscle_gain"], ["activity_pref_yoga"]),
+      computeGoalPreferenceBridge(["goal_strength"], ["activity_pref_yoga"]),
     ).toBe(true);
   });
 
   it("does not bridge when resistance preference is present", () => {
     expect(
-      computeGoalPreferenceBridge(["goal_muscle_gain"], ["activity_pref_strength"]),
+      computeGoalPreferenceBridge(["goal_strength"], ["activity_pref_strength"]),
     ).toBe(false);
   });
 

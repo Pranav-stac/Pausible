@@ -1,6 +1,14 @@
 import type { RecommendationRow, UserProfile } from "@/lib/recommendations/types";
 
-const MEALS_BY_OTHERS_KEEP = new Set(["NUT037", "NUT038", "NUT039", "NUT040", "NUT005", "NUT025"]);
+const MEALS_BY_OTHERS_KEEP = new Set([
+  "NUT037",
+  "NUT038",
+  "NUT039",
+  "NUT040",
+  "NUT005",
+  "NUT025",
+  "NUT046",
+]);
 
 const EAT_OUT_KEEP = new Set([
   "NUT032",
@@ -46,7 +54,7 @@ export function applyElderlyEffortSuppression(
     "workout_progression",
     "cardio_endurance",
   ]);
-  return rows.filter((row) => !(row.effortLevel === "high" && progressionCategories.has(row.category)));
+  return rows.filter((row) => !(row.effortLevel >= 4 && progressionCategories.has(row.category)));
 }
 
 /** PDA v1.2 §38.2 DR19–DR22 — context eligibility after master Exclude If filter. */
@@ -102,6 +110,7 @@ export function applyContextSelectionSuppression(
     }
 
     const hasRecoveryContext =
+      profile.goals.includes("goal_sleep_recovery") ||
       profile.goals.includes("goal_better_recovery") ||
       profile.exclusions.some((e) => RECOVERY_CONTEXT_EXCLUSIONS.has(e));
     if (!hasRecoveryContext && RECOVERY_NOURISHMENT_IDS.has(row.id)) {

@@ -14,7 +14,7 @@ const CQ08_TRIGGERS_08A = [
 /**
  * Wellness Context Questionnaire v1.5 — 17 active questions (+ CQ08a conditional).
  * CQ10 and CQ19 removed; CQ08a added for activity preferences.
- * @see FinalData/NewFinalData/Pausibl_Contextual_Questions_tags_v1.5.xlsx
+ * @see FINALFINAL/Pausibl_Contextual_Questions_tags_v1.5.xlsx
  */
 export function buildWellnessContextQuestionnaire(): AssessmentDefinition {
   const w = (id: string) => `${WELLNESS_CONTEXT_PREFIX}${id}`;

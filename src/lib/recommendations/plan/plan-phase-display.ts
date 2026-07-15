@@ -34,8 +34,13 @@ export function toPlanActionLine(
 }
 
 export function formatReadinessLine(text: string | unknown): string {
-  const trimmed = coercePlanText(text, "").trim();
+  let trimmed = coercePlanText(text, "").trim();
   if (!trimmed) return "";
-  if (/^when\b/i.test(trimmed)) return trimmed;
-  return `When ${trimmed.replace(/^[Ww]hen\s+/, "").replace(/\.$/, "")}.`;
+  // Engine often already says "You'll know you're ready when …" — avoid "When You'll know… when".
+  trimmed = trimmed.replace(/^when\s+you'?ll know you'?re ready when\s+/i, "When ");
+  trimmed = trimmed.replace(/^you'?ll know you'?re ready when\s+/i, "When ");
+  if (/^when\b/i.test(trimmed)) {
+    return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+  }
+  return `When ${trimmed.replace(/\.$/, "")}.`;
 }

@@ -1,3 +1,4 @@
+import { isActionableDo } from "@/lib/recommendations/recommendation-role";
 import { isActionPlanPoolRow, resolvedText } from "@/lib/recommendations/action-pool";
 import { clusterRecommendations } from "@/lib/recommendations/cluster";
 import { PDA_CLUSTER_TOP_ROWS_FOR_AVG } from "@/lib/recommendations/scoring-constants";
@@ -35,14 +36,14 @@ function topDoFromPlan(
 ): ScoredRecommendation | null {
   for (const item of plan.dos) {
     const row = ranked.find((r) => r.id === item.id);
-    if (row && (row.type === "do" || row.type === "first_action")) return row;
+    if (row && isActionableDo(row)) return row;
   }
   return (
     ranked.find(
       (r) =>
         r.pillar === plan.pillar &&
         isActionPlanPoolRow(r) &&
-        (r.type === "do" || r.type === "first_action") &&
+        isActionableDo(r) &&
         plan.sourceIds.includes(r.id),
     ) ?? null
   );
@@ -98,7 +99,7 @@ export function selectHighImpactOpportunities(
     (r) =>
       isActionPlanPoolRow(r) &&
       (r.strength === "core" || r.strength === "supporting") &&
-      (r.type === "do" || r.type === "first_action"),
+      isActionableDo(r),
   );
 
   const selected: ScoredRecommendation[] = [];

@@ -1,6 +1,6 @@
 import type { ScoredRecommendation, UserProfile } from "@/lib/recommendations/types";
 
-/** Goal-preference bridge recommendation (Master v1.15 FIT037). */
+/** Goal-preference bridge recommendation (Master v1.20 FIT037). */
 export const GOAL_PREFERENCE_BRIDGE_REC_ID = "FIT037";
 
 /** Safe-return anchor when restriction flags or elderly band apply (PDA v1.2 §38.2 DR12–DR15). */

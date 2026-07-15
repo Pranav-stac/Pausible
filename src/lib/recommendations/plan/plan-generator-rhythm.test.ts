@@ -61,8 +61,11 @@ function mockRow(partial: Partial<RecommendationRow> & Pick<RecommendationRow, "
     oceanCategoryTags: [],
     oceanTraitTags: [],
     oceanFit: [],
-    effortLevel: "medium",
+    effortLevel: 3,
     personaContext: {},
+    scopeClassification: "behavior_core",
+    userFacingBoundary: "behavioral_guidance",
+    recommendationRole: "standard",
     notes: "",
     ...partial,
   };
@@ -76,7 +79,7 @@ describe("plan generator rhythm buckets", () => {
         id: "SLP-A",
         text: "Move your bedtime 15-30 minutes earlier for one week and notice how you feel.",
         type: "first_action",
-        effortLevel: "low",
+        effortLevel: 2,
       }),
       mockRow({
         id: "SLP-B",
@@ -87,13 +90,13 @@ describe("plan generator rhythm buckets", () => {
         id: "SLP-C",
         text: "Charge your phone outside the bedroom so you are not tempted to scroll at night.",
         type: "environment_change",
-        effortLevel: "low",
+        effortLevel: 2,
       }),
       mockRow({
         id: "SLP-D",
         text: "Dim the lights in your home 30-60 minutes before your target bedtime.",
         type: "environment_change",
-        effortLevel: "low",
+        effortLevel: 2,
       }),
       mockRow({
         id: "SLP-E",
@@ -106,30 +109,30 @@ describe("plan generator rhythm buckets", () => {
         text: "Take a 10-20 minute brisk walk 3 times this week after a meal.",
         type: "do",
         personaFit: ["watchful_deer"],
-        effortLevel: "low",
+        effortLevel: 2,
       }),
       mockRow({
         id: "SLP-F",
         text: "Stop caffeine at least 6-8 hours before your target bedtime.",
         type: "dont",
-        effortLevel: "low",
+        effortLevel: 2,
       }),
       mockRow({
         id: "SLP-G",
         text: "Keep your bedroom cool, dark, and quiet every night this week.",
         type: "environment_change",
-        effortLevel: "low",
+        effortLevel: 2,
       }),
       mockRow({
         id: "SLP-H",
         type: "first_action",
-        effortLevel: "low",
+        effortLevel: 2,
         text: "Pick one night this week to try going to bed 20 minutes earlier than usual.",
       }),
       mockRow({
         id: "SLP-I",
         type: "environment_change",
-        effortLevel: "low",
+        effortLevel: 2,
         text: "Lay out comfortable sleep clothes before you start your wind-down each night.",
       }),
     ];
@@ -150,7 +153,7 @@ describe("plan generator rhythm buckets", () => {
         text: "Build each meal by putting protein on the plate first, then adding vegetables, then whatever carb or fat source is available.",
         type: "do",
         personaFit: ["steadfast_bear"],
-        effortLevel: "medium",
+        effortLevel: 3,
       }),
       mockRow({
         id: "NUT001",
@@ -159,7 +162,7 @@ describe("plan generator rhythm buckets", () => {
         text: "Add one palm-sized portion of protein to one meal per day for the next 7 days.",
         type: "do",
         personaFit: ["steadfast_bear"],
-        effortLevel: "low",
+        effortLevel: 2,
       }),
       mockRow({
         id: "NUT-ENV",
@@ -167,7 +170,7 @@ describe("plan generator rhythm buckets", () => {
         category: "nutrition_environment",
         text: "Keep washed fruit or cut vegetables visible on the counter for easy snacking each day.",
         type: "environment_change",
-        effortLevel: "low",
+        effortLevel: 2,
         personaFit: ["steadfast_bear"],
       }),
       mockRow({
@@ -177,13 +180,13 @@ describe("plan generator rhythm buckets", () => {
         text: "Train the same 3 exercises twice per week for the next 2 weeks.",
         type: "do",
         personaFit: ["steadfast_bear"],
-        effortLevel: "medium",
+        effortLevel: 3,
       }),
       mockRow({
         id: "SLP001",
         text: "Pick a fixed wake-up time and stick to it 5 days this week.",
         type: "first_action",
-        effortLevel: "low",
+        effortLevel: 2,
       }),
       mockRow({
         id: "MW001",
@@ -191,7 +194,7 @@ describe("plan generator rhythm buckets", () => {
         category: "stress",
         text: "Take 5 minutes each morning to write down one priority for the day.",
         type: "first_action",
-        effortLevel: "low",
+        effortLevel: 2,
         personaFit: ["steadfast_bear"],
       }),
       mockRow({
@@ -201,7 +204,7 @@ describe("plan generator rhythm buckets", () => {
         text: "Prep one batch of protein on Sunday to use in meals throughout the week.",
         type: "do",
         personaFit: ["steadfast_bear"],
-        effortLevel: "low",
+        effortLevel: 2,
         strength: "supporting",
       }),
       mockRow({
@@ -211,7 +214,7 @@ describe("plan generator rhythm buckets", () => {
         text: "Eat a serving of vegetables with lunch each day this week.",
         type: "do",
         personaFit: ["steadfast_bear"],
-        effortLevel: "low",
+        effortLevel: 2,
       }),
       mockRow({
         id: "NUT-D",
@@ -220,7 +223,7 @@ describe("plan generator rhythm buckets", () => {
         text: "Stock your pantry with one protein option you can prepare in under 10 minutes.",
         type: "environment_change",
         personaFit: ["steadfast_bear"],
-        effortLevel: "low",
+        effortLevel: 2,
       }),
       mockRow({
         id: "FIT002",
@@ -229,13 +232,13 @@ describe("plan generator rhythm buckets", () => {
         text: "Walk for 15 minutes after dinner on 3 evenings this week.",
         type: "do",
         personaFit: ["steadfast_bear"],
-        effortLevel: "low",
+        effortLevel: 2,
       }),
       mockRow({
         id: "SLP002",
         text: "Use the same wake-up time on weekdays this week.",
         type: "first_action",
-        effortLevel: "low",
+        effortLevel: 2,
         personaFit: ["steadfast_bear"],
       }),
     ];
@@ -266,7 +269,7 @@ describe("plan generator rhythm buckets", () => {
         text: "Build each meal by putting protein on the plate first, then adding vegetables, then whatever carb or fat source is available.",
         type: "do",
         personaFit: ["steadfast_bear"],
-        effortLevel: "medium",
+        effortLevel: 3,
       }),
       mockRow({
         id: "NUT001",
@@ -275,7 +278,7 @@ describe("plan generator rhythm buckets", () => {
         text: "Add one palm-sized portion of protein to one meal per day for the next 7 days.",
         type: "do",
         personaFit: ["steadfast_bear"],
-        effortLevel: "low",
+        effortLevel: 2,
       }),
       mockRow({
         id: "NUT-ENV",
@@ -283,7 +286,7 @@ describe("plan generator rhythm buckets", () => {
         category: "nutrition_environment",
         text: "Keep washed fruit or cut vegetables visible on the counter for easy snacking each day.",
         type: "environment_change",
-        effortLevel: "low",
+        effortLevel: 2,
         personaFit: ["steadfast_bear"],
       }),
       mockRow({
@@ -293,13 +296,13 @@ describe("plan generator rhythm buckets", () => {
         text: "Walk for 10 minutes on 3 days this week.",
         type: "do",
         personaFit: ["steadfast_bear"],
-        effortLevel: "low",
+        effortLevel: 2,
       }),
       mockRow({
         id: "SLP001",
         text: "Use the same wake-up time on weekdays this week.",
         type: "first_action",
-        effortLevel: "low",
+        effortLevel: 2,
         personaFit: ["steadfast_bear"],
       }),
       mockRow({
@@ -308,7 +311,7 @@ describe("plan generator rhythm buckets", () => {
         category: "stress",
         text: "Take 5 minutes each morning to write down one priority for the day.",
         type: "first_action",
-        effortLevel: "low",
+        effortLevel: 2,
         personaFit: ["steadfast_bear"],
       }),
       mockRow({
@@ -318,7 +321,7 @@ describe("plan generator rhythm buckets", () => {
         text: "Do not try to fix breakfast, lunch, dinner, and snacks all at once. Change one meal at a time.",
         type: "dont",
         personaFit: ["watchful_deer"],
-        effortLevel: "low",
+        effortLevel: 2,
       }),
       mockRow({
         id: "NUT004",
@@ -327,7 +330,7 @@ describe("plan generator rhythm buckets", () => {
         text: "Keep one backup meal ready in the fridge for busy nights this week.",
         type: "do",
         personaFit: ["steadfast_bear"],
-        effortLevel: "low",
+        effortLevel: 2,
         strength: "supporting",
       }),
       mockRow({
@@ -337,7 +340,7 @@ describe("plan generator rhythm buckets", () => {
         text: "Stretch for 5 minutes after waking on 4 mornings this week.",
         type: "first_action",
         personaFit: ["steadfast_bear"],
-        effortLevel: "low",
+        effortLevel: 2,
       }),
     ];
 

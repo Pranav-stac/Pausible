@@ -54,7 +54,7 @@ export async function PATCH(req: NextRequest) {
 
   const merged: RecommendationConfig = {
     version: body.version ?? existing?.version ?? "1",
-    masterVersion: body.masterVersion ?? existing?.masterVersion ?? "v1.7",
+    masterVersion: body.masterVersion ?? existing?.masterVersion ?? "v1.20",
     recommendations: body.recommendations ?? existing?.recommendations ?? [],
     tagMappingRules: body.tagMappingRules ?? existing?.tagMappingRules ?? [],
     wellnessFields: body.wellnessFields ?? existing?.wellnessFields ?? [],

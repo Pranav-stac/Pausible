@@ -122,7 +122,7 @@ async function seedPersonaCentroids(db: Firestore) {
     },
     { merge: false },
   );
-  console.log(`✓ ${CENTROIDS_DOC} — PDA v1.0 centroids`);
+  console.log(`✓ ${CENTROIDS_DOC} — PDA v1.9 centroids`);
 }
 
 async function verify(db: Firestore) {
@@ -130,7 +130,7 @@ async function verify(db: Firestore) {
   if (!reco.exists) throw new Error("Verification failed: recommendation config missing");
   const d = reco.data()!;
   console.log(
-    `\nVerified recommendation_config: ${d.recommendationCount} rows, wellnessFields=${Array.isArray(d.wellnessFields) ? d.wellnessFields.length : 0}`,
+    `\nVerified recommendation_config: master=${d.masterVersion} rows=${d.recommendationCount} tags=${d.tagRuleCount} wellnessFields=${Array.isArray(d.wellnessFields) ? d.wellnessFields.length : 0}`,
   );
 }
 

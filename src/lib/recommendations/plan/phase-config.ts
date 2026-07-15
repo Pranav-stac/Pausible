@@ -1,4 +1,3 @@
-import type { RecommendationType } from "@/lib/recommendations/types";
 import type { PersonaKey } from "@/lib/scoring/persona-types";
 
 export type ReadinessSignalType =
@@ -9,10 +8,11 @@ export type ReadinessSignalType =
   | "performance"
   | "engagement";
 
+/** Content types and/or Master col X Recommendation Roles eligible for a phase. */
 export type PhaseDefinition = {
   name: string;
   intent: string;
-  eligibleTypes: RecommendationType[];
+  eligibleTypes: string[];
   readinessDescription: string;
   primarySignal: ReadinessSignalType;
   secondarySignal: ReadinessSignalType;
@@ -275,7 +275,7 @@ export const PERSONA_PHASE_CONFIG: Record<PersonaKey, PersonaPhaseConfig> = {
   },
 };
 
-/** Goal-based pillar density weighting (percentages). */
+/** Goal-based pillar density weighting (percentages). Master v1.20 canonical goal tags. */
 export const GOAL_PILLAR_DENSITY: Record<
   string,
   { anchor: string; weights: Record<string, number> }
@@ -292,7 +292,7 @@ export const GOAL_PILLAR_DENSITY: Record<
     anchor: "Mental Wellness",
     weights: { "Mental Wellness": 30, "Physical Activity": 30, Nutrition: 20, "Sleep & Recovery": 20 },
   },
-  goal_muscle_gain: {
+  goal_strength: {
     anchor: "Physical Activity",
     weights: { "Physical Activity": 35, Nutrition: 30, "Sleep & Recovery": 20, "Mental Wellness": 15 },
   },
@@ -300,13 +300,9 @@ export const GOAL_PILLAR_DENSITY: Record<
     anchor: "Mental Wellness",
     weights: { "Mental Wellness": 35, "Sleep & Recovery": 25, "Physical Activity": 20, Nutrition: 20 },
   },
-  goal_better_recovery: {
+  goal_sleep_recovery: {
     anchor: "Sleep & Recovery",
     weights: { "Sleep & Recovery": 35, "Physical Activity": 25, Nutrition: 20, "Mental Wellness": 20 },
-  },
-  goal_sustainable_routine: {
-    anchor: "Mental Wellness",
-    weights: { "Mental Wellness": 30, "Physical Activity": 25, Nutrition: 25, "Sleep & Recovery": 20 },
   },
 };
 

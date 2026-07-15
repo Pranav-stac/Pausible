@@ -1,36 +1,20 @@
 import type { EffortLevel, RecommendationRow } from "@/lib/recommendations/types";
 
-/** Map Effort Level (col U) → activation energy 1–5 (PDA §21.4). */
+/** Map Effort Level (col U) → activation energy 1–5 (PDA §21.4 / A4). Direct read — no heuristics. */
 export function classifyActivationEnergy(
-  row: Pick<RecommendationRow, "type" | "category" | "text" | "effortLevel">,
+  row: Pick<RecommendationRow, "effortLevel">,
 ): number {
-  const effort: EffortLevel = row.effortLevel ?? "medium";
-  const category = row.category.toLowerCase();
-  const text = row.text.toLowerCase();
+  const effort: EffortLevel = row.effortLevel ?? 3;
+  if (effort >= 1 && effort <= 5) return effort;
+  return 3;
+}
 
-  if (effort === "low") {
-    if (row.type === "environment_change") return 1;
-    if (
-      row.type === "first_action" &&
-      (category.includes("environment") || text.includes("environment") || text.includes("setup"))
-    ) {
-      return 1;
-    }
-    if (row.type === "mindset_shift") return 1;
-    return 2;
-  }
-
-  if (effort === "medium") return 3;
-
-  if (row.type === "success_condition" || row.type === "strength_insight") return 5;
-  if (
-    row.type === "do" &&
-    (category.includes("structured") ||
-      category.includes("training") ||
-      text.includes("progressive") ||
-      text.includes("3-day"))
-  ) {
-    return 5;
-  }
-  return 4;
+/** Phase-1 AE cap for primary persona (PDA §14 effort-exceeds-capacity penalty). */
+export function phase1ActivationEnergyCap(
+  personaKey: string,
+  phaseConfigs: Record<string, { phases: Array<{ activationEnergyCap: number }> }>,
+): number {
+  const phases = phaseConfigs[personaKey]?.phases;
+  if (!phases?.length) return 3;
+  return phases[0].activationEnergyCap ?? 3;
 }

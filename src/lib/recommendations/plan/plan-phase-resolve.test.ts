@@ -52,7 +52,7 @@ describe("PDA §21.2.6 Steady Elephant optional Phase 3", () => {
   it("includes optimization phase for muscle-gain goals", () => {
     const p = profile("self_regulated_planner", {
       primaryPersonaAlias: "steady_elephant",
-      goals: ["goal_muscle_gain"],
+      goals: ["goal_strength"],
     });
     expect(steadyElephantGoalsNeedPhase3(p)).toBe(true);
     const phases = resolvePhases(p, "classic");
@@ -63,7 +63,7 @@ describe("PDA §21.2.6 Steady Elephant optional Phase 3", () => {
   it("omits optimization phase for routine-only goals", () => {
     const p = profile("self_regulated_planner", {
       primaryPersonaAlias: "steady_elephant",
-      goals: ["goal_consistency", "goal_sustainable_routine"],
+      goals: ["goal_consistency", "goal_stress_reduction"],
     });
     expect(steadyElephantGoalsNeedPhase3(p)).toBe(false);
     expect(resolvePhases(p, "classic")).toHaveLength(2);

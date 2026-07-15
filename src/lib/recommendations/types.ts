@@ -20,7 +20,18 @@ export type RecommendationType =
 
 export type PillarName = "Nutrition" | "Physical Activity" | "Sleep & Recovery" | "Mental Wellness";
 
-export type EffortLevel = "low" | "medium" | "high";
+/** Master col U — Effort Level 1–5 (PDA §11 / A4). Also the activation-energy score. */
+export type EffortLevel = 1 | 2 | 3 | 4 | 5;
+
+/** Master col X — functional subtype for phase eligibility (PDA B3). */
+export type RecommendationRole =
+  | "standard"
+  | "first_action"
+  | "environment_change"
+  | "recovery_rule"
+  | "coach_note"
+  | "safety"
+  | "persona_insight";
 
 export type RecommendationRow = {
   id: string;
@@ -40,9 +51,16 @@ export type RecommendationRow = {
   oceanCategoryTags: string[];
   /** @deprecated Alias for oceanTraitTags — kept for cached Firestore rows. */
   oceanFit: string[];
+  /** Col U — 1–5 integer (is activation energy). */
   effortLevel: EffortLevel;
   notes: string;
   personaContext: Partial<Record<string, string>>;
+  /** Col V — behavior_core | domain_anchor | safety_professional_referral | … */
+  scopeClassification: string;
+  /** Col W — behavioral_guidance | example_only | safety_sensitive | … */
+  userFacingBoundary: string;
+  /** Col X — phase/selection role (first_action, environment_change, …). */
+  recommendationRole: RecommendationRole | string;
 };
 
 export type UserProfile = {
@@ -177,6 +195,16 @@ export type LaunchpadItem = {
   context?: string;
 };
 
+/** PDA §38.9 safety-card schema. */
+export type SafetyCard = {
+  recId: string;
+  trigger: string;
+  severityRank: number;
+  pillar: PillarName;
+  cardText: string;
+  disclaimerLine: string | null;
+};
+
 export type PiSeriesSelection = {
   blindSpot: ScoredRecommendation | null;
   patternPrediction: ScoredRecommendation | null;
@@ -216,6 +244,8 @@ export type ActionPlanSelection = {
   launchpad: LaunchpadItem[];
   coachSourceRows: ScoredRecommendation[];
   safetyGuidance: ScoredRecommendation[];
+  /** PDA §38.9 safety cards (max 3). */
+  safetyCards: SafetyCard[];
   allSourceIds: string[];
   validationWarnings: string[];
 };
@@ -347,6 +377,8 @@ export type ActionPlanSynthesis = {
   coachNotes: CoachNotesBlock;
   reportSections?: WellnessReportSections;
   safetyGuidance: { id: string; text: string }[];
+  /** PDA §38.9 structured cards (preferred over flat safetyGuidance). */
+  safetyCards?: SafetyCard[];
   synthesized: boolean;
   synthesisError?: string | null;
   llmProvider?: ReportLlmProvider;

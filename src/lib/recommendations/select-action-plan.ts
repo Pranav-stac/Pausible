@@ -5,7 +5,7 @@ import { GOAL_PREFERENCE_BRIDGE_REC_ID } from "@/lib/recommendations/goal-prefer
 import { selectHighImpactPriorities } from "@/lib/recommendations/select-opportunities";
 import { selectPiSeries } from "@/lib/recommendations/select-pi-series";
 import { compareScored, type RankContext } from "@/lib/recommendations/score";
-import { selectTriggeredSafetyGuidance } from "@/lib/recommendations/safety";
+import { selectSafetyCards, selectTriggeredSafetyGuidance } from "@/lib/recommendations/safety";
 import type {
   ActionPlanSelection,
   PillarActionPlan,
@@ -63,7 +63,9 @@ function buildPillarPlan(
   const mindsetPool = inPillar.filter((r) => r.type === "mindset_shift");
   const focus = mindsetPool[0] ?? null;
 
-  const dosPool = inPillar.filter((r) => r.type === "do" || r.type === "first_action");
+  const dosPool = inPillar.filter(
+    (r) => r.type === "do" || r.type === "first_action" || r.recommendationRole === "first_action",
+  );
   const dontsPool = inPillar.filter((r) => r.type === "dont");
 
   const rankCtx: RankContext = { selectedCategories: new Set<string>(), pillarAssignmentCounts: {} };
@@ -199,6 +201,7 @@ export function selectActionPlan(
 
   const opportunities = selectOpportunityClusters(ranked, profile);
 
+  const safetyCards = selectSafetyCards(ranked, profile);
   const safetyGuidance = selectTriggeredSafetyGuidance(ranked, profile);
   for (const s of safetyGuidance) used.add(s.id);
   for (const id of piSeries.sourceIds) used.add(id);
@@ -231,6 +234,7 @@ export function selectActionPlan(
     launchpad: [],
     coachSourceRows: [],
     safetyGuidance,
+    safetyCards,
     allSourceIds,
     validationWarnings,
   };

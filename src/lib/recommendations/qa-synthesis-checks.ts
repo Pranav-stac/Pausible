@@ -106,28 +106,63 @@ function scrubPhantomConsistencyBarrier(text: string, profile: UserProfile): str
     .trim();
 }
 
-function padPersonaNarrative(narrative: string, boxes: { content: string }[]): string {
+function padPersonaNarrative(narrative: string, _boxes: { content: string }[]): string {
   let out = narrative.trim();
   if (wordCount(out) >= 150) return out;
 
-  const extras = boxes.map((b) => b.content.trim()).filter(Boolean);
-  for (const extra of extras) {
+  // Never paste behavioural-box prose into the narrative — that creates cross-section duplicates.
+  const pads = [
+    "Make the plan small enough that it survives busy weeks, not just ideal days.",
+    "Keep the next step shorter than the urge to overhaul everything at once.",
+    "Visible follow-through beats intensity you cannot repeat.",
+  ];
+  for (const pad of pads) {
     if (wordCount(out) >= 150) break;
-    const probe = extra.toLowerCase().slice(0, 48).trim();
-    if (probe.length >= 24 && out.toLowerCase().includes(probe)) continue;
-    out = `${out} ${extra}`.replace(/\s{2,}/g, " ").trim();
-  }
-
-  if (wordCount(out) < 150) {
-    // Avoid repeated boilerplate that can trip post-gate duplicate-sentence checks.
-    // Keep this line short and specific, and only add if not already present.
-    const pad = "Make the plan small enough that it survives busy weeks, not just ideal days.";
-    if (!out.toLowerCase().includes(pad.toLowerCase().slice(0, 25))) {
+    if (!out.toLowerCase().includes(pad.toLowerCase().slice(0, 28))) {
       out = `${out} ${pad}`.trim();
     }
   }
 
   return out;
+}
+
+function sentenceList(text: string): string[] {
+  return text
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 20);
+}
+
+function stripDuplicateBoxSentences(
+  narrative: string,
+  boxes: { title: string; content: string }[],
+): { title: string; content: string }[] {
+  const taken = new Set(sentenceList(narrative).map((s) => s.toLowerCase()));
+  return boxes.map((box) => {
+    const kept = sentenceList(box.content).filter((s) => {
+      const key = s.toLowerCase();
+      if (taken.has(key)) return false;
+      taken.add(key);
+      return true;
+    });
+    if (kept.length) return { ...box, content: kept.join(" ") };
+    // All sentences were duplicates — keep a short unique restatement rather than repeating.
+    return {
+      ...box,
+      content: `In practice, this shows up as steady, visible follow-through rather than dramatic resets.`,
+    };
+  });
+}
+
+function ensureDistinctFocusReason(
+  pillar: PillarName,
+  focusArea: string,
+  focusReason: string,
+): string {
+  const a = focusArea.trim().toLowerCase().replace(/[.!?\s]+$/g, "");
+  const b = focusReason.trim().toLowerCase().replace(/[.!?\s]+$/g, "");
+  if (a && b && a !== b) return focusReason.trim();
+  return `This keeps ${pillar.toLowerCase()} simple enough to hold when stress and time both press in.`;
 }
 
 function ensureActivityPreferenceDos(
@@ -306,12 +341,23 @@ function applyQaAutoFixes(
     })),
   };
 
+  data.primaryPattern = {
+    ...data.primaryPattern,
+    behaviouralBoxes: stripDuplicateBoxSentences(
+      data.primaryPattern.personaNarrative,
+      data.primaryPattern.behaviouralBoxes,
+    ),
+  };
+
   for (const pillar of PILLARS) {
     const plan = data.pillarPlans[pillar];
     data.pillarPlans[pillar] = {
       ...plan,
       focusArea: finalizeCopy(plan.focusArea, profile),
-      focusReason: finalizeCopy(plan.focusReason, profile),
+      focusReason: finalizeCopy(
+        ensureDistinctFocusReason(pillar, plan.focusArea, plan.focusReason),
+        profile,
+      ),
       dos: plan.dos.map((d) => ({
         action: finalizeCopy(d.action, profile),
         why: finalizeCopy(d.why, profile),

@@ -1,6 +1,6 @@
 /**
- * Import authoritative PDA data from FinalData/NewFinalData:
- *   - Recommendation Master v1.15 (184 recs, 21 cols)
+ * Import authoritative PDA data from FINALFINAL:
+ *   - Recommendation Master v1.20 (201 recs, 24 cols A–X)
  *   - Contextual Questions & Tags v1.5 (tag mapping)
  *
  * Usage: node scripts/import-pda-v1.mjs
@@ -11,7 +11,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
-const newDataDir = path.join(root, "FinalData", "NewFinalData");
+const finalDir = path.join(root, "FINALFINAL");
 
 function cellStr(cell) {
   const v = cell?.value;
@@ -23,13 +23,32 @@ function cellStr(cell) {
   return String(v).trim();
 }
 
+function cellNum(cell) {
+  const v = cell?.value;
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  const s = cellStr(cell);
+  const n = Number(s);
+  return Number.isFinite(n) ? n : NaN;
+}
+
 function splitTags(raw) {
   if (!raw?.trim()) return [];
   return [...new Set(raw.split(";").map((s) => s.trim()).filter(Boolean))];
 }
 
+/** Col U Effort Level → 1–5 integer (PDA §11 / A4). Legacy low/medium/high still accepted. */
+function parseEffortLevel(cell) {
+  const n = cellNum(cell);
+  if (Number.isInteger(n) && n >= 1 && n <= 5) return n;
+  const raw = cellStr(cell).toLowerCase();
+  if (raw === "low") return 2;
+  if (raw === "medium") return 3;
+  if (raw === "high") return 4;
+  return 3;
+}
+
 async function importMaster() {
-  const file = path.join(newDataDir, "Pausibl_RecommendationsMaster_v1.15.xlsx");
+  const file = path.join(finalDir, "v1.20_Pausibl_RecommendationsMaster.xlsx");
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.readFile(file);
   const sheet = wb.getWorksheet("Master Recommendations") ?? wb.worksheets[0];
@@ -54,10 +73,6 @@ async function importMaster() {
       if (text) personaContext[alias] = text;
     }
 
-    const effortRaw = cellStr(row.getCell(21)).toLowerCase();
-    const effortLevel =
-      effortRaw === "low" || effortRaw === "medium" || effortRaw === "high" ? effortRaw : "low";
-
     rows.push({
       id,
       pillar: cellStr(row.getCell(2)),
@@ -74,19 +89,22 @@ async function importMaster() {
       notes: cellStr(row.getCell(13)),
       personaContext,
       oceanTraitTags: splitTags(cellStr(row.getCell(20))),
-      effortLevel,
+      effortLevel: parseEffortLevel(row.getCell(21)),
+      scopeClassification: cellStr(row.getCell(22)).toLowerCase().replace(/\s+/g, "_"),
+      userFacingBoundary: cellStr(row.getCell(23)).toLowerCase().replace(/\s+/g, "_"),
+      recommendationRole: cellStr(row.getCell(24)).toLowerCase().replace(/\s+/g, "_") || "standard",
     });
   });
 
   const outDir = path.join(root, "src", "data", "recommendations");
   mkdirSync(outDir, { recursive: true });
   writeFileSync(path.join(outDir, "master-rows.json"), JSON.stringify(rows, null, 2));
-  console.log(`✓ master-rows.json — ${rows.length} recommendations (v1.15)`);
+  console.log(`✓ master-rows.json — ${rows.length} recommendations (v1.20)`);
   return rows.length;
 }
 
 async function importTagMapping() {
-  const file = path.join(newDataDir, "Pausibl_Contextual_Questions_tags_v1.5.xlsx");
+  const file = path.join(finalDir, "Pausibl_Contextual_Questions_tags_v1.5.xlsx");
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.readFile(file);
   const sheet = wb.getWorksheet("Context Tag Mapping") ?? wb.worksheets[0];

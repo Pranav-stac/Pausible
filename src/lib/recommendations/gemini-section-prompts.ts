@@ -124,6 +124,7 @@ Field constraints:
 - Description 150-200 words, second person, grounded in success_condition_text + strength_insight_text.
 - Exactly six boxes, titles: ${BEHAVIOURAL_BOX_TITLES.join(" · ")}. Each 2-3 sentences.
 - Box sources: Tendencies<- success_condition+OCEAN; Motivates<- strength_insight+goals; Drains<- barriers+low OCEAN; Default Under Stress<- Stress Sensitivity+barriers; Build Habits<- Discipline; Growth<- strength_insight+Openness.
+- Do NOT reuse whole sentences from personaNarrative inside any behavioural box (no copy-paste refrain).
 - Trait cards only for |deviation|>0.8 (max 2); title '[user-facing trait] - higher/lower than typical' + exactly 2 sentences.
 - Forbidden in boxes: technical trait names, animal names.
 
@@ -255,9 +256,10 @@ ${dontLines.join(",\n")}
 
 ${formatPdaUserContextBlock(profile, input, ctx)}
 
-Produce: a headline (the mindset reframe, <=15 words); 3 DO items (action = imperative <=12 words,
-why <=20 words); 2 DON'T items (behaviour to avoid <=12 words, why <=20 words). Compose ONLY from the
-supplied texts. Apply the system-prompt rules, PLUS the pillar rules below.
+Produce: a headline (the mindset reframe, <=15 words); why_this_matters (ONE different sentence, <=25 words,
+tying the mindset to this user's goal/barrier — never copy the headline); 3 DO items (action = imperative
+<=12 words, why <=20 words); 2 DON'T items (behaviour to avoid <=12 words, why <=20 words). Compose ONLY from
+the supplied texts. Apply the system-prompt rules, PLUS the pillar rules below.
 
 PHYSICAL ACTIVITY:
  - At least 2 of the 3 DO items must reflect the user's activity_prefs. If 'dance' is a pref, phrase a
@@ -289,6 +291,7 @@ OUTPUT (strict JSON):
 {
   "pillar": "${pillar}",
   "headline": "string(<=15w)",
+  "why_this_matters": "string(<=25w, distinct from headline)",
   "do_items": [{"action":"string(<=12w)","why":"string(<=20w)"} x3],
   "dont_items": [{"behaviour":"string(<=12w)","why":"string(<=20w)"} x2]
 }`;

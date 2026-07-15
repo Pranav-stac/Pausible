@@ -46,8 +46,12 @@ function row(partial: Partial<RecommendationRow> & Pick<RecommendationRow, "id">
     oceanCategoryTags: [],
     oceanTraitTags: [],
     oceanFit: [],
-    effortLevel: "low",
+    effortLevel: 2,
+    notes: "",
     personaContext: {},
+    scopeClassification: "behavior_core",
+    userFacingBoundary: "behavioral_guidance",
+    recommendationRole: "standard",
     ...partial,
   };
 }
@@ -65,19 +69,21 @@ describe("PDA §14 effort fit", () => {
     const profile = baseProfile({
       context: ["time_under_15_min"],
     });
-    const low = scoreRecommendation(row({ id: "A", effortLevel: "low" }), profile);
-    const high = scoreRecommendation(row({ id: "B", effortLevel: "high" }), profile);
+    // Steadfast Bear Phase-1 AE cap is 4 — effort 2 fits; effort 5 exceeds (−15) and gets no low bonus.
+    const low = scoreRecommendation(row({ id: "A", effortLevel: 2 }), profile);
+    const high = scoreRecommendation(row({ id: "B", effortLevel: 5 }), profile);
     expect(low.effort).toBe(5);
-    expect(high.effort).toBe(0);
+    expect(high.effort).toBe(-15);
   });
 
-  it("awards high-effort bonus for high-capacity profiles", () => {
+  it("awards high-effort bonus for high-capacity profiles within Phase-1 cap", () => {
     const profile = baseProfile({
       context: ["fitness_consistent", "time_45_plus_min"],
     });
     expect(hasHighCapacityProfile(profile)).toBe(true);
-    const high = scoreRecommendation(row({ id: "A", effortLevel: "high" }), profile);
-    const low = scoreRecommendation(row({ id: "B", effortLevel: "low" }), profile);
+    // Bear Phase-1 cap = 4 → effort 4 gets +5 without exceeds-capacity penalty.
+    const high = scoreRecommendation(row({ id: "A", effortLevel: 4 }), profile);
+    const low = scoreRecommendation(row({ id: "B", effortLevel: 2 }), profile);
     expect(high.effort).toBe(5);
     expect(low.effort).toBe(0);
   });
@@ -100,26 +106,12 @@ describe("PDA §21.3 conditional plan gate", () => {
         category: "travel_work_nutrition",
         strength: "conditional",
         contextFit: ["work_travel_heavy", "time_under_15_min"],
-        score: {
-          persona: 25,
-          barriers: 12,
-          goals: 16,
-          context: 3,
-          ocean: 4,
-          effort: 5,
-          strength: 0,
-          total: 65,
-          primaryPersonaMatch: true,
-          secondaryPersonaMatch: false,
-          allPersonasMatch: false,
-          matchedBarriers: ["barrier_lack_of_time"],
-          matchedGoals: ["goal_energy"],
-          matchedContext: ["time_under_15_min"],
-          matchedOcean: ["C_low"],
-        },
       },
       baseProfile({ context: ["time_under_15_min"] }),
     );
+    // Override matched context to simulate scoring without travel tag match.
+    travel.score.matchedContext = ["time_under_15_min"];
+    travel.score.total = 65;
     expect(passesPlanScoreGate(travel)).toBe(false);
   });
 });
@@ -128,11 +120,11 @@ describe("PDA §15 tie-breakers", () => {
   it("prefers secondary persona match after primary (tie-breaker #5)", () => {
     const profile = baseProfile();
     const a = scored(
-      { id: "A", personaFit: ["steadfast_bear"], effortLevel: "medium" },
+      { id: "A", personaFit: ["steadfast_bear"], effortLevel: 3 },
       profile,
     );
     const b = scored(
-      { id: "B", personaFit: ["steadfast_bear", "steady_elephant"], effortLevel: "medium" },
+      { id: "B", personaFit: ["steadfast_bear", "steady_elephant"], effortLevel: 3 },
       profile,
     );
     b.score.total = a.score.total;

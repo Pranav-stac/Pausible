@@ -30,6 +30,10 @@ pausible-ed8e6-firebase-adminsdk-fbsvc-6934f4e606.json
 /mcp-server/
 /mcp-test/
 .playwright-mcp/
+/playwright-report/
+/test-results/
+/blob-report/
+/playwright/.cache/
 
 # Firebase service account keys (use FIREBASE_ADMIN_CREDENTIALS_PATH locally)
 **/firebase-adminsdk*.json

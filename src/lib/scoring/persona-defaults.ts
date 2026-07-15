@@ -85,14 +85,14 @@ export const PERSONA_DISPLAY: Record<
   },
 };
 
-/** PDA v1.0 authoritative centroids (§8.1). */
+/** PDA v1.9 authoritative centroids (§8.1). */
 export const DEFAULT_PERSONA_CENTROIDS: PersonaCentroidTable = {
   self_regulated_planner: {
     openness: 3.5,
     conscientiousness: 6.5,
     extraversion: 4.5,
     agreeableness: 5.3,
-    neuroticism: 1.5,
+    neuroticism: 1.6,
   },
   social_motivator: {
     openness: 4.5,

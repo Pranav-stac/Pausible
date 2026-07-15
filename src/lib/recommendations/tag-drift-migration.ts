@@ -1,7 +1,10 @@
 /**
  * Tag vocabulary migration / expansion.
- * - Legacy → canonical (v1.3/v1.4 drift)
- * - CQ v1.5 → Recommendation Master v1.15 compatibility (until master is retagged)
+ * - Legacy → CQ/Master v1.20 canonical (one-to-one aliases)
+ * - Legacy master tags → current Master Fit columns (expand)
+ *
+ * Master v1.20 keys Goal/Barrier/Context Fit on CQ-canonical tags
+ * (e.g. goal_sleep_recovery, goal_strength, barrier_self_consciousness).
  */
 
 /** One-to-one renames (replace). */
@@ -19,31 +22,39 @@ const TAG_ALIASES: Record<string, string> = {
   activity_pref_dancing: "activity_pref_dance",
   activity_pref_weights: "activity_pref_strength",
   activity_pref_hiit: "activity_pref_cardio",
-  barrier_emotional_eating: "barrier_emotional_eating_cravings",
+  barrier_emotional_eating: "barrier_stress_emotional_eating",
+  barrier_emotional_eating_cravings: "barrier_stress_emotional_eating",
+  barrier_gym_anxiety: "barrier_self_consciousness",
+  barrier_injury_discomfort: "barrier_physical_limitation",
+  barrier_travel_schedule_disruption: "barrier_unpredictable_schedule",
+  barrier_starting_difficulty: "barrier_lack_of_consistency",
+  barrier_low_activation_energy: "barrier_lack_of_consistency",
+  barrier_low_motivation: "barrier_lack_of_consistency",
   goal_energy_vitality: "goal_energy",
+  goal_sleep_improvement: "goal_sleep_recovery",
+  goal_better_recovery: "goal_sleep_recovery",
+  goal_muscle_gain: "goal_strength",
+  goal_consistency_discipline: "goal_consistency",
+  goal_sustainable_routines: "goal_consistency",
+  goal_sustainable_routine: "goal_consistency",
   social_preference_solo: "support_self_directed",
   social_preference_group: "social_preference_high",
+  fitness_advanced: "fitness_consistent",
+  fitness_structured: "fitness_consistent",
 };
 
 /**
- * CQ v1.5 emits newer tags; master still keys Goal/Barrier/Context Fit on older names.
- * Keep the v1.5 tag and also add master-compat tags so scoring/filters still match.
+ * Keep the mapped tag and also add related Fit-column tags so scoring matches.
  */
 const TAG_EXPAND: Record<string, string[]> = {
-  time_under_30_min: ["time_under_15_min"],
-  time_30_45_min: ["time_15_30_min", "time_30_45_min"],
-  time_45_60_min: ["time_45_plus_min"],
-  time_over_60_min: ["time_45_plus_min"],
-  goal_sleep_recovery: ["goal_sleep_improvement", "goal_better_recovery"],
-  goal_consistency: ["goal_consistency_discipline", "goal_sustainable_routines"],
-  barrier_stress_emotional_eating: ["barrier_emotional_eating_cravings"],
-  barrier_self_consciousness: ["barrier_gym_anxiety"],
-  barrier_physical_limitation: ["barrier_injury_discomfort"],
-  barrier_unpredictable_schedule: ["barrier_travel_schedule_disruption"],
+  // Master only uses under_30 / 30_45 for time Fit — map longer bands toward nearest Fit tags.
+  time_45_60_min: ["time_30_45_min"],
+  time_over_60_min: ["time_30_45_min"],
+  time_under_15_min: ["time_under_30_min"],
+  time_15_30_min: ["time_under_30_min", "time_30_45_min"],
   activity_cat_strength: ["activity_pref_strength"],
   activity_cat_cardio: ["activity_pref_cardio"],
   activity_cat_mindbody: ["activity_pref_yoga"],
-  goal_strength: ["goal_muscle_gain"],
 };
 
 function migrateTag(tag: string): string {

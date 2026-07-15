@@ -16,8 +16,13 @@ function row(partial: Partial<RecommendationRow> & Pick<RecommendationRow, "id">
     strength: "core",
     oceanCategoryTags: [],
     oceanTraitTags: [],
-    effortLevel: "low",
+    oceanFit: [],
+    notes: "",
+    effortLevel: 2,
     personaContext: {},
+    scopeClassification: "behavior_core",
+    userFacingBoundary: "behavioral_guidance",
+    recommendationRole: "standard",
     ...partial,
   };
 }
@@ -79,5 +84,27 @@ describe("applyContextSelectionSuppression (DR19–DR22)", () => {
       }),
     ];
     expect(applyContextSelectionSuppression(rows, profile()).length).toBe(0);
+  });
+
+  it("DR22 meals-by-others keeps NUT046 on safe list", () => {
+    const rows = [
+      row({
+        id: "NUT046",
+        pillar: "Nutrition",
+        category: "nutrition_foundations",
+        text: "Choose the protein option when others prepare your meals.",
+      }),
+      row({
+        id: "NUT099",
+        pillar: "Nutrition",
+        category: "meal_planning",
+        text: "Cook three meal prep batches on Sunday.",
+      }),
+    ];
+    const out = applyContextSelectionSuppression(
+      rows,
+      profile({ context: ["meal_control_prepared_by_others"] }),
+    );
+    expect(out.map((r) => r.id)).toEqual(["NUT046"]);
   });
 });

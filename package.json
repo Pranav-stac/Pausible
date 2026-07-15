@@ -22,7 +22,9 @@
     "test:mcp": "tsx --tsconfig mcp-server/tsconfig.json --env-file=.env mcp-server/scripts/smoke-test.ts",
     "test:mcp:deep": "tsx --tsconfig mcp-server/tsconfig.json --env-file=.env mcp-server/scripts/deep-test.ts",
     "test:profiles:engine": "tsx --tsconfig mcp-server/tsconfig.json --env-file=.env mcp-server/scripts/run-engine-suite.ts",
-    "test:profiles:synthesis": "tsx --tsconfig mcp-server/tsconfig.json --env-file=.env mcp-server/scripts/run-synthesis-profile.ts"
+    "test:profiles:synthesis": "tsx --tsconfig mcp-server/tsconfig.json --env-file=.env mcp-server/scripts/run-synthesis-profile.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@paypal/checkout-server-sdk": "^1.0.3",
@@ -41,6 +43,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

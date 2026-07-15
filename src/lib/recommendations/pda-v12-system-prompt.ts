@@ -36,7 +36,12 @@ export const PDA_V12_SYSTEM_PROMPT_RULES = `RULES (all mandatory):
     activity is wrong.
 12. OUTPUT strict valid JSON matching the section schema. No text outside JSON. Respect all length
     limits (tighten wording; never truncate mid-sentence). If a required input is empty, follow the
-    section FALLBACK; never fabricate.`;
+    section FALLBACK; never fabricate.
+13. BEHAVIOR SCOPE (Master cols V/W). If userFacingBoundary is example_only, adapt the example to the
+    user's setting without inventing a new action. If scopeClassification is safety_professional_referral
+    or userFacingBoundary is safety_sensitive, do NOT compose that item into Do/Don't lists — it is
+    rendered as a separate safety card. Never output sets/reps/weights/calorie targets/macros as
+    prescriptions.`;
 
 /** Full system prompt without per-user context (fallback / admin preview). */
 export const PDA_V12_SYSTEM_PROMPT_CORE = `${PDA_V12_SYSTEM_PROMPT_OPENING}

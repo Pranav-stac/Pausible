@@ -7,8 +7,15 @@ export function isPiSeries(row: Pick<RecommendationRow, "category">): boolean {
   return row.category === PI_CATEGORY;
 }
 
-export function isActionPlanPoolRow(row: Pick<RecommendationRow, "category" | "type">): boolean {
-  return !isPiSeries(row) && row.type !== "safety_guidance";
+export function isActionPlanPoolRow(
+  row: Pick<RecommendationRow, "category" | "type" | "scopeClassification" | "userFacingBoundary" | "recommendationRole">,
+): boolean {
+  if (isPiSeries(row)) return false;
+  if (row.type === "safety_guidance") return false;
+  if (row.scopeClassification === "safety_professional_referral") return false;
+  if (row.userFacingBoundary === "safety_sensitive") return false;
+  if (row.recommendationRole === "safety") return false;
+  return true;
 }
 
 export function personaMatchesRow(

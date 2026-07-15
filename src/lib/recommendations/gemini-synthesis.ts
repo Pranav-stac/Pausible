@@ -140,6 +140,58 @@ function fallbackPillarDonts(plan: ActionPlanSelection["pillarPlans"][PillarName
   return plan.donts.map((d) => ({ behavior: d.text, why: "This pattern works against your natural wellness style." }));
 }
 
+function normFocus(text: string): string {
+  return text.trim().toLowerCase().replace(/[.!?\s]+$/g, "").replace(/\s+/g, " ");
+}
+
+/** Headline vs supporting reason must differ — identical Focus/Reason flattens Slide 07. */
+function resolvePillarFocusCopy(
+  pillar: PillarName,
+  base: ActionPlanSelection["pillarPlans"][PillarName],
+  parsed: {
+    headline?: string;
+    mindsetShift?: string;
+    focusArea?: string;
+    why_this_matters?: string;
+    reason?: string;
+    focusReason?: string;
+    do_items?: PillarSynthesisDo[];
+    doItems?: PillarSynthesisDo[];
+    dos?: PillarSynthesisDo[];
+  } | null,
+): { focusArea: string; focusReason: string } {
+  const headline =
+    parsed?.headline?.trim() || parsed?.mindsetShift?.trim() || parsed?.focusArea?.trim() || "";
+  const focusArea = headline || base.focusArea;
+
+  let focusReason =
+    parsed?.why_this_matters?.trim() ||
+    parsed?.reason?.trim() ||
+    parsed?.focusReason?.trim() ||
+    "";
+
+  if (!focusReason || normFocus(focusReason) === normFocus(focusArea)) {
+    const engineReason = base.focusReason?.trim() || "";
+    if (engineReason && normFocus(engineReason) !== normFocus(focusArea)) {
+      focusReason = engineReason;
+    }
+  }
+
+  if (!focusReason || normFocus(focusReason) === normFocus(focusArea)) {
+    const dos = parsed?.do_items ?? parsed?.doItems ?? parsed?.dos ?? [];
+    const why = dos.find((d) => d.why?.trim())?.why?.trim();
+    if (why && normFocus(why) !== normFocus(focusArea)) {
+      focusReason = why;
+    }
+  }
+
+  if (!focusReason || normFocus(focusReason) === normFocus(focusArea)) {
+    focusReason = `This keeps ${pillar.toLowerCase()} simple enough to hold when stress and time both press in.`;
+  }
+
+  return { focusArea, focusReason };
+}
+
 function fallbackPrimaryPattern(
   selection: ActionPlanSelection,
   persona: PersonaAnalysis | null | undefined,
@@ -224,6 +276,7 @@ function fallbackSynthesis(
     id: s.id,
     text: s.text,
   }));
+  const safetyCards = selection.safetyCards ?? [];
 
   const blindSpots = {
     patternBody: pi.blindSpotText,
@@ -248,6 +301,7 @@ function fallbackSynthesis(
       sourceIds: pi.sourceIds,
     },
     safetyGuidance,
+    safetyCards,
     reportSections: {
       primaryPattern: processed.primaryPattern,
       secondaryPattern: secondaryPattern ?? undefined,
@@ -487,6 +541,9 @@ export async function synthesizeActionPlanWithLlm(
     {
       headline?: string;
       mindsetShift?: string;
+      why_this_matters?: string;
+      reason?: string;
+      focusReason?: string;
       do_items?: PillarSynthesisDo[];
       doItems?: PillarSynthesisDo[];
       dont_items?: (PillarSynthesisDont & { behaviour?: string })[];
@@ -530,12 +587,12 @@ export async function synthesizeActionPlanWithLlm(
   for (const pillar of PILLARS) {
     const base = selection.pillarPlans[pillar];
     const parsed = pillarJsonByName[pillar];
-    const headline = parsed?.headline?.trim() || parsed?.mindsetShift?.trim() || parsed?.focusArea?.trim();
+    const { focusArea, focusReason } = resolvePillarFocusCopy(pillar, base, parsed);
     const dos = parsed?.do_items ?? parsed?.doItems ?? parsed?.dos;
     const rawDonts = parsed?.dont_items ?? parsed?.dontItems ?? parsed?.donts;
     pillarPlans[pillar] = {
-      focusArea: headline || base.focusArea,
-      focusReason: headline || base.focusReason,
+      focusArea,
+      focusReason,
       dos: dos?.length ? dos.map(normalizePillarDo) : fallbackPillarDos(base),
       donts: rawDonts?.length ? rawDonts.map(normalizePillarDont) : fallbackPillarDonts(base),
       sourceIds: base.sourceIds,
@@ -550,6 +607,7 @@ export async function synthesizeActionPlanWithLlm(
     id: s.id,
     text: s.text,
   }));
+  const safetyCards = selection.safetyCards ?? [];
 
   const reportSections = {
     primaryPattern,
@@ -665,6 +723,7 @@ export async function synthesizeActionPlanWithLlm(
       sourceIds: selection.piSeries.sourceIds,
     },
     safetyGuidance,
+    safetyCards,
     reportSections: finalReportSections,
     synthesized: Boolean(finalPrimaryPattern.personaNarrative?.trim()),
     llmProvider: provider,

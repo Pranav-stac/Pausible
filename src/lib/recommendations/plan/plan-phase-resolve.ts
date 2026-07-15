@@ -9,17 +9,15 @@ import type { FitTier } from "@/lib/scoring/persona-types";
 export type ResolvedPhase = PhaseDefinition & { phaseNumber: number; durationWeeks: string };
 
 const OPTIMIZATION_GOALS = new Set([
-  "goal_muscle_gain",
   "goal_fat_loss",
   "goal_strength",
-  "goal_better_recovery",
+  "goal_sleep_recovery",
   "goal_energy",
   "goal_overall_health",
 ]);
 
 const ROUTINE_ONLY_GOALS = new Set([
   "goal_consistency",
-  "goal_sustainable_routine",
   "goal_stress_reduction",
 ]);
 

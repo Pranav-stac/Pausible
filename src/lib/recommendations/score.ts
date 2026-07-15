@@ -1,8 +1,11 @@
 import { isPiSeries } from "@/lib/recommendations/action-pool";
+import { phase1ActivationEnergyCap } from "@/lib/recommendations/plan/activation-energy";
+import { PERSONA_PHASE_CONFIG } from "@/lib/recommendations/plan/phase-config";
 import {
   PDA_BARRIER,
   PDA_CONTEXT,
   PDA_EFFORT,
+  PDA_EFFORT_EXCEEDS_CAPACITY_PENALTY,
   PDA_GOAL,
   PDA_OCEAN,
   PDA_PERSONA,
@@ -68,6 +71,8 @@ function strengthComponent(
 /** §14 — low capacity favours low-effort recs; high-capacity profiles favour high-effort recs. */
 export function hasLowCapacityProfile(profile: UserProfile): boolean {
   return (
+    profile.barriers.includes("barrier_lack_of_consistency") ||
+    profile.barriers.includes("barrier_lack_of_knowledge") ||
     profile.barriers.includes("barrier_low_activation_energy") ||
     profile.barriers.includes("barrier_overwhelm_from_complexity") ||
     profile.context.includes("stress_high") ||
@@ -90,12 +95,22 @@ export function hasHighCapacityProfile(profile: UserProfile): boolean {
   return disciplined || ampleTime;
 }
 
+/** Effort Level 1–2 = low; 4–5 = high (PDA §14 effort fit). */
 function effortFit(row: RecommendationRow, profile: UserProfile): number {
-  if (row.effortLevel === "low" && hasLowCapacityProfile(profile)) {
+  const level = row.effortLevel ?? 3;
+  if (level <= 2 && hasLowCapacityProfile(profile)) {
     return PDA_EFFORT.bonus;
   }
-  if (row.effortLevel === "high" && hasHighCapacityProfile(profile)) {
+  if (level >= 4 && hasHighCapacityProfile(profile)) {
     return PDA_EFFORT.bonus;
+  }
+  return 0;
+}
+
+function effortExceedsCapacityPenalty(row: RecommendationRow, profile: UserProfile): number {
+  const phase1Cap = phase1ActivationEnergyCap(profile.primaryPersona, PERSONA_PHASE_CONFIG);
+  if ((row.effortLevel ?? 3) > phase1Cap) {
+    return -PDA_EFFORT_EXCEEDS_CAPACITY_PENALTY;
   }
   return 0;
 }
@@ -161,7 +176,7 @@ export function scoreRecommendation(row: RecommendationRow, profile: UserProfile
   const goals = cappedSum(PDA_GOAL.perMatch, matchedGoals.length, PDA_GOAL.cap);
   const context = cappedSum(PDA_CONTEXT.perMatch, matchedContext.length, PDA_CONTEXT.cap);
   const ocean = cappedSum(PDA_OCEAN.perMatch, matchedOcean.length, PDA_OCEAN.cap);
-  const effort = effortFit(row, profile);
+  const effort = effortFit(row, profile) + effortExceedsCapacityPenalty(row, profile);
   const strength = strengthComponent(row.strength, matchedContext.length);
 
   const total = persona + barriers + goals + context + ocean + effort + strength;
@@ -210,14 +225,15 @@ export function compareScored(
   const profileForCapacity = ctx?.profile;
   const lowCapacity = profileForCapacity
     ? hasLowCapacityProfile(profileForCapacity)
-    : a.score.matchedBarriers.includes("barrier_low_activation_energy") ||
+    : a.score.matchedBarriers.includes("barrier_lack_of_consistency") ||
+      a.score.matchedBarriers.includes("barrier_lack_of_knowledge") ||
+      a.score.matchedBarriers.includes("barrier_low_activation_energy") ||
       a.score.matchedBarriers.includes("barrier_overwhelm_from_complexity") ||
       a.score.matchedContext.some(
         (t) => t === "stress_high" || t === "time_under_15_min" || t === "time_under_30_min",
       );
   if (lowCapacity && a.effortLevel !== b.effortLevel) {
-    const order = { low: 0, medium: 1, high: 2 };
-    return (order[a.effortLevel] ?? 1) - (order[b.effortLevel] ?? 1);
+    return (a.effortLevel ?? 3) - (b.effortLevel ?? 3);
   }
 
   const primaryA = sa.primaryPersonaMatch ? 1 : 0;

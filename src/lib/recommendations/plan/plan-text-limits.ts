@@ -1,4 +1,4 @@
-/** Character limits for Page 10 AI synthesis (Section 8.2). */
+/** Character limits for Page 10 AI synthesis (Section 8.2 / §22.3). */
 
 import { coercePlanText } from "@/lib/recommendations/plan/coerce-plan-field";
 
@@ -7,14 +7,18 @@ export const PLAN_TEXT_LIMITS = {
   goal_framing: 100,
   phase_intent_user: 200,
   readiness_signal_user: 150,
-  anchor_habit_user: 90,
-  rhythm_line: 100,
+  /** Soft cap only — master display_text is source of truth (§22.3). */
+  anchor_habit_user: 280,
+  rhythm_line: 160,
   plan_built_narrative: 720,
   plan_note: 120,
 } as const;
 
 const DANGLING_ENDINGS =
   /\b(when|with|and|or|the|a|an|to|for|if|as|but|so|by|at|in|on|of|from|into|about|after|before|during|while|until|unless|because|although|though|where|which|that|who|whom|whose|what|how|why|whether|either|neither|both|every|each|any|some|no|not|nor|yet|still|just|only|even|also|too|more|most|less|least|such|same|other|another|upon|count)\.$/i;
+
+const DANGLING_LINE_END =
+  /\b(when|with|and|or|the|a|an|to|for|if|as|but|so|by|at|in|on|of|from|into|about|after|before|during|while|until|unless|because|although|though|where|which|that|who|whom|whose|what|how|why|whether|either|neither|both|every|each|any|some|no|not|nor|yet|still|just|only|even|also|too|more|most|less|least|such|same|other|another|upon|including|especially|like|e\.g\.?)\s*$/i;
 
 /** True when text ends cleanly — not mid-clause or on a dangling word. */
 export function isCompleteSentence(text: string): boolean {
@@ -23,6 +27,19 @@ export function isCompleteSentence(text: string): boolean {
   if (!/[.!?]$/.test(trimmed)) return false;
   if (DANGLING_ENDINGS.test(trimmed)) return false;
   if (/\b(or|and)\s*$/i.test(trimmed.replace(/[.!?]$/, ""))) return false;
+  return true;
+}
+
+/** True when a truncated action line is still usable (balanced, not mid-phrase). */
+export function isIntactPlanFragment(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed || trimmed.length < 12) return false;
+  const opens = (trimmed.match(/\(/g) ?? []).length;
+  const closes = (trimmed.match(/\)/g) ?? []).length;
+  if (opens !== closes) return false;
+  if ((trimmed.match(/"/g) ?? []).length % 2 !== 0) return false;
+  if (/[,;:—–-]\s*$/.test(trimmed)) return false;
+  if (DANGLING_LINE_END.test(trimmed)) return false;
   return true;
 }
 
@@ -47,37 +64,52 @@ function truncateAtSentence(text: string, maxLength: number): string {
   return isCompleteSentence(forced) ? forced : trimmed.slice(0, maxLength).trim();
 }
 
-/** Truncate action lines at clause boundaries so list items stay intact. */
+/** Truncate action lines at clause boundaries so list items stay intact. Never mid-word / mid-paren. */
 export function truncatePlanLine(text: string, maxLength: number): string {
   const trimmed = text.trim();
   if (trimmed.length <= maxLength) return trimmed;
 
-  const slice = trimmed.slice(0, maxLength);
-  const clauseBreaks = [
-    slice.lastIndexOf(", or "),
-    slice.lastIndexOf("; "),
-    slice.lastIndexOf(" — "),
-    slice.lastIndexOf(", "),
-  ];
-  for (const idx of clauseBreaks) {
-    if (idx > maxLength * 0.45) {
-      const cut = slice.slice(0, idx).trim();
-      if (cut.length >= maxLength * 0.45) return cut;
+  const tryCut = (limit: number): string | null => {
+    const slice = trimmed.slice(0, limit);
+    const clauseBreaks = [
+      slice.lastIndexOf(", or "),
+      slice.lastIndexOf("; "),
+      slice.lastIndexOf(" — "),
+      slice.lastIndexOf(" – "),
+      slice.lastIndexOf(", "),
+    ];
+    for (const idx of clauseBreaks) {
+      if (idx > limit * 0.4) {
+        const cut = slice.slice(0, idx).trim();
+        if (isIntactPlanFragment(cut)) return cut;
+      }
     }
+    const lastSpace = slice.lastIndexOf(" ");
+    if (lastSpace > limit * 0.5) {
+      const cut = slice.slice(0, lastSpace).trim();
+      if (isIntactPlanFragment(cut)) return cut;
+    }
+    return null;
+  };
+
+  const primary = tryCut(maxLength);
+  if (primary) return primary;
+
+  // Soft overflow to finish a clause — prefer intact copy over mid-sentence cuts (§22.5).
+  const softCap = Math.min(trimmed.length, Math.ceil(maxLength * 1.35));
+  for (let limit = maxLength + 8; limit <= softCap; limit += 8) {
+    const soft = tryCut(limit);
+    if (soft) return soft;
   }
 
-  const lastSpace = slice.lastIndexOf(" ");
-  if (lastSpace > maxLength * 0.55) {
-    return slice.slice(0, lastSpace).trim();
-  }
-
-  return slice.trim();
+  // Last resort: keep the full line rather than a dangling fragment.
+  return trimmed;
 }
 
 export function enforcePlanTextLimit(field: keyof typeof PLAN_TEXT_LIMITS, text: string | unknown): string {
   const normalized = coercePlanText(text, "");
-  if (field === "rhythm_line") {
-    return truncatePlanLine(normalized, PLAN_TEXT_LIMITS.rhythm_line);
+  if (field === "rhythm_line" || field === "anchor_habit_user") {
+    return truncatePlanLine(normalized, PLAN_TEXT_LIMITS[field]);
   }
   return truncateAtSentence(normalized, PLAN_TEXT_LIMITS[field]);
 }

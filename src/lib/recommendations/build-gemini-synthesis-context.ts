@@ -49,6 +49,10 @@ export type GeminiSynthesisContext = {
     notes: string;
     totalScore: number;
     matchReasons: string[];
+    scopeClassification?: string;
+    userFacingBoundary?: string;
+    recommendationRole?: string;
+    effortLevel?: number;
   }[];
   selectedPlan: ReturnType<typeof serializeSelectedPlan>;
 };
@@ -192,6 +196,10 @@ function serializeScoredRow(
     notes: row.notes,
     totalScore: row.score.total,
     matchReasons: matchReasons(row, profile, labels),
+    scopeClassification: row.scopeClassification || undefined,
+    userFacingBoundary: row.userFacingBoundary || undefined,
+    recommendationRole: row.recommendationRole || undefined,
+    effortLevel: row.effortLevel,
   };
 }
 
@@ -250,6 +258,7 @@ function serializeSelectedPlan(selection: ActionPlanSelection, labels: Map<strin
     coachNotes: selection.coachSourceRows.map((r) => rowBrief(r)),
     piSeries: selection.piSeries,
     safetyGuidance: selection.safetyGuidance.map((r) => rowBrief(r)),
+    safetyCards: selection.safetyCards ?? [],
   };
 }
 

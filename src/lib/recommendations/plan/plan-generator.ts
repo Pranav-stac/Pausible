@@ -3,6 +3,13 @@ import { hasBarrierOverride, hasPerfectionismPattern } from "@/lib/recommendatio
 import { GOAL_PREFERENCE_BRIDGE_REC_ID } from "@/lib/recommendations/goal-preference-bridge";
 import { compareScored, passesPlanScoreGate } from "@/lib/recommendations/score";
 import { classifyActivationEnergy } from "@/lib/recommendations/plan/activation-energy";
+import {
+  effectiveRole,
+  isEligibleForPhase as rowMatchesPhaseEligibleTypes,
+  isPlanRhythmRow,
+  planRhythmRank,
+  rowHasRole,
+} from "@/lib/recommendations/recommendation-role";
 import { buildPhaseReadinessDescription } from "@/lib/recommendations/plan/build-readiness-signal";
 import {
   anchorCandidateRank,
@@ -15,7 +22,6 @@ import {
   parseDurationWeeks,
   PERSONA_PHASE_CONFIG,
   PHASE1_DENSITY_OVERRIDE,
-  type PhaseDefinition,
   type ReadinessSignalType,
 } from "@/lib/recommendations/plan/phase-config";
 import { resolvePhases, type ResolvedPhase } from "@/lib/recommendations/plan/plan-phase-resolve";
@@ -54,23 +60,6 @@ function strengthRank(row: ScoredRecommendation): number {
   return STRENGTH_ORDER[row.strength] ?? 9;
 }
 
-const PLAN_RHYTHM_TYPES = new Set<RecommendationType>([
-  "do",
-  "first_action",
-  "environment_change",
-  "recovery_rule",
-  "dont",
-]);
-
-function planRhythmTypeRank(type: RecommendationType): number {
-  if (type === "first_action") return 0;
-  if (type === "do") return 1;
-  if (type === "environment_change") return 2;
-  if (type === "recovery_rule") return 3;
-  if (type === "dont") return 4;
-  return 20;
-}
-
 function compareCandidates(a: ScoredRecommendation, b: ScoredRecommendation): number {
   const sr = strengthRank(a) - strengthRank(b);
   if (sr !== 0) return sr;
@@ -78,7 +67,7 @@ function compareCandidates(a: ScoredRecommendation, b: ScoredRecommendation): nu
 }
 
 function comparePlanRhythmCandidates(a: ScoredRecommendation, b: ScoredRecommendation): number {
-  const tr = planRhythmTypeRank(a.type) - planRhythmTypeRank(b.type);
+  const tr = planRhythmRank(a) - planRhythmRank(b);
   if (tr !== 0) return tr;
   return compareCandidates(a, b);
 }
@@ -97,7 +86,7 @@ function assignRhythmItem(
   allowCadenceMismatch: boolean,
 ): boolean {
   const item = toPlanItem(row);
-  const cadence = classifyRhythmCadence(row.text, row.type);
+  const cadence = classifyRhythmCadence(row.text, effectiveRole(row));
 
   if (cadence === "daily") {
     if (daily.length < counts.daily) {
@@ -197,7 +186,7 @@ function backfillRhythmBuckets(
               (allowReuse ? !assignedIds.has(r.id) : !used.has(r.id)) &&
               !skipIds.has(r.id) &&
               isEligibleForPhase(r, capacity, phaseNumber, profile) &&
-              PLAN_RHYTHM_TYPES.has(r.type) &&
+              isPlanRhythmRow(r) &&
               shouldAssignConditionalInPhase(r, phaseNumber, totalPhases, profile),
           )
           .sort((a, b) => {
@@ -394,7 +383,7 @@ function isStructuredRec(row: ScoredRecommendation): boolean {
 
 function isFallbackRec(row: ScoredRecommendation): boolean {
   return (
-    row.type === "recovery_rule" ||
+    rowHasRole(row, "recovery_rule") ||
     row.strength === "conditional" ||
     /backup|fallback|if you miss|when you miss|shorter|short version|scale down|lighter session/i.test(
       row.text,
@@ -423,7 +412,7 @@ function bestPhaseForConditional(
   if (ctx.some((t) => t.includes("advanced") || t.includes("experienced"))) {
     return totalPhases;
   }
-  if (row.type === "recovery_rule") return Math.min(2, totalPhases);
+  if (rowHasRole(row, "recovery_rule")) return Math.min(2, totalPhases);
   return Math.min(Math.max(2, Math.ceil(totalPhases / 2)), totalPhases);
 }
 
@@ -480,10 +469,10 @@ function injectBarrierRhythmItems(
   if (hasBarrierOverride(profile, "inconsistency")) {
     const hasRecovery =
       phaseNumber === 1 &&
-      phaseItemsIncludeType(pool, currentAnchor, daily, weekly, (r) => r.type === "recovery_rule");
+      phaseItemsIncludeType(pool, currentAnchor, daily, weekly, (r) => rowHasRole(r, "recovery_rule"));
     if (!hasRecovery) {
       const recovery = pool
-        .filter((r) => !used.has(r.id) && r.type === "recovery_rule")
+        .filter((r) => !used.has(r.id) && rowHasRole(r, "recovery_rule"))
         .sort(comparePlanRhythmCandidates)[0];
       if (recovery && assignRhythmItem(recovery, daily, weekly, counts, true)) {
         used.add(recovery.id);
@@ -526,7 +515,7 @@ function injectBarrierRhythmItems(
           (r) =>
             !used.has(r.id) &&
             classifyActivationEnergy(r) <= 2 &&
-            PLAN_RHYTHM_TYPES.has(r.type) &&
+            isPlanRhythmRow(r) &&
             isValidAnchorCandidate(r),
         )
         .sort(compareAnchorCandidates)[0];
@@ -571,7 +560,7 @@ function injectLackOfTimeShortVersions(
           !pairedBackupIds.has(r.id) &&
           r.id !== structuredRec.id &&
           classifyActivationEnergy(r) <= 2 &&
-          PLAN_RHYTHM_TYPES.has(r.type) &&
+          isPlanRhythmRow(r) &&
           (r.pillar === structuredRec.pillar ||
             r.category === structuredRec.category ||
             /backup|shorter|short|micro|10.?min|5.?min|lighter/i.test(r.text)),
@@ -627,7 +616,7 @@ function isEligibleForPhase(
     return true;
   }
 
-  if (!capacity.eligibleTypes.has(row.type)) return false;
+  if (!rowMatchesPhaseEligibleTypes(row, capacity.eligibleTypes)) return false;
   return true;
 }
 
@@ -640,7 +629,7 @@ function pickAnchor(
 ): ScoredRecommendation | null {
   const candidates = pool
     .filter((r) => !used.has(r.id) && isEligibleForPhase(r, capacity, phaseNumber, profile))
-    .filter((r) => PLAN_RHYTHM_TYPES.has(r.type) && isValidAnchorCandidate(r))
+    .filter((r) => isPlanRhythmRow(r) && isValidAnchorCandidate(r))
     .filter(
       (r) =>
         !hasBarrierOverride(profile, "lack_of_time") ||
@@ -665,7 +654,7 @@ function pickAnchor(
   }
 
   if (hasBarrierOverride(profile, "starting_difficulty") && phaseNumber === 1) {
-    const firstAction = candidates.find((r) => r.type === "first_action");
+    const firstAction = candidates.find((r) => rowHasRole(r, "first_action"));
     if (firstAction) return firstAction;
   }
 
@@ -688,7 +677,7 @@ function pickAnchorAlternate(
   const candidates = pool
     .filter((r) => r.id !== primaryAnchor.id && !used.has(r.id))
     .filter((r) => isEligibleForPhase(r, capacity, phaseNumber, profile))
-    .filter((r) => PLAN_RHYTHM_TYPES.has(r.type) && isValidAnchorCandidate(r))
+    .filter((r) => isPlanRhythmRow(r) && isValidAnchorCandidate(r))
     .sort(compareAnchorCandidates);
 
   return candidates[0] ?? null;
@@ -706,7 +695,7 @@ function pairDontRecsWithDo(
 ): void {
   const assignedIds = new Set([...daily.map((d) => d.id), ...weekly.map((w) => w.id)]);
   const dos = pool.filter(
-    (r) => assignedIds.has(r.id) && (r.type === "do" || r.type === "first_action"),
+    (r) => assignedIds.has(r.id) && (r.type === "do" || rowHasRole(r, "first_action")),
   );
   const pairedDontIds = new Set(
     pool.filter((r) => assignedIds.has(r.id) && r.type === "dont").map((r) => r.id),
@@ -788,7 +777,7 @@ function injectSecondaryPersonaItems(
       const backup = pool.find(
         (r) =>
           !used.has(r.id) &&
-          (r.type === "recovery_rule" || r.strength === "conditional" || r.type === "dont"),
+          (rowHasRole(r, "recovery_rule") || r.strength === "conditional" || r.type === "dont"),
       );
       tryAdd(backup);
       break;
@@ -842,7 +831,7 @@ function assignPhaseItems(
 
   const candidates = pool
     .filter((r) => !used.has(r.id) && isEligibleForPhase(r, capacity, phaseNumber, profile))
-    .filter((r) => PLAN_RHYTHM_TYPES.has(r.type))
+    .filter((r) => isPlanRhythmRow(r))
     .sort(comparePlanRhythmCandidates);
 
   const strengthPhaseCutoff = phaseNumber === 1 ? 1 : phaseNumber === 2 ? 2 : 3;

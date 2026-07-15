@@ -72,9 +72,13 @@ export type RawRecommendationRow = {
   oceanTraitTags?: string[];
   oceanCategoryTags?: string[];
   oceanFit?: string[];
-  effortLevel?: string;
+  /** 1–5 preferred; legacy "low"|"medium"|"high" accepted. */
+  effortLevel?: number | string;
   notes: string;
   personaContext?: Partial<Record<string, string>>;
+  scopeClassification?: string;
+  userFacingBoundary?: string;
+  recommendationRole?: string;
 };
 
 const PILLARS: PillarName[] = ["Nutrition", "Physical Activity", "Sleep & Recovery", "Mental Wellness"];
@@ -94,7 +98,18 @@ const TYPES: RecommendationType[] = [
   "strength_insight",
 ];
 
-const EFFORT_LEVELS = new Set(["low", "medium", "high"]);
+function normalizeEffortLevel(raw: number | string | undefined): 1 | 2 | 3 | 4 | 5 {
+  if (typeof raw === "number" && Number.isInteger(raw) && raw >= 1 && raw <= 5) {
+    return raw as 1 | 2 | 3 | 4 | 5;
+  }
+  const s = String(raw ?? "3").trim().toLowerCase();
+  const asNum = Number(s);
+  if (Number.isInteger(asNum) && asNum >= 1 && asNum <= 5) return asNum as 1 | 2 | 3 | 4 | 5;
+  if (s === "low") return 2;
+  if (s === "medium") return 3;
+  if (s === "high") return 4;
+  return 3;
+}
 
 export function normalizeRecommendationRow(raw: RawRecommendationRow): RecommendationRow {
   const pillar =
@@ -108,7 +123,8 @@ export function normalizeRecommendationRow(raw: RawRecommendationRow): Recommend
   const oceanTraitTags = raw.oceanTraitTags?.length
     ? raw.oceanTraitTags
     : (raw.oceanFit ?? []);
-  const effortRaw = (raw.effortLevel ?? "low").trim().toLowerCase();
+
+  const roleRaw = (raw.recommendationRole ?? "").trim().toLowerCase().replace(/\s+/g, "_");
 
   return {
     id: raw.id.trim(),
@@ -125,9 +141,12 @@ export function normalizeRecommendationRow(raw: RawRecommendationRow): Recommend
     oceanTraitTags,
     oceanCategoryTags: raw.oceanCategoryTags ?? [],
     oceanFit: oceanTraitTags,
-    effortLevel: EFFORT_LEVELS.has(effortRaw) ? (effortRaw as "low" | "medium" | "high") : "low",
+    effortLevel: normalizeEffortLevel(raw.effortLevel),
     notes: raw.notes?.trim() ?? "",
     personaContext: raw.personaContext ?? {},
+    scopeClassification: (raw.scopeClassification ?? "").trim().toLowerCase().replace(/\s+/g, "_"),
+    userFacingBoundary: (raw.userFacingBoundary ?? "").trim().toLowerCase().replace(/\s+/g, "_"),
+    recommendationRole: roleRaw || "standard",
   };
 }
 
@@ -143,7 +162,7 @@ export function parseRecommendationConfigDoc(data: Record<string, unknown> | und
 
   return {
     version: String(data.version ?? "1"),
-    masterVersion: String(data.masterVersion ?? "v1.7"),
+    masterVersion: String(data.masterVersion ?? "v1.20"),
     recommendations,
     tagMappingRules,
     wellnessFields,

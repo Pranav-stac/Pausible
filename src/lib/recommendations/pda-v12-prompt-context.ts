@@ -33,11 +33,14 @@ function pickCaffeine(context: Set<string>): string {
 }
 
 function pickFitnessLevel(context: Set<string>): string {
-  if (context.has("fitness_advanced")) return "advanced";
-  if (context.has("fitness_consistent")) return "consistent";
-  if (context.has("fitness_returning")) return "returning";
+  // PDA §10.2 — fitness_advanced ≡ consistent for prompts.
+  if (context.has("fitness_consistent") || context.has("fitness_advanced") || context.has("fitness_structured")) {
+    return "consistent";
+  }
+  if (context.has("fitness_restarting") || context.has("fitness_returning")) return "returning";
   if (context.has("fitness_beginner")) return "beginner";
   if (context.has("fitness_sedentary")) return "sedentary";
+  if (context.has("fitness_intermediate")) return "consistent";
   return "not specified";
 }
 

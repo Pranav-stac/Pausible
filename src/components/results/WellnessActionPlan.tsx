@@ -325,7 +325,24 @@ export function WellnessActionPlan({
           </dl>
         </div>
 
-        {synthesis.safetyGuidance.length > 0 ? (
+        {synthesis.safetyCards && synthesis.safetyCards.length > 0 ? (
+          <div className="space-y-3">
+            {synthesis.safetyCards.map((card) => (
+              <div
+                key={card.recId}
+                className="rounded-[1.5rem] border border-amber-200 bg-amber-50/90 p-5"
+              >
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-900">
+                  Safety · {card.pillar}
+                </p>
+                {card.disclaimerLine ? (
+                  <p className="mt-2 text-xs font-medium text-amber-900/80">{card.disclaimerLine}</p>
+                ) : null}
+                <p className="mt-3 text-sm leading-relaxed text-amber-950">{card.cardText}</p>
+              </div>
+            ))}
+          </div>
+        ) : synthesis.safetyGuidance.length > 0 ? (
           <div className="rounded-[1.5rem] border border-amber-200 bg-amber-50/90 p-5">
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-900">Safety guidance</p>
             <ul className="mt-3 space-y-3">

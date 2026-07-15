@@ -1,7 +1,7 @@
 /**
- * PDA v1.0 recommendation scoring (§14).
+ * PDA v1.9 recommendation scoring (§14).
  */
-export const PDA_SPEC_VERSION = "v1.2";
+export const PDA_SPEC_VERSION = "v1.9";
 
 /** Max total score used for internal ranking only (not shown to users). */
 export const PDA_MAX_SCORE = 158;
@@ -27,10 +27,12 @@ export const PDA_PERSONA = {
 } as const;
 
 export const PDA_OCEAN = { perMatch: 4, cap: 20 } as const;
-export const PDA_BARRIER = { perMatch: 12, cap: 36 } as const;
+export const PDA_BARRIER = { perMatch: 15, cap: 45 } as const;
 export const PDA_GOAL = { perMatch: 8, cap: 24 } as const;
-export const PDA_CONTEXT = { perMatch: 3, cap: 15 } as const;
+export const PDA_CONTEXT = { perMatch: 6, cap: 30 } as const;
 export const PDA_EFFORT = { bonus: 5, cap: 5 } as const;
+/** PDA §14 mismatch — Effort Level exceeds persona Phase-1 AE cap. */
+export const PDA_EFFORT_EXCEEDS_CAPACITY_PENALTY = 15;
 
 export const PDA_STRENGTH_POINTS = {
   core: 10,

@@ -92,7 +92,7 @@ export function AttemptPdaEnginePanel({
   return (
     <div className="space-y-4">
       <p className="text-xs text-slate-600">
-        Live PDA v1.0 engine trace — same pipeline as report generation (filter → score → rank → select → plan).
+        Live PDA v1.9 engine trace — same pipeline as report generation (filter → score → rank → select → plan).
         Synthesis version: <span className="font-mono font-semibold">{data.synthesisVersion}</span>
         {cacheStale ? (
           <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-900">
