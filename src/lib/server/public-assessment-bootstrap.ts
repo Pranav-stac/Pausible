@@ -2,6 +2,10 @@ import { unstable_cache } from "next/cache";
 import { getAdminFirestore } from "@/lib/firebase/server";
 import type { AssessmentDefinition } from "@/types/models";
 import { DEFAULT_PRICE_INR, effectiveAssessmentPriceInr } from "@/lib/pricing";
+import {
+  stripProfileSourcedWellnessQuestions,
+  wellnessContextAssessmentId,
+} from "@/data/wellness-context-questionnaire";
 
 function omitFirestoreMeta(data: Record<string, unknown>): void {
   for (const k of ["createdAt", "updatedAt"] as const) {
@@ -70,7 +74,10 @@ const cachedGlobalAppBootstrap = unstable_cache(
  */
 export async function loadPublicAssessmentForBootstrap(assessmentId: string): Promise<AssessmentDefinition | null> {
   const id = assessmentId?.trim() || "default";
-  return cachedAssessmentBootstrap(id);
+  const def = await cachedAssessmentBootstrap(id);
+  if (!def) return null;
+  if (id === wellnessContextAssessmentId) return stripProfileSourcedWellnessQuestions(def);
+  return def;
 }
 
 export async function loadPublicRequirePaymentBootstrap(): Promise<boolean | null> {

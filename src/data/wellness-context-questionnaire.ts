@@ -14,6 +14,19 @@ export function isProfileSourcedWellnessKey(key: string): boolean {
   return (PROFILE_SOURCED_WELLNESS_KEYS as readonly string[]).includes(key);
 }
 
+/** Drop age/gender (and DOB) from any questionnaire def — including stale Firestore copies. */
+export function stripProfileSourcedWellnessQuestions(def: AssessmentDefinition): AssessmentDefinition {
+  return {
+    ...def,
+    sections: def.sections
+      .map((sec) => ({
+        ...sec,
+        questionIds: sec.questionIds.filter((id) => !isProfileSourcedWellnessKey(id)),
+      }))
+      .filter((sec) => sec.questionIds.length > 0),
+  };
+}
+
 export const wellnessContextAssessmentId = "wellness-context";
 
 const CQ08_TRIGGERS_08A = [

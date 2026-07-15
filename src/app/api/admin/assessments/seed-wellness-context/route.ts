@@ -1,7 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api/admin-auth";
-import { getWellnessContextQuestionnaire, wellnessContextAssessmentId } from "@/data/wellness-context-questionnaire";
+import { getWellnessContextQuestionnaire, stripProfileSourcedWellnessQuestions, wellnessContextAssessmentId } from "@/data/wellness-context-questionnaire";
 import { getAdminFirestore } from "@/lib/firebase/server";
 
 /** Writes bundled wellness context questionnaire to Firestore (`assessments/wellness-context`). */
@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   const db = getAdminFirestore();
   if (!db) return NextResponse.json({ error: "Server missing admin credentials" }, { status: 503 });
 
-  const def = getWellnessContextQuestionnaire();
+  const def = stripProfileSourcedWellnessQuestions(getWellnessContextQuestionnaire());
   const snap = await db.collection("assessments").doc(wellnessContextAssessmentId).get();
   const merge = snap.exists ? { merge: true } : { merge: false };
 

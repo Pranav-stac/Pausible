@@ -6,7 +6,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { BrandLogo } from "@/components/BrandLogo";
 import { NavAuthActions } from "@/components/NavAuthActions";
 import { defaultAssessmentId, getDefaultAssessment } from "@/data/default-assessment";
-import { getWellnessContextQuestionnaire } from "@/data/wellness-context-questionnaire";
+import {
+  getWellnessContextQuestionnaire,
+  isProfileSourcedWellnessKey,
+} from "@/data/wellness-context-questionnaire";
 import { trackAssessmentComplete } from "@/lib/analytics/track";
 import { PARTICIPANT_DISPLAY_NAME_KEY } from "@/lib/assessment/session-recovery";
 import { claimStorageKey, SESSION_ATTEMPT_CLAIM_KEY } from "@/lib/data/attempt-claim-client";
@@ -28,6 +31,7 @@ function flattenQuestions(def: AssessmentDefinition): AssessmentQuestion[] {
   const order: AssessmentQuestion[] = [];
   for (const sec of def.sections) {
     for (const qid of sec.questionIds) {
+      if (isProfileSourcedWellnessKey(qid)) continue;
       const q = def.questions[qid];
       if (q) order.push(q);
     }

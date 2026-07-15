@@ -39,6 +39,7 @@ import {
   isProfileSourcedWellnessKey,
   isQuestionVisible,
   resolveQuestionOptions,
+  stripProfileSourcedWellnessQuestions,
   WELLNESS_CONTEXT_PREFIX,
   wellnessContextAssessmentId,
 } from "@/data/wellness-context-questionnaire";
@@ -51,6 +52,7 @@ function flattenQuestions(def: AssessmentDefinition, answers: AttemptAnswers = {
   const order: AssessmentQuestion[] = [];
   for (const sec of def.sections) {
     for (const qid of sec.questionIds) {
+      if (isProfileSourcedWellnessKey(qid)) continue;
       const q = def.questions[qid];
       if (q && isQuestionVisible(q, answers)) order.push(q);
     }
@@ -61,6 +63,7 @@ function flattenQuestions(def: AssessmentDefinition, answers: AttemptAnswers = {
 function allSectionsComplete(def: AssessmentDefinition, answers: AttemptAnswers): boolean {
   return def.sections.every((sec) =>
     sec.questionIds.every((qid) => {
+      if (isProfileSourcedWellnessKey(qid)) return true;
       const q = def.questions[qid];
       if (!q) return true;
       if (!isQuestionVisible(q, answers)) return true;
@@ -103,7 +106,7 @@ export function WellnessContextQuestionnaire({
   const { requirePayment } = useAppSettings();
   const [localUid, setLocalUid] = useState<string | null>(null);
   const [questionnaire, setQuestionnaire] = useState<AssessmentDefinition | null>(() =>
-    bootstrapQuestionnaire != null ? bootstrapQuestionnaire : null,
+    bootstrapQuestionnaire != null ? stripProfileSourcedWellnessQuestions(bootstrapQuestionnaire) : null,
   );
   const [questionnaireError, setQuestionnaireError] = useState<string | null>(null);
   const [sessionLoading, setSessionLoading] = useState(true);
@@ -135,7 +138,7 @@ export function WellnessContextQuestionnaire({
         const fromDb = await fetchAssessment(wellnessContextAssessmentId);
         if (cancelled) return;
         if (fromDb) {
-          setQuestionnaire(fromDb);
+          setQuestionnaire(stripProfileSourcedWellnessQuestions(fromDb));
           return;
         }
         setQuestionnaire(getWellnessContextQuestionnaire());
