@@ -65,6 +65,14 @@ export function FirebaseAuthProvider({ children }: { children: React.ReactNode }
       if (!cancelled && redirectSettled && authStateSeen) setReady(true);
     };
 
+    // Never leave the app stuck on "Preparing session…" if redirect handling hangs.
+    const redirectTimeout = window.setTimeout(() => {
+      if (!redirectSettled) {
+        redirectSettled = true;
+        tryMarkReady();
+      }
+    }, 4_000);
+
     void consumeGoogleRedirectResult(auth)
       .then(async (result) => {
         if (result?.user) {
@@ -73,6 +81,7 @@ export function FirebaseAuthProvider({ children }: { children: React.ReactNode }
         }
       })
       .finally(() => {
+        window.clearTimeout(redirectTimeout);
         redirectSettled = true;
         tryMarkReady();
       });
@@ -81,11 +90,14 @@ export function FirebaseAuthProvider({ children }: { children: React.ReactNode }
       setUser(u);
       if (u) void syncUserProfile(u);
       authStateSeen = true;
+      // Ensure a local fallback UID exists for pages that don't need signed-in Firebase yet.
+      if (!u) setLocalUid((prev) => prev ?? getOrCreateLocalUid());
       tryMarkReady();
     });
 
     return () => {
       cancelled = true;
+      window.clearTimeout(redirectTimeout);
       unsub();
     };
   }, [canUseFirebase]);

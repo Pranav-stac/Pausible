@@ -206,9 +206,11 @@ function QuestionBlock({
 
 export function TestAssessmentPage() {
   const router = useRouter();
-  const { effectiveUid, ready, ensureAnonymousSession, hasGoogleIdentity } = useFirebaseAuth();
+  const { effectiveUid, ensureAnonymousSession, hasGoogleIdentity } = useFirebaseAuth();
   const { requirePayment } = useAppSettings();
-  const [localUid, setLocalUid] = useState<string | null>(null);
+  const [localUid, setLocalUid] = useState<string | null>(() =>
+    typeof window !== "undefined" ? getOrCreateLocalUid() : null,
+  );
   const [displayName, setDisplayName] = useState("Test User");
   const [ageRange, setAgeRange] = useState<string>(PROFILE_AGE_OPTIONS[2]);
   const [gender, setGender] = useState<string>("Prefer not to say");
@@ -383,7 +385,7 @@ export function TestAssessmentPage() {
     );
   }
 
-  if (!ready || attemptUid === null) {
+  if (attemptUid === null) {
     return (
       <div className="flex min-h-screen items-center justify-center text-sm text-slate-500">
         Preparing session…
