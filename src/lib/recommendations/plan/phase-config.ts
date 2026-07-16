@@ -34,7 +34,8 @@ export const PERSONA_PHASE_CONFIG: Record<PersonaKey, PersonaPhaseConfig> = {
   brittle_avoidant: {
     progressionStyle: "Ultra-gradual",
     maxPlanDurationWeeks: 12,
-    dailyItems: { min: 2, max: 2 },
+    // PDA §38.5 / §22.5 — Turtle Phase 1 may have 0 daily items (environment-only).
+    dailyItems: { min: 0, max: 2 },
     weeklyItems: { min: 2, max: 2 },
     phases: [
       {
@@ -97,7 +98,7 @@ export const PERSONA_PHASE_CONFIG: Record<PersonaKey, PersonaPhaseConfig> = {
         durationWeeks: "3 weeks",
       },
       {
-        name: "Finding Your Rhythm",
+        name: "Find Your Rhythm",
         intent: "Extend duration, add structure. The nervous system now trusts the routine.",
         eligibleTypes: ["do", "dont", "recovery_rule"],
         readinessDescription: "When a missed session triggers a backup, not a full stop.",
@@ -211,7 +212,7 @@ export const PERSONA_PHASE_CONFIG: Record<PersonaKey, PersonaPhaseConfig> = {
         primarySignal: "consistency",
         secondarySignal: "performance",
         activationEnergyCap: 4,
-        durationWeeks: "2–3 weeks",
+        durationWeeks: "2 weeks",
       },
       {
         name: "Optimize Without Overreaching",
@@ -250,22 +251,14 @@ export const PERSONA_PHASE_CONFIG: Record<PersonaKey, PersonaPhaseConfig> = {
         primarySignal: "performance",
         secondarySignal: "consistency",
         activationEnergyCap: 5,
-        durationWeeks: "4 weeks",
+        durationWeeks: "3 weeks",
       },
     ],
     optionalThirdPhase: {
       name: "Optimize Your System",
       intent:
         "Fine-tune nutrition timing, progressive overload, advanced recovery when goals need more refinement.",
-      eligibleTypes: [
-        "do",
-        "first_action",
-        "environment_change",
-        "recovery_rule",
-        "mindset_shift",
-        "success_condition",
-        "strength_insight",
-      ],
+      eligibleTypes: ["strength_insight", "blind_spot", "pattern_prediction"],
       readinessDescription: "When the system is producing measurable results.",
       primarySignal: "performance",
       secondarySignal: "consistency",

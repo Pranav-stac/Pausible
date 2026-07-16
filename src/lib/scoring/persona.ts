@@ -12,9 +12,9 @@ import {
   computeBlendStrength,
   computeFitScore,
   computeFitTier,
-  computeMaxInterCentroidDistance,
   computePersonaTitle,
   computeTraitDeviations,
+  PDA_MAX_INTER_CENTROID_DISTANCE,
   topTwoPersonasByDistance,
 } from "@/lib/scoring/persona-fit";
 import { computeOceanTags } from "@/lib/scoring/ocean-tags";
@@ -144,7 +144,7 @@ export function computePersonaAnalysis(
   const personaPercentages = computePersonaPercentages(personaSi);
   const { primary, secondary } = topTwoPersonasByDistance(personaDistances);
 
-  const maxInterCentroidDistance = computeMaxInterCentroidDistance(centroids);
+  const maxInterCentroidDistance = PDA_MAX_INTER_CENTROID_DISTANCE;
   const primaryDistance = personaDistances[primary] ?? 0;
   const secondaryDistance = personaDistances[secondary] ?? 0;
   const fitScore = computeFitScore(primaryDistance, maxInterCentroidDistance);

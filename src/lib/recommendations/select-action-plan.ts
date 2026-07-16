@@ -1,11 +1,13 @@
-import { isActionPlanPoolRow, resolvedText } from "@/lib/recommendations/action-pool";
+import { isActionPlanPoolRow, primaryPersonaMatchesRow, resolvedText } from "@/lib/recommendations/action-pool";
 import { hasBarrierOverride } from "@/lib/recommendations/barrier-override-tags";
 import { selectOpportunityClusters } from "@/lib/recommendations/cluster";
 import { GOAL_PREFERENCE_BRIDGE_REC_ID } from "@/lib/recommendations/goal-preference-bridge";
+import { rowHasRole } from "@/lib/recommendations/recommendation-role";
 import { selectHighImpactPriorities } from "@/lib/recommendations/select-opportunities";
 import { selectPiSeries } from "@/lib/recommendations/select-pi-series";
-import { compareScored, type RankContext } from "@/lib/recommendations/score";
+import type { RankContext } from "@/lib/recommendations/score";
 import { selectSafetyCards, selectTriggeredSafetyGuidance } from "@/lib/recommendations/safety";
+import { expandSelectionToTargetCount } from "@/lib/recommendations/variable-rec-count";
 import type {
   ActionPlanSelection,
   PillarActionPlan,
@@ -16,15 +18,53 @@ import type {
 
 const PILLARS: PillarName[] = ["Nutrition", "Physical Activity", "Sleep & Recovery", "Mental Wellness"];
 
+/** PDA §15 — coach_note selection is persona-driven (primary match, top by score). */
+function selectCoachNotes(
+  ranked: ScoredRecommendation[],
+  profile: UserProfile,
+  used: Set<string>,
+  count = 3,
+): ScoredRecommendation[] {
+  const out: ScoredRecommendation[] = [];
+  for (const row of ranked) {
+    if (out.length >= count) break;
+    if (used.has(row.id)) continue;
+    if (!rowHasRole(row, "coach_note") && row.type !== "coach_note" && row.type !== "mindset_shift") {
+      continue;
+    }
+    // Prefer dedicated coach_note role; mindset_shift only if persona-matched and no dedicated notes.
+    if (!rowHasRole(row, "coach_note") && row.type === "mindset_shift") continue;
+    if (!primaryPersonaMatchesRow(row, profile.primaryPersonaAlias) && !row.personaFit.includes("all_personas")) {
+      continue;
+    }
+    used.add(row.id);
+    out.push(row);
+  }
+  // Fallback: persona-matched mindset_shift if no dedicated coach_notes.
+  if (out.length === 0) {
+    for (const row of ranked) {
+      if (out.length >= count) break;
+      if (used.has(row.id)) continue;
+      if (row.type !== "mindset_shift") continue;
+      if (!primaryPersonaMatchesRow(row, profile.primaryPersonaAlias) && !row.personaFit.includes("all_personas")) {
+        continue;
+      }
+      used.add(row.id);
+      out.push(row);
+    }
+  }
+  return out;
+}
+
 function pickUnique(
   rows: ScoredRecommendation[],
   count: number,
   used: Set<string>,
-  ctx?: RankContext,
+  _ctx?: RankContext,
 ): ScoredRecommendation[] {
+  // Preserve MMR / score ordering from `ranked` (PDA §15) — do not re-sort by raw score.
   const out: ScoredRecommendation[] = [];
-  const sorted = [...rows].sort((a, b) => compareScored(a, b, ctx));
-  for (const row of sorted) {
+  for (const row of rows) {
     if (used.has(row.id)) continue;
     used.add(row.id);
     out.push(row);
@@ -37,12 +77,11 @@ function pickUniqueByCategory(
   rows: ScoredRecommendation[],
   count: number,
   used: Set<string>,
-  ctx?: RankContext,
+  _ctx?: RankContext,
 ): ScoredRecommendation[] {
   const out: ScoredRecommendation[] = [];
   const seenCategories = new Set<string>();
-  const sorted = [...rows].sort((a, b) => compareScored(a, b, ctx));
-  for (const row of sorted) {
+  for (const row of rows) {
     if (used.has(row.id) || seenCategories.has(row.category)) continue;
     used.add(row.id);
     seenCategories.add(row.category);
@@ -71,7 +110,23 @@ function buildPillarPlan(
   const rankCtx: RankContext = { selectedCategories: new Set<string>(), pillarAssignmentCounts: {} };
   const dos = pickUniqueByCategory(dosPool, 3, used, rankCtx);
   for (const d of dos) rankCtx.selectedCategories?.add(d.category);
-  const donts = pickUnique(dontsPool, 2, used, rankCtx);
+
+  // PDA §15 — dont complement-do: prefer same Category as selected DOs.
+  const donts: ScoredRecommendation[] = [];
+  const doCategories = new Set(dos.map((d) => d.category));
+  for (const row of dontsPool) {
+    if (donts.length >= 2) break;
+    if (used.has(row.id)) continue;
+    if (!doCategories.has(row.category)) continue;
+    used.add(row.id);
+    donts.push(row);
+  }
+  for (const row of dontsPool) {
+    if (donts.length >= 2) break;
+    if (used.has(row.id)) continue;
+    used.add(row.id);
+    donts.push(row);
+  }
   if (focus) used.add(focus.id);
 
   const sourceIds = [
@@ -89,11 +144,15 @@ function buildPillarPlan(
       id: d.id,
       text: resolvedText(d, profile, { topScoring: true }),
       category: d.category,
+      scopeClassification: d.scopeClassification || undefined,
+      userFacingBoundary: d.userFacingBoundary || undefined,
     })),
     donts: donts.map((d) => ({
       id: d.id,
       text: resolvedText(d, profile, { topScoring: true }),
       category: d.category,
+      scopeClassification: d.scopeClassification || undefined,
+      userFacingBoundary: d.userFacingBoundary || undefined,
     })),
     sourceIds,
   };
@@ -115,6 +174,8 @@ function ensureGoalPreferenceBridgeInPhysicalActivity(
     id: bridge.id,
     text: resolvedText(bridge, profile, { topScoring: true }),
     category: bridge.category,
+    scopeClassification: bridge.scopeClassification || undefined,
+    userFacingBoundary: bridge.userFacingBoundary || undefined,
   };
   const dos = [bridgeItem, ...plan.dos.filter((d) => d.id !== bridge.id)].slice(0, 3);
 
@@ -164,6 +225,8 @@ function pairNutritionDontsForEmotionalEating(
       id: match.id,
       text: resolvedText(match, profile, { topScoring: true }),
       category: match.category,
+      scopeClassification: match.scopeClassification || undefined,
+      userFacingBoundary: match.userFacingBoundary || undefined,
     });
   }
 
@@ -206,6 +269,8 @@ export function selectActionPlan(
   for (const s of safetyGuidance) used.add(s.id);
   for (const id of piSeries.sourceIds) used.add(id);
 
+  const coachSourceRows = selectCoachNotes(ranked, profile, used, 3);
+
   const validationWarnings: string[] = [];
   if (!piSeries.complete) {
     validationWarnings.push("PI series incomplete for primary persona — some report sections may use fallbacks.");
@@ -215,14 +280,27 @@ export function selectActionPlan(
     validationWarnings.push(`Only ${scoredPositive} recommendations scored above 0 (expected ≥50).`);
   }
 
-  const allSourceIds = [
+  const coreSourceIds = [
     ...new Set([
       ...opportunityCards.flatMap((c) => c.sourceIds),
       ...PILLARS.flatMap((p) => pillarPlans[p].sourceIds),
       ...safetyGuidance.map((s) => s.id),
+      ...safetyCards.map((s) => s.recId),
       ...piSeries.sourceIds,
+      ...coachSourceRows.map((r) => r.id),
     ]),
   ];
+
+  // PDA §13 — variable report rec count (20–35) from profile complexity.
+  const expanded = expandSelectionToTargetCount(ranked, coreSourceIds, profile, {
+    secondaryBlendPct: profile.secondaryBlendPct,
+    safetyTriggered: safetyCards.length > 0 || safetyGuidance.length > 0,
+  });
+  if (expanded.expanded > 0) {
+    validationWarnings.push(
+      `Expanded report pool by ${expanded.expanded} to target ${expanded.target} (PDA §13).`,
+    );
+  }
 
   return {
     profile,
@@ -232,10 +310,10 @@ export function selectActionPlan(
     piSeries,
     pillarPlans,
     launchpad: [],
-    coachSourceRows: [],
+    coachSourceRows,
     safetyGuidance,
     safetyCards,
-    allSourceIds,
+    allSourceIds: expanded.ids,
     validationWarnings,
   };
 }

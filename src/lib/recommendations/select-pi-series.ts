@@ -34,23 +34,18 @@ function pickPi(
 export function selectPiSeries(ranked: ScoredRecommendation[], profile: UserProfile): PiSeriesSelection {
   const primary = profile.primaryPersonaAlias;
   const secondary = profile.secondaryPersonaAlias;
-  const includeSecondary = profile.blendStrength !== "pure";
+  // Always load secondary PI copy — PDA §20.5 Pure still needs a 2-sentence Page 5 summary.
+  // (Secondary recommendation pool selection elsewhere still gates on blend weight.)
 
   const blindSpot = pickPi(ranked, profile, "blind_spot", primary);
   const patternPrediction = pickPi(ranked, profile, "pattern_prediction", primary);
   const successCondition = pickPi(ranked, profile, "success_condition", primary);
   const strengthInsight = pickPi(ranked, profile, "strength_insight", primary);
 
-  const secondaryBlindSpot = includeSecondary ? pickPi(ranked, profile, "blind_spot", secondary) : null;
-  const secondarySuccessCondition = includeSecondary
-    ? pickPi(ranked, profile, "success_condition", secondary)
-    : null;
-  const secondaryStrengthInsight = includeSecondary
-    ? pickPi(ranked, profile, "strength_insight", secondary)
-    : null;
-  const secondaryPatternPrediction = includeSecondary
-    ? pickPi(ranked, profile, "pattern_prediction", secondary)
-    : null;
+  const secondaryBlindSpot = pickPi(ranked, profile, "blind_spot", secondary);
+  const secondarySuccessCondition = pickPi(ranked, profile, "success_condition", secondary);
+  const secondaryStrengthInsight = pickPi(ranked, profile, "strength_insight", secondary);
+  const secondaryPatternPrediction = pickPi(ranked, profile, "pattern_prediction", secondary);
 
   const sourceIds = [
     blindSpot?.id,

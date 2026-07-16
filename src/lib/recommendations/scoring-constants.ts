@@ -33,6 +33,16 @@ export const PDA_CONTEXT = { perMatch: 6, cap: 30 } as const;
 export const PDA_EFFORT = { bonus: 5, cap: 5 } as const;
 /** PDA §14 mismatch — Effort Level exceeds persona Phase-1 AE cap. */
 export const PDA_EFFORT_EXCEEDS_CAPACITY_PENALTY = 15;
+/** PDA §14 — rec tagged for a persona that conflicts with the user's primary. */
+export const PDA_PERSONA_CONFLICT_PENALTY = 20;
+/** PDA §14 — rec assumes a preference the user contradicted. */
+export const PDA_PREFERENCE_CONTRADICTION_PENALTY = 10;
+/** PDA §14 — detailed tracking for high Neuroticism (>5.0). */
+export const PDA_TRACKING_ANXIOUS_PENALTY = 15;
+/** PDA §14 — group/partner activity for low Extraversion (<3.0) or solo preference. */
+export const PDA_SOCIAL_FOR_SOLO_PENALTY = 10;
+/** PDA §14 — duplicate Category + Barrier theme beyond the first. */
+export const PDA_DUPLICATE_THEME_PENALTY = 12;
 
 export const PDA_STRENGTH_POINTS = {
   core: 10,

@@ -15,6 +15,55 @@ export const NUTRITION_DISCLAIMER =
 
 export const ELDERLY_ACTIVITY_SUFFIX = "Stop and rest if you feel dizzy, breathless, or in pain.";
 
+/**
+ * PDA §38.8 / B10 — Authoritative Disclaimer Register.
+ * When multiple Physical Activity triggers are active, insert the highest-priority
+ * disclaimer only (do not stack). Nutrition disclaimer is independent.
+ */
+export const DISCLAIMER_REGISTER = [
+  {
+    priority: 1,
+    id: "pa_pregnancy",
+    trigger: "pregnancy_postpartum",
+    exactString: PHYSICAL_DISCLAIMER_PREGNANCY,
+    pillar: "Physical Activity" as const,
+    position: "first_line" as const,
+  },
+  {
+    priority: 2,
+    id: "pa_injury",
+    trigger: "injury_or_persistent_pain",
+    exactString: PHYSICAL_DISCLAIMER_INJURY,
+    pillar: "Physical Activity" as const,
+    position: "first_line" as const,
+  },
+  {
+    priority: 3,
+    id: "pa_medical_or_age",
+    trigger: "medical_doctor_advised_or_age_65",
+    exactString: PHYSICAL_DISCLAIMER_DEFAULT,
+    pillar: "Physical Activity" as const,
+    position: "first_line" as const,
+  },
+  {
+    priority: 4,
+    id: "nutrition_provider",
+    trigger: "medical_doctor_advised_pregnancy_and_nutrition_changes",
+    exactString: NUTRITION_DISCLAIMER,
+    pillar: "Nutrition" as const,
+    position: "first_line" as const,
+  },
+  {
+    priority: 5,
+    id: "pa_elderly_suffix",
+    trigger: "age_65_plus",
+    exactString: ELDERLY_ACTIVITY_SUFFIX,
+    pillar: "Physical Activity" as const,
+    position: "append_every_item" as const,
+  },
+] as const;
+
+/** PDA §38.8 — pick exactly one Physical Activity first-line disclaimer by priority. */
 export function resolvePhysicalDisclaimer(profile: UserProfile): string | null {
   const safety = buildProfileSafetyContext(profile);
   if (!safety.needsPhysicalDisclaimer) return null;
@@ -66,7 +115,7 @@ export type PillarPlanSlice = {
   sourceIds: string[];
 };
 
-/** PDA v1.2 §38.8 — deterministic disclaimer insertion. */
+/** PDA v1.2 §38.8 — deterministic disclaimer insertion (no PA stacking). */
 export function applySafetyDisclaimersToPillarPlan(
   pillar: PillarName,
   plan: PillarPlanSlice,

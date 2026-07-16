@@ -21,6 +21,7 @@ function baseProfile(overrides: Partial<UserProfile> = {}): UserProfile {
     computedAgeYears: 28,
     isMinor: false,
     isElderly65: false,
+    secondaryBlendPct: null,
     ...overrides,
   };
 }

@@ -21,11 +21,12 @@ function nonWorkerProfile(): UserProfile {
     computedAgeYears: null,
     isMinor: false,
     isElderly65: false,
+    secondaryBlendPct: null,
   };
 }
 
 describe("applyLifestyleFraming", () => {
-  it("DR23 swaps work language for students", () => {
+  it("DR25 swaps work language for students", () => {
     const raw = "After your last work task, take a short walk.";
     const out = applyLifestyleFraming(raw, nonWorkerProfile());
     expect(out.toLowerCase()).not.toContain("work task");

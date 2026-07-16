@@ -1,5 +1,9 @@
 import type { GeminiTokenUsage } from "@/lib/recommendations/types";
-import { SECTION_OUTPUT_TOKENS } from "@/lib/recommendations/section-output-limits";
+import {
+  PDA_TEMPERATURE,
+  PDA_TOP_P,
+  SECTION_OUTPUT_TOKENS,
+} from "@/lib/recommendations/section-output-limits";
 
 export type GeminiSectionResult = {
   text: string;
@@ -75,7 +79,8 @@ export async function callGeminiSection(args: {
           systemInstruction: { parts: [{ text: args.systemPrompt }] },
           contents: [{ role: "user", parts: [{ text: args.userPrompt }] }],
           generationConfig: {
-            temperature: 0.7,
+            temperature: PDA_TEMPERATURE,
+            topP: PDA_TOP_P,
             maxOutputTokens: args.maxOutputTokens ?? SECTION_OUTPUT_TOKENS.default,
             ...(args.json ? { responseMimeType: "application/json" } : {}),
           },

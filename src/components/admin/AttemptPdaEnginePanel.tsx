@@ -111,7 +111,7 @@ export function AttemptPdaEnginePanel({
             { label: "Plan pool", value: data.pipeline.planPoolCount },
             { label: "Plan score threshold", value: `> ${data.pipeline.planScoreThreshold}` },
             { label: "Max score (internal)", value: data.pdaMaxScore },
-            { label: "DR11 bridge (FIT037)", value: data.pipeline.goalPreferenceBridge ? "Yes" : "No" },
+            { label: "DR13 bridge (FIT037)", value: data.pipeline.goalPreferenceBridge ? "Yes" : "No" },
             { label: "Secondary influence", value: data.pipeline.secondaryInfluenceActive ? `Yes (${data.pipeline.secondaryBlendPct?.toFixed(1)}%)` : "No" },
             { label: "Pre-gen gate", value: gateOk ? "PASS" : "FAIL" },
           ]}
@@ -278,7 +278,7 @@ export function AttemptPdaEnginePanel({
                           <TagRow label="Col L tags" tags={row.oceanCategoryTags} />
                         </div>
                         {row.bridgeInjected ? (
-                          <p className="mt-2 text-[10px] font-semibold text-teal-700">DR11 bridge injected (FIT037)</p>
+                          <p className="mt-2 text-[10px] font-semibold text-teal-700">DR13 bridge injected (FIT037)</p>
                         ) : null}
                       </td>
                     </tr>

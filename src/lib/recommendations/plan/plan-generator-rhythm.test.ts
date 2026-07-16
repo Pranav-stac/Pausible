@@ -22,6 +22,7 @@ function profile(overrides: Partial<UserProfile> = {}): UserProfile {
     computedAgeYears: null,
     isMinor: false,
     isElderly65: false,
+    secondaryBlendPct: null,
     ...overrides,
   };
 }
@@ -73,6 +74,62 @@ function mockRow(partial: Partial<RecommendationRow> & Pick<RecommendationRow, "
 }
 
 describe("plan generator rhythm buckets", () => {
+  it("Shielded Turtle Phase 1 has 0 daily items (PDA §38.5)", () => {
+    const pool: ScoredRecommendation[] = [
+      mockRow({
+        id: "ENV-1",
+        text: "Charge your phone outside the bedroom tonight.",
+        type: "environment_change",
+        recommendationRole: "environment_change",
+        effortLevel: 1,
+        personaFit: ["shielded_turtle"],
+        pillar: "Sleep & Recovery",
+      }),
+      mockRow({
+        id: "ENV-2",
+        text: "Lay out comfortable clothes for tomorrow morning.",
+        type: "first_action",
+        recommendationRole: "first_action",
+        effortLevel: 1,
+        personaFit: ["shielded_turtle"],
+        pillar: "Physical Activity",
+      }),
+      mockRow({
+        id: "ENV-3",
+        text: "Keep a water bottle visible on your desk.",
+        type: "environment_change",
+        recommendationRole: "environment_change",
+        effortLevel: 1,
+        personaFit: ["shielded_turtle"],
+        pillar: "Nutrition",
+      }),
+      mockRow({
+        id: "ENV-4",
+        text: "Put a sticky note with one calming bedtime cue on your pillow.",
+        type: "first_action",
+        recommendationRole: "first_action",
+        effortLevel: 1,
+        personaFit: ["shielded_turtle"],
+        pillar: "Mental Wellness",
+      }),
+    ];
+    const plan = generatePlanOutput({
+      ranked: pool,
+      profile: profile({
+        primaryPersona: "brittle_avoidant",
+        primaryPersonaAlias: "shielded_turtle",
+        secondaryPersona: "stress_sensitive",
+        secondaryPersonaAlias: "watchful_deer",
+        barriers: ["barrier_lack_of_time"],
+        goals: ["goal_stress_reduction"],
+      }),
+    });
+    expect(plan).not.toBeNull();
+    expect(plan!.phases[0]?.name).toBe("Create Safety");
+    expect(plan!.phases[0]?.daily_rhythm.length).toBe(0);
+    expect(plan!.phases[0]?.weekly_rhythm.length).toBeGreaterThanOrEqual(2);
+  });
+
   it("fills Phase 1 daily and weekly when recommendations are sleep-heavy (daily cadence)", () => {
     const pool: ScoredRecommendation[] = [
       mockRow({

@@ -5,9 +5,20 @@ import type { PersonaKey } from "@/lib/scoring/persona-types";
 export const BARRIER_OVERRIDE_TAGS = {
   lack_of_time: ["barrier_lack_of_time"],
   poor_sleep: ["barrier_poor_sleep"],
-  emotional_eating: ["barrier_emotional_eating_cravings", "barrier_emotional_eating"],
+  // Canonical CQ tag after tag-drift migration (+ legacy aliases).
+  emotional_eating: [
+    "barrier_stress_emotional_eating",
+    "barrier_emotional_eating_cravings",
+    "barrier_emotional_eating",
+  ],
   inconsistency: ["barrier_lack_of_consistency", "barrier_inconsistency"],
   starting_difficulty: ["barrier_starting_difficulty", "barrier_low_activation_energy"],
+  lack_of_knowledge: ["barrier_lack_of_knowledge"],
+  self_consciousness: ["barrier_self_consciousness", "barrier_gym_anxiety"],
+  unpredictable_schedule: [
+    "barrier_unpredictable_schedule",
+    "barrier_travel_schedule_disruption",
+  ],
   perfectionism: ["barrier_perfectionism"],
   overwhelm: ["barrier_overwhelm_from_complexity", "barrier_overwhelm"],
 } as const;

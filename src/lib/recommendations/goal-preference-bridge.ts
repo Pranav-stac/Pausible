@@ -28,7 +28,7 @@ function boostInjected(row: ScoredRecommendation, tag: string, bonus = 40): Scor
   };
 }
 
-/** Ensure FIT037 is ranked when DR11 goal-preference bridge applies (§21.14). */
+/** Ensure FIT037 is ranked when DR13 goal-preference bridge applies (§21.14). */
 export function injectGoalPreferenceBridge(
   ranked: ScoredRecommendation[],
   profile: UserProfile,
@@ -42,7 +42,7 @@ export function injectGoalPreferenceBridge(
 
   const boosted = boostInjected(
     { ...bridge, score: { ...bridge.score, goals: bridge.score.goals + 8, strength: 0 } },
-    "dr11_goal_preference_bridge",
+    "dr13_goal_preference_bridge",
     50,
   );
 

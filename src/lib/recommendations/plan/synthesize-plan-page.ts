@@ -19,6 +19,8 @@ import {
   buildSystemPromptForProfile,
   type IntegratedPlanPromptJson,
 } from "@/lib/recommendations/plan/plan-synthesis-prompts";
+import { dedupePlanPhaseItems, runPlanQaChecks } from "@/lib/recommendations/plan/qa-plan-checks";
+import { prependQaFailedRules } from "@/lib/recommendations/qa-regen";
 import { validatePostSynthesis } from "@/lib/recommendations/report-validation";
 import { enforceIntegratedPlanLimits, isCompleteSentence } from "@/lib/recommendations/plan/plan-text-limits";
 import type { ReportLlmProvider } from "@/lib/recommendations/report-llm-types";
@@ -205,17 +207,27 @@ export async function synthesizeIntegratedPlanPage(
 ): Promise<IntegratedPlanSynthesis | null> {
   if (!planOutput || planOutput.total_phases === 0) return null;
 
+  // PDA §39 PHASES — harden deterministic plan before AI wording.
+  let enginePlan = planOutput;
+  const preQa = runPlanQaChecks(enginePlan, profile, null);
+  if (preQa.failures.some((f) => /repeats verbatim/i.test(f))) {
+    enginePlan = dedupePlanPhaseItems(enginePlan);
+  }
+  if (preQa.failures.length) {
+    console.warn("[plan-page] qa_phases (engine):", preQa.failures);
+  }
+
   const secondaryBlendPct = input?.scores?.persona?.personaPercentages?.[profile.secondaryPersona];
   const fitScore = input?.scores?.persona?.fitScore;
   const fallback = deterministicIntegratedPlan(
-    planOutput,
+    enginePlan,
     profile,
     input,
     priorityCards,
     secondaryBlendPct,
   );
   const userPrompt = buildIntegratedPlanPrompt(
-    planOutput,
+    enginePlan,
     profile,
     input,
     secondaryBlendPct,
@@ -260,7 +272,7 @@ export async function synthesizeIntegratedPlanPage(
   const planSubtitle = coerceOptionalPlanText(parsed?.plan_subtitle);
   if (result.error || !planSubtitle) {
     return mergeParsedPlan(
-      planOutput,
+      enginePlan,
       profile,
       null,
       false,
@@ -271,8 +283,8 @@ export async function synthesizeIntegratedPlanPage(
     );
   }
 
-  return mergeParsedPlan(
-    planOutput,
+  let merged = mergeParsedPlan(
+    enginePlan,
     profile,
     parsed,
     true,
@@ -281,6 +293,46 @@ export async function synthesizeIntegratedPlanPage(
     secondaryBlendPct,
     null,
   );
+
+  // PDA §39 PHASES — regenerate AI wording once if vague progression / verbatim issues remain.
+  const postQa = runPlanQaChecks(enginePlan, profile, merged);
+  const aiFailures = postQa.failures.filter(
+    (f) => /vague progression|repeats verbatim/i.test(f),
+  );
+  if (aiFailures.length) {
+    console.warn("[plan-page] qa_phases regen:", aiFailures);
+    const regenArgs = {
+      ...callArgs,
+      userPrompt: prependQaFailedRules(userPrompt, aiFailures),
+    };
+    const regen =
+      provider === "gpt" ? await callOpenAiSection(regenArgs) : await callGeminiSection(regenArgs);
+    const regenParsed = parseSectionJson<IntegratedPlanPromptJson>(regen.text);
+    if (coerceOptionalPlanText(regenParsed?.plan_subtitle)) {
+      merged = mergeParsedPlan(
+        enginePlan,
+        profile,
+        regenParsed,
+        true,
+        input,
+        priorityCards,
+        secondaryBlendPct,
+        null,
+      );
+    }
+    const after = runPlanQaChecks(enginePlan, profile, merged);
+    if (after.failures.length) {
+      console.warn("[plan-page] qa_phases fallback:", after.failures);
+      // Fall back to deterministic intents/readiness when AI still violates PHASES.
+      merged = {
+        ...fallback,
+        synthesized: false,
+        synthesisError: after.failures.join("; "),
+      };
+    }
+  }
+
+  return merged;
 }
 
 export { deterministicIntegratedPlan };

@@ -2,7 +2,7 @@ import { scrubBlocklistTerms } from "@/lib/recommendations/content-blocklist";
 import { buildProfileSafetyContext } from "@/lib/recommendations/profile-safety-context";
 import type { UserProfile } from "@/lib/recommendations/types";
 
-/** PDA v1.2 DR23 — swap workplace language for non-workers. */
+/** PDA §38.2 DR25 — swap workplace language for non-workers. */
 const WORK_LANGUAGE_REPLACEMENTS: [RegExp, string][] = [
   [/\bafter your last work task\b/gi, "after your main activities for the day"],
   [/\bafter work\b/gi, "after your day"],
@@ -24,7 +24,7 @@ const WORK_LANGUAGE_REPLACEMENTS: [RegExp, string][] = [
   [/\bcoworkers\b/gi, "people around you"],
 ];
 
-/** PDA v1.2 DR24 — soften fixed time-of-day assumptions for shift workers. */
+/** Soften fixed time-of-day assumptions for shift workers (platform extension). */
 const SHIFT_TIME_REPLACEMENTS: [RegExp, string][] = [
   [/\bmorning walk\b/gi, "walk when you are most rested"],
   [/\bevening wind-down\b/gi, "wind-down before sleep"],
@@ -46,6 +46,14 @@ export function applyLifestyleFraming(text: string, profile: UserProfile): strin
     for (const [pattern, replacement] of SHIFT_TIME_REPLACEMENTS) {
       out = out.replace(pattern, replacement);
     }
+  }
+
+  // PDA §38.2 DR26 — skill-learning framing (CQ08 activity_cat_skill_learning).
+  if (profile.context.includes("activity_cat_skill_learning")) {
+    out = out
+      .replace(/\bworkout session\b/gi, "practice session")
+      .replace(/\bworkout\b/gi, "skill practice")
+      .replace(/\bconsistency streak\b/gi, "mastery streak");
   }
 
   return out.replace(/\s{2,}/g, " ").trim();

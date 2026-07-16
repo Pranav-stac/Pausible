@@ -37,11 +37,14 @@ export function resolvePersonaContextText(
 
   if (fromPrimary) return scrubBlocklistTerms(fromPrimary);
 
-  if (fromSecondary) return scrubBlocklistTerms(fromSecondary);
-
+  // PDA §17 / §25 — empty primary context → column E (engine text), not secondary first.
   if (isPiSeries(row)) {
     return "Your pattern insight is being prepared for this section.";
   }
 
-  return scrubBlocklistTerms(row.text.trim());
+  if (row.text.trim()) return scrubBlocklistTerms(row.text.trim());
+
+  if (fromSecondary) return scrubBlocklistTerms(fromSecondary);
+
+  return "";
 }

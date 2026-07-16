@@ -1,4 +1,5 @@
 import { containsBlocklistTerm, scrubBlocklistTerms } from "@/lib/recommendations/content-blocklist";
+import { isRecommendationSuppressedForProfile } from "@/lib/recommendations/filter";
 import { applyLifestyleFraming } from "@/lib/recommendations/lifestyle-framing";
 import {
   applySafetyDisclaimersToPillarPlan,
@@ -14,6 +15,7 @@ import type {
   PrimaryPatternSection,
   PillarSynthesisDo,
   PillarSynthesisDont,
+  RecommendationRow,
   UserProfile,
 } from "@/lib/recommendations/types";
 import { PDA_REPORT_PILLAR_ORDER } from "@/lib/recommendations/scoring-constants";
@@ -172,22 +174,21 @@ function ensureActivityPreferenceDos(
   if (!prefs.length) return dos;
 
   const next = dos.map((d) => ({ ...d }));
-  let hits = next.filter((d) => prefMatches(d.action, prefs)).length;
+  let hits = next.filter((d) => prefMatches(d.action, prefs) || prefMatches(d.example ?? "", prefs)).length;
   const isDisclaimer = (text: string) =>
     /\b(check with your doctor|physiotherapist|ob\/gyn|clearance from your doctor)\b/i.test(text) ||
     text.trim() === "A quick safety check before you begin.";
 
+  // PDA §20.7 — never invent new actions; ground preference via example field only.
   for (let i = 0; i < next.length && hits < 2; i++) {
-    if (prefMatches(next[i].action, prefs)) continue;
-    if (isDisclaimer(next[i].action) || isDisclaimer(next[i].why)) continue;
-    const pref = prefLabel(prefs[hits % prefs.length]);
-    // Keep the action line clean and non-fragmented (avoid truncating mid-clause).
-    // Preference injection is meant to bias fit, not to create awkward copy.
-    next[i] = {
-      ...next[i],
-      action: `Include a ${pref} session (10–15 min).`,
-    };
-    hits++;
+    const d = next[i]!;
+    if (prefMatches(d.action, prefs) || prefMatches(d.example ?? "", prefs)) continue;
+    if (isDisclaimer(d.action) || isDisclaimer(d.why)) continue;
+    const pref = prefLabel(prefs[hits % prefs.length]!);
+    if (!d.example?.trim()) {
+      next[i] = { ...d, example: `e.g., a short ${pref} session` };
+      hits++;
+    }
   }
 
   return next;
@@ -204,8 +205,32 @@ function applyQaAutoFixes(
     primaryPattern: PrimaryPatternSection;
     opportunityCards: OpportunityCard[];
   },
+  sourceRows: RecommendationRow[] = [],
 ): void {
   const safety = buildProfileSafetyContext(profile);
+  const suppressed = sourceRows.filter((r) => isRecommendationSuppressedForProfile(r, profile));
+  if (suppressed.length) {
+    const badIds = new Set(suppressed.map((r) => r.id));
+    const echoesSuppressed = (text: string) =>
+      suppressed.some((r) => {
+        const tip = r.text.trim().slice(0, 48).toLowerCase();
+        return tip.length >= 12 && text.toLowerCase().includes(tip);
+      });
+
+    for (const pillar of PILLARS) {
+      const plan = data.pillarPlans[pillar];
+      data.pillarPlans[pillar] = {
+        ...plan,
+        sourceIds: plan.sourceIds.filter((id) => !badIds.has(id)),
+        dos: plan.dos.filter((d) => !echoesSuppressed(`${d.action} ${d.why}`)),
+        donts: plan.donts.filter((d) => !echoesSuppressed(`${d.behavior} ${d.why}`)),
+      };
+    }
+    data.opportunityCards = data.opportunityCards.map((c) => ({
+      ...c,
+      sourceIds: c.sourceIds.filter((id) => !badIds.has(id)),
+    }));
+  }
 
   if (safety.mealsByOthers) {
     const nutrition = data.pillarPlans.Nutrition;
@@ -216,6 +241,7 @@ function applyQaAutoFixes(
       dos: nutrition.dos.map((d) => ({
         action: scrubForbiddenNutritionCopy(d.action),
         why: scrubForbiddenNutritionCopy(d.why),
+        example: d.example ? scrubForbiddenNutritionCopy(d.example) : d.example,
       })),
       donts: nutrition.donts.map((d) => ({
         behavior: scrubForbiddenNutritionCopy(d.behavior),
@@ -233,6 +259,7 @@ function applyQaAutoFixes(
       dos: nutrition.dos.map((d) => ({
         action: scrubForbiddenNutritionCopy(d.action),
         why: scrubForbiddenNutritionCopy(d.why),
+        example: d.example ? scrubForbiddenNutritionCopy(d.example) : d.example,
       })),
       donts: nutrition.donts.map((d) => ({
         behavior: scrubForbiddenNutritionCopy(d.behavior),
@@ -251,6 +278,7 @@ function applyQaAutoFixes(
       dos: nutrition.dos.map((d) => ({
         action: scrubAll(d.action),
         why: scrubAll(d.why),
+        example: d.example ? scrubAll(d.example) : d.example,
       })),
       donts: nutrition.donts.map((d) => ({
         behavior: scrubAll(d.behavior),
@@ -283,6 +311,7 @@ function applyQaAutoFixes(
         dos: plan.dos.map((d) => ({
           action: scrubCaffeineMentions(d.action),
           why: scrubCaffeineMentions(d.why),
+          example: d.example ? scrubCaffeineMentions(d.example) : d.example,
         })),
         donts: plan.donts.map((d) => ({
           behavior: scrubCaffeineMentions(d.behavior),
@@ -310,6 +339,7 @@ function applyQaAutoFixes(
         dos: plan.dos.map((d) => ({
           action: scrubFatLossCopy(d.action),
           why: scrubFatLossCopy(d.why),
+          example: d.example ? scrubFatLossCopy(d.example) : d.example,
         })),
       };
     }
@@ -361,6 +391,7 @@ function applyQaAutoFixes(
       dos: plan.dos.map((d) => ({
         action: finalizeCopy(d.action, profile),
         why: finalizeCopy(d.why, profile),
+        example: d.example ? finalizeCopy(d.example, profile) : d.example ?? null,
       })),
       donts: plan.donts.map((d) => ({
         behavior: finalizeCopy(d.behavior, profile),
@@ -407,6 +438,7 @@ export function runQaSynthesisChecks(
     primaryPattern: PrimaryPatternSection;
     opportunityCards: OpportunityCard[];
   },
+  sourceRows: RecommendationRow[] = [],
 ): QaCheckResult {
   const failures: string[] = [];
   const warnings: string[] = [];
@@ -422,6 +454,21 @@ export function runQaSynthesisChecks(
     ...data.opportunityCards.map((c) => `${c.headline} ${c.whyItMatters} ${c.startThisWeek}`),
   ].join(" ");
 
+  // PDA §39 check 2 EXCLUSION — suppressed Master rec must not appear via sourceIds.
+  if (sourceRows.length) {
+    const rowById = new Map(sourceRows.map((r) => [r.id, r]));
+    const presentIds = [
+      ...PILLARS.flatMap((p) => data.pillarPlans[p].sourceIds),
+      ...data.opportunityCards.flatMap((c) => c.sourceIds),
+    ];
+    for (const id of new Set(presentIds)) {
+      const row = rowById.get(id);
+      if (row && isRecommendationSuppressedForProfile(row, profile)) {
+        failures.push(`qa_exclusion: suppressed rec ${id} appears in output`);
+      }
+    }
+  }
+
   if (safety.needsPhysicalDisclaimer) {
     const physicalCopy = [physical.focusReason, ...physical.dos.map((d) => d.action)].join(" ");
     const ok = VALID_DISCLAIMERS.some((d) =>
@@ -431,9 +478,11 @@ export function runQaSynthesisChecks(
   }
 
   if (safety.activityPrefs.length > 0) {
-    const prefHits = physical.dos.filter((d) => prefMatches(d.action, safety.activityPrefs)).length;
+    const prefHits = physical.dos.filter(
+      (d) => prefMatches(d.action, safety.activityPrefs) || prefMatches(d.example ?? "", safety.activityPrefs),
+    ).length;
     if (prefHits < 2) {
-      warnings.push(`qa_activity_pref: only ${prefHits}/2 Physical Do items reflect preferences`);
+      failures.push(`qa_activity_pref: only ${prefHits}/2 Physical Do items reflect preferences`);
     }
   }
 
@@ -441,7 +490,7 @@ export function runQaSynthesisChecks(
     !profile.barriers.includes("barrier_lack_of_consistency") &&
     /\bconsistency is hard\b/i.test(allText)
   ) {
-    warnings.push("qa_phantom_barrier: consistency barrier referenced without user barrier");
+    failures.push("qa_phantom_barrier: consistency barrier referenced without user barrier");
   }
 
   if (safety.mealsByOthers && MEAL_PREP_WORDS.test(nutritionText)) {
@@ -453,7 +502,7 @@ export function runQaSynthesisChecks(
   }
 
   if (safety.isNonWorker && WORK_WORDS.test(allText)) {
-    warnings.push("qa_work_language: workplace terms for non-worker profile");
+    failures.push("qa_work_language: workplace terms for non-worker profile");
   }
 
   if (!safety.fatLossGoal && FAT_LOSS_WORDS.test(allText)) {
@@ -477,14 +526,19 @@ export function runQaSynthesisChecks(
       (d) => /\bwalk(ing)?\b/i.test(d.action) && !/recovery/i.test(d.action),
     );
     if (walkingPrimary && !walkingPref) {
-      warnings.push("qa_walking: walking-primary for fit/active user");
+      failures.push("qa_walking: walking-primary for fit/active user");
     }
   }
 
+  const PHOTOGRAPH_TEST =
+    /^(Tonight|Today|This (morning|evening|week)|Set|Text|Put|Place|Open|Write|Lay|Dim|Charge|Walk|Stand|Sit|Call|Ask|Fill|Keep|Move|Start)\b/i;
   for (const card of data.opportunityCards) {
     const step = card.startThisWeek?.trim() ?? "";
-    if (!step || step.length < 12) {
-      warnings.push(`qa_first_step: priority ${card.rank} first step too vague`);
+    const headline = card.headline?.trim() ?? "";
+    if (!step || step.length < 12 || !PHOTOGRAPH_TEST.test(step)) {
+      failures.push(`qa_first_step: priority ${card.rank} fails photograph test`);
+    } else if (headline && step.toLowerCase().includes(headline.toLowerCase().slice(0, 20))) {
+      failures.push(`qa_first_step: priority ${card.rank} restates the headline`);
     }
   }
 
@@ -493,7 +547,7 @@ export function runQaSynthesisChecks(
     STRENGTH_ASSERT.test(data.primaryPattern.personaNarrative) &&
     !/\b(challenge|but you|however|flagged|identified)\b/i.test(data.primaryPattern.personaNarrative)
   ) {
-    warnings.push("qa_persona_barrier: strength claim without acknowledging barrier");
+    failures.push("qa_persona_barrier: strength claim without acknowledging barrier");
   }
 
   const leak = containsBlocklistTerm(allText);
@@ -510,6 +564,10 @@ function mapDos(dos: PillarSynthesisDo[], profile: UserProfile): PillarSynthesis
   return dos.map((d) => ({
     action: applyLifestyleFraming(scrubBlocklistTerms(d.action), profile),
     why: applyLifestyleFraming(scrubBlocklistTerms(d.why), profile),
+    // PDA §20.7 / §38.3 — preserve personalized example field through post-process.
+    example: d.example
+      ? applyLifestyleFraming(scrubBlocklistTerms(d.example), profile)
+      : d.example ?? null,
   }));
 }
 
@@ -529,6 +587,7 @@ export function applyPdaV12SynthesisPostProcess(
     opportunityCards: OpportunityCard[];
     blindSpots: { patternBody: string; goalsBody: string };
   },
+  sourceRows: RecommendationRow[] = [],
 ): typeof data & { qa: QaCheckResult } {
   const pillarPlans = { ...data.pillarPlans };
 
@@ -580,7 +639,7 @@ export function applyPdaV12SynthesisPostProcess(
     blindSpots,
   };
 
-  applyQaAutoFixes(profile, processed);
+  applyQaAutoFixes(profile, processed, sourceRows);
 
   // Activity-preference injection can overwrite the first Physical Do row; re-apply disclaimers last.
   for (const pillar of PILLARS) {
@@ -591,6 +650,25 @@ export function applyPdaV12SynthesisPostProcess(
     );
   }
 
-  const qa = runQaSynthesisChecks(profile, processed);
+  // Capture EXCLUSION failures against pre-strip sourceIds so §39 still regenerates.
+  const exclusionFailures: string[] = [];
+  if (sourceRows.length) {
+    const rowById = new Map(sourceRows.map((r) => [r.id, r]));
+    const presentIds = [
+      ...PILLARS.flatMap((p) => data.pillarPlans[p].sourceIds),
+      ...data.opportunityCards.flatMap((c) => c.sourceIds),
+    ];
+    for (const id of new Set(presentIds)) {
+      const row = rowById.get(id);
+      if (row && isRecommendationSuppressedForProfile(row, profile)) {
+        exclusionFailures.push(`qa_exclusion: suppressed rec ${id} appears in output`);
+      }
+    }
+  }
+
+  const qa = runQaSynthesisChecks(profile, processed, sourceRows);
+  if (exclusionFailures.length) {
+    qa.failures = [...new Set([...exclusionFailures, ...qa.failures])];
+  }
   return { ...processed, qa };
 }

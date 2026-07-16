@@ -23,8 +23,11 @@ export function filterRecommendations(
   const isMinor = profile.isMinor || profile.context.includes("age_under_18");
 
   return rows.filter((row) => {
-    if (isPiSeries(row) && !primaryPersonaMatchesRow(row, profile.primaryPersonaAlias)) {
-      return false;
+    // Keep PI for primary (scored gate) and secondary (Page 5 narrative only; PI score = 0).
+    if (isPiSeries(row)) {
+      const primaryOk = primaryPersonaMatchesRow(row, profile.primaryPersonaAlias);
+      const secondaryOk = primaryPersonaMatchesRow(row, profile.secondaryPersonaAlias);
+      if (!primaryOk && !secondaryOk) return false;
     }
 
     const rowExcludes = row.excludeIf.filter((e) => e !== "exclude_none");
@@ -38,7 +41,7 @@ export function filterRecommendations(
   });
 }
 
-/** Full deterministic filter pipeline: hard gate + DR19–DR22 + DR18 goal-safety. */
+/** Full deterministic filter pipeline: hard gate + §38.2 DR21–DR24 + DR20 goal-safety. */
 export function filterForProfile(
   rows: RecommendationRow[],
   profile: UserProfile,
@@ -50,4 +53,12 @@ export function filterForProfile(
     ),
     profile,
   );
+}
+
+/** PDA §39 EXCLUSION — true when a Master row must not appear for this profile. */
+export function isRecommendationSuppressedForProfile(
+  row: RecommendationRow,
+  profile: UserProfile,
+): boolean {
+  return filterForProfile([row], profile).length === 0;
 }

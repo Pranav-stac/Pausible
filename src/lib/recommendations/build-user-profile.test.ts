@@ -21,7 +21,7 @@ describe("wellness legacy option aliases", () => {
   });
 });
 
-describe("PDA §21.14 DR11 goal-preference bridge", () => {
+describe("PDA §21.14 DR13 goal-preference bridge", () => {
   it("surfaces bridge when strength goal lacks resistance preference", () => {
     expect(
       computeGoalPreferenceBridge(["goal_strength"], ["activity_pref_yoga"]),

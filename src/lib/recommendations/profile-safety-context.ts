@@ -1,4 +1,5 @@
 import type { UserProfile } from "@/lib/recommendations/types";
+import { resolveRuntimeShortForms } from "@/lib/recommendations/tag-normalization";
 
 const RESTRICTION_FLAGS = new Set([
   "exclude_medical_condition",
@@ -33,6 +34,8 @@ export type ProfileSafetyContext = {
 
 export function buildProfileSafetyContext(profile: UserProfile): ProfileSafetyContext {
   const ctx = new Set(profile.context);
+  // PDA §10.2 — prefer runtime short forms for selection/prompt conditions.
+  const short = resolveRuntimeShortForms(profile.context);
   const restrictions = profile.exclusions.filter(
     (e) => e !== "exclude_none" && RESTRICTION_FLAGS.has(e),
   );
@@ -59,14 +62,21 @@ export function buildProfileSafetyContext(profile: UserProfile): ProfileSafetyCo
       ctx.has("lifestyle_student") ||
       ctx.has("lifestyle_not_working"),
     isShiftWorker: ctx.has("work_shift_based"),
-    caffeineNone: ctx.has("caffeine_none"),
-    mealsByOthers: ctx.has("meal_control_prepared_by_others"),
-    eatsOutFrequently: ctx.has("meal_control_frequent_eating_out"),
+    caffeineNone: short.caffeine === "none" || ctx.has("caffeine_none"),
+    mealsByOthers:
+      short.meal_control === "others_prepare" || ctx.has("meal_control_prepared_by_others"),
+    eatsOutFrequently:
+      short.meal_control === "eat_out" || ctx.has("meal_control_frequent_eating_out"),
     fatLossGoal: profile.goals.includes("goal_fat_loss"),
     activityPrefs: profile.context.filter((t) => t.startsWith(ACTIVITY_PREF_PREFIX)),
     fitActive:
-      (ctx.has("fitness_consistent") || ctx.has("fitness_advanced")) &&
-      (ctx.has("activity_moderate") || ctx.has("activity_very_active")),
+      (short.fitness_level === "consistent" ||
+        ctx.has("fitness_consistent") ||
+        ctx.has("fitness_advanced")) &&
+      (short.activity_level === "moderate" ||
+        short.activity_level === "very_active" ||
+        ctx.has("activity_moderate") ||
+        ctx.has("activity_very_active")),
     hasConsistencyBarrier: profile.barriers.some((b) =>
       ["barrier_lack_of_consistency", "barrier_low_motivation"].includes(b),
     ),

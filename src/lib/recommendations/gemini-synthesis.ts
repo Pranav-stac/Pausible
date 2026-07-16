@@ -38,6 +38,13 @@ import {
   resolveFitBlend,
 } from "@/lib/recommendations/gemini-section-prompts";
 import { applyPdaV12SynthesisPostProcess } from "@/lib/recommendations/qa-synthesis-checks";
+import { resolvedText } from "@/lib/recommendations/action-pool";
+import {
+  failedRulesForSection,
+  mapQaFailuresToSections,
+  prependQaFailedRules,
+  type QaRegenSection,
+} from "@/lib/recommendations/qa-regen";
 import { sanitizePostSynthesisInput, validatePostSynthesis } from "@/lib/recommendations/report-validation";
 import { scrubBlocklistTerms } from "@/lib/recommendations/content-blocklist";
 import { PDA_REPORT_PILLAR_ORDER } from "@/lib/recommendations/scoring-constants";
@@ -217,14 +224,34 @@ function fallbackPrimaryPattern(
   };
 }
 
-function fallbackSecondaryPattern(selection: ActionPlanSelection): SecondaryPatternSection | null {
+function fallbackSecondaryPattern(
+  selection: ActionPlanSelection,
+  blendStrength?: string,
+): SecondaryPatternSection | null {
   const pi = selection.piSeries;
-  if (!pi.secondarySuccessConditionText?.trim() && !pi.secondaryStrengthInsightText?.trim()) return null;
+  const success = pi.secondarySuccessConditionText?.trim() || "";
+  const strength = pi.secondaryStrengthInsightText?.trim() || "";
+  if (!success && !strength) return null;
+
+  // PDA §20.5 Pure: 2-sentence summary only; empty boxes; no blend narrative.
+  if (blendStrength === "pure") {
+    const s1 = success || strength;
+    const s2 =
+      strength && strength !== s1
+        ? strength
+        : "This secondary pattern does not meaningfully reshape how your primary pattern shows up day to day.";
+    return {
+      secondaryNarrative: `${s1.replace(/\s+/g, " ").trim().replace(/\.$/, "")}. ${s2.replace(/\s+/g, " ").trim()}`.slice(0, 600),
+      behaviouralBoxes: [],
+      blendNarrative: null,
+    };
+  }
+
   return {
-    secondaryNarrative: pi.secondarySuccessConditionText || pi.secondaryStrengthInsightText,
+    secondaryNarrative: success || strength,
     behaviouralBoxes: [
-      { title: "Behavioural Tendencies", content: pi.secondarySuccessConditionText || "—" },
-      { title: "What Motivates You", content: pi.secondaryStrengthInsightText || "—" },
+      { title: "Behavioural Tendencies", content: success || "—" },
+      { title: "What Motivates You", content: strength || "—" },
       { title: "Growth Pattern", content: pi.secondaryPatternPredictionText || "—" },
     ],
     blendNarrative: null,
@@ -239,7 +266,10 @@ function fallbackSynthesis(
   const pi = selection.piSeries;
   const persona = input?.scores?.persona;
   const primaryPattern = fallbackPrimaryPattern(selection, persona);
-  const secondaryPattern = fallbackSecondaryPattern(selection);
+  const secondaryPattern = fallbackSecondaryPattern(
+    selection,
+    selection.profile.blendStrength ?? input?.scores?.persona?.blendStrength,
+  );
 
   const opportunityCards = selection.opportunityCards.map((card, i) => ({
     ...card,
@@ -288,7 +318,7 @@ function fallbackSynthesis(
     primaryPattern,
     opportunityCards,
     blindSpots,
-  });
+  }, selection.ranked);
 
   return {
     opportunityCards: processed.opportunityCards,
@@ -297,8 +327,12 @@ function fallbackSynthesis(
     coachNotes: {
       keyStrength: pi.strengthInsightText || "",
       keyRisk: pi.blindSpotText || "",
-      coachingNotes: [],
-      sourceIds: pi.sourceIds,
+      coachingNotes: selection.coachSourceRows.map((r) =>
+        resolvedText(r, selection.profile, { topScoring: true }),
+      ),
+      sourceIds: [
+        ...new Set([...pi.sourceIds, ...selection.coachSourceRows.map((r) => r.id)]),
+      ],
     },
     safetyGuidance,
     safetyCards,
@@ -574,14 +608,15 @@ export async function synthesizeActionPlanWithLlm(
         }
       : fallbackPrimaryPattern(selection, persona);
 
+  const blendStrength = fb.blendStrength || selection.profile.blendStrength || persona?.blendStrength;
   const secondaryPattern: SecondaryPatternSection | undefined =
     secondaryJson?.secondaryNarrative?.trim()
       ? {
           secondaryNarrative: secondaryJson.secondaryNarrative,
-          behaviouralBoxes: secondaryJson.behaviouralBoxes ?? [],
-          blendNarrative: secondaryJson.blendNarrative ?? null,
+          behaviouralBoxes: blendStrength === "pure" ? [] : (secondaryJson.behaviouralBoxes ?? []),
+          blendNarrative: blendStrength === "pure" ? null : (secondaryJson.blendNarrative ?? null),
         }
-      : fallbackSecondaryPattern(selection) ?? undefined;
+      : fallbackSecondaryPattern(selection, blendStrength) ?? undefined;
 
   const pillarPlans = {} as ActionPlanSynthesis["pillarPlans"];
   for (const pillar of PILLARS) {
@@ -626,9 +661,6 @@ export async function synthesizeActionPlanWithLlm(
     opportunities: opportunityCards,
   };
 
-  const tokenUsage = mergeTokenUsage(tokenParts, model);
-  const llmSucceeded = (tokenUsage?.totalTokens ?? 0) > 0;
-
   const primaryPersonaKey = persona ? resolvePrimaryPersonaKey(persona) : null;
 
   const scrubbedPrimaryPattern = scrubPrimaryPattern(primaryPattern);
@@ -645,20 +677,228 @@ export async function synthesizeActionPlanWithLlm(
     primaryPattern: scrubbedPrimaryPattern,
     opportunityCards: scrubbedOpportunityCards,
     blindSpots: scrubbedBlindSpots,
-  });
+  }, selection.ranked);
 
   let finalPrimaryPattern = pdaProcessed.primaryPattern;
   let finalSecondaryPattern = scrubbedSecondaryPattern;
   let finalPillarPlans = pdaProcessed.pillarPlans;
   let finalOpportunityCards = pdaProcessed.opportunityCards;
   let finalBlindSpots = pdaProcessed.blindSpots;
+  let qaFailures = [...pdaProcessed.qa.failures];
+  let qaWarnings = [...pdaProcessed.qa.warnings];
 
-  if (pdaProcessed.qa.warnings.length) {
-    errors.push(...pdaProcessed.qa.warnings.map((w) => `qa_warn: ${w}`));
+  // PDA §39 — on QA failure, regenerate failing sections once with the failed rule at top.
+  if (qaFailures.length > 0) {
+    const sectionsToRegen = mapQaFailuresToSections(qaFailures);
+    errors.push(`qa_regen: retrying ${sectionsToRegen.join(", ")}`);
+
+    const profileInput = input ?? { answers: {} };
+    const regenJobs: Array<{ section: QaRegenSection; promise: Promise<GeminiSectionResult> }> = [];
+
+    for (const section of sectionsToRegen) {
+      const rules = failedRulesForSection(section, qaFailures);
+      if (section === "primary_pattern" && persona && input) {
+        regenJobs.push({
+          section,
+          promise: call(
+            prependQaFailedRules(buildPrimaryPatternPrompt(selection, ctx, input, fb), rules),
+            SECTION_OUTPUT_TOKENS.primaryPattern,
+          ),
+        });
+      } else if (section === "secondary_pattern") {
+        regenJobs.push({
+          section,
+          promise: call(
+            prependQaFailedRules(
+              buildSecondaryPatternPrompt(selection, ctx, profileInput, fb),
+              rules,
+            ),
+            SECTION_OUTPUT_TOKENS.secondaryPattern,
+          ),
+        });
+      } else if (section === "blind_spots") {
+        regenJobs.push({
+          section,
+          promise: call(
+            prependQaFailedRules(buildBlindSpotsPrompt(selection, ctx, fb), rules),
+            SECTION_OUTPUT_TOKENS.blindSpots,
+          ),
+        });
+      } else if (section === "priorities") {
+        regenJobs.push({
+          section,
+          promise: call(
+            prependQaFailedRules(
+              buildHighImpactPrioritiesPrompt(
+                selection.opportunityCards,
+                selection.profile,
+                ctx,
+                profileInput,
+                fb,
+              ),
+              rules,
+            ),
+            SECTION_OUTPUT_TOKENS.priorities,
+          ),
+        });
+      } else if (
+        section === "Sleep & Recovery" ||
+        section === "Nutrition" ||
+        section === "Physical Activity" ||
+        section === "Mental Wellness"
+      ) {
+        regenJobs.push({
+          section,
+          promise: call(
+            prependQaFailedRules(
+              buildPillarPrompt(
+                section,
+                selection.pillarPlans[section],
+                selection.profile,
+                ctx,
+                profileInput,
+                fb,
+              ),
+              rules,
+            ),
+            SECTION_OUTPUT_TOKENS.pillar,
+          ),
+        });
+      }
+      // plan_page regen is handled in synthesizeIntegratedPlanPage (§39 PHASES).
+    }
+
+    const regenResults = await Promise.all(regenJobs.map((j) => j.promise));
+    let regenPrimary = finalPrimaryPattern;
+    let regenSecondary = finalSecondaryPattern;
+    let regenPillars = { ...finalPillarPlans };
+    let regenCards = finalOpportunityCards;
+    let regenBlind = finalBlindSpots;
+
+    for (let i = 0; i < regenJobs.length; i++) {
+      const { section } = regenJobs[i]!;
+      const res = regenResults[i]!;
+      tokenParts.push(res.tokenUsage);
+      if (res.error) {
+        errors.push(`qa_regen_${section}: ${res.error}`);
+        continue;
+      }
+
+      if (section === "primary_pattern") {
+        const j = parseSectionJson<PrimaryPatternSection>(res.text);
+        if (j?.personaNarrative?.trim()) {
+          regenPrimary = {
+            personaNarrative: j.personaNarrative,
+            behaviouralBoxes: j.behaviouralBoxes?.length
+              ? j.behaviouralBoxes
+              : regenPrimary.behaviouralBoxes,
+            traitDeviations: j.traitDeviations ?? regenPrimary.traitDeviations,
+          };
+        }
+      } else if (section === "secondary_pattern") {
+        const j = parseSectionJson<SecondaryPatternSection>(res.text);
+        if (j?.secondaryNarrative?.trim()) {
+          regenSecondary = {
+            secondaryNarrative: j.secondaryNarrative,
+            behaviouralBoxes: blendStrength === "pure" ? [] : (j.behaviouralBoxes ?? []),
+            blendNarrative: blendStrength === "pure" ? null : (j.blendNarrative ?? null),
+          };
+        }
+      } else if (section === "blind_spots") {
+        const j = parseSectionJson<{
+          patternBody?: string;
+          goalsBody?: string;
+          pattern_you_do_not_notice?: string;
+          what_this_means_for_your_goals?: string;
+        }>(res.text);
+        regenBlind = {
+          patternBody:
+            j?.pattern_you_do_not_notice?.trim() || j?.patternBody?.trim() || regenBlind.patternBody,
+          goalsBody:
+            j?.what_this_means_for_your_goals?.trim() || j?.goalsBody?.trim() || regenBlind.goalsBody,
+        };
+      } else if (section === "priorities") {
+        const j = parseSectionJson<{
+          priority_cards?: {
+            pillar: string;
+            rank: number;
+            headline: string;
+            why_it_matters: string;
+            first_step: string;
+          }[];
+          priorityCards?: {
+            pillar: string;
+            rank: number;
+            headline: string;
+            whyItMatters: string;
+            startThisWeek: string;
+          }[];
+        }>(res.text);
+        if (j) {
+          regenCards = applyOpportunityCardFallbacks(
+            mergePriorityCards(selection.opportunityCards, j),
+          );
+        }
+      } else if (
+        section === "Sleep & Recovery" ||
+        section === "Nutrition" ||
+        section === "Physical Activity" ||
+        section === "Mental Wellness"
+      ) {
+        const parsed = parseSectionJson<{
+          headline?: string;
+          do_items?: PillarSynthesisDo[];
+          doItems?: PillarSynthesisDo[];
+          dont_items?: (PillarSynthesisDont & { behaviour?: string })[];
+          dontItems?: (PillarSynthesisDont & { behaviour?: string })[];
+          dos?: PillarSynthesisDo[];
+          donts?: (PillarSynthesisDont & { behaviour?: string })[];
+        }>(res.text);
+        const base = selection.pillarPlans[section];
+        const { focusArea, focusReason } = resolvePillarFocusCopy(section, base, parsed);
+        const dos = parsed?.do_items ?? parsed?.doItems ?? parsed?.dos;
+        const rawDonts = parsed?.dont_items ?? parsed?.dontItems ?? parsed?.donts;
+        if (dos?.length || rawDonts?.length || parsed?.headline) {
+          regenPillars[section] = {
+            focusArea,
+            focusReason,
+            dos: dos?.length ? dos.map(normalizePillarDo) : regenPillars[section].dos,
+            donts: rawDonts?.length
+              ? rawDonts.map(normalizePillarDont)
+              : regenPillars[section].donts,
+            sourceIds: base.sourceIds,
+          };
+        }
+      }
+    }
+
+    const reprocessed = applyPdaV12SynthesisPostProcess(selection.profile, {
+      pillarPlans: scrubPillarPlans(regenPillars),
+      primaryPattern: scrubPrimaryPattern(regenPrimary),
+      opportunityCards: scrubOpportunityCards(regenCards),
+      blindSpots: {
+        patternBody: scrubCopy(regenBlind.patternBody),
+        goalsBody: scrubCopy(regenBlind.goalsBody),
+      },
+    }, selection.ranked);
+    finalPrimaryPattern = reprocessed.primaryPattern;
+    finalSecondaryPattern = scrubSecondaryPattern(regenSecondary);
+    finalPillarPlans = reprocessed.pillarPlans;
+    finalOpportunityCards = reprocessed.opportunityCards;
+    finalBlindSpots = reprocessed.blindSpots;
+    qaFailures = [...reprocessed.qa.failures];
+    qaWarnings = [...reprocessed.qa.warnings];
   }
-  if (pdaProcessed.qa.failures.length) {
-    errors.push(...pdaProcessed.qa.failures.map((f) => `qa: ${f}`));
+
+  if (qaWarnings.length) {
+    errors.push(...qaWarnings.map((w) => `qa_warn: ${w}`));
   }
+  if (qaFailures.length) {
+    errors.push(...qaFailures.map((f) => `qa: ${f}`));
+  }
+
+  const tokenUsage = mergeTokenUsage(tokenParts, model);
+  const llmSucceeded = (tokenUsage?.totalTokens ?? 0) > 0;
 
   const postGate = validatePostSynthesis(
     sanitizePostSynthesisInput({
@@ -696,7 +936,7 @@ export async function synthesizeActionPlanWithLlm(
         patternBody: scrubCopy(fallback.reportSections?.blindSpots.patternBody ?? finalBlindSpots.patternBody),
         goalsBody: scrubCopy(fallback.reportSections?.blindSpots.goalsBody ?? finalBlindSpots.goalsBody),
       },
-    });
+    }, selection.ranked);
     finalPrimaryPattern = fallbackProcessed.primaryPattern;
     finalSecondaryPattern = scrubSecondaryPattern(fallback.reportSections?.secondaryPattern);
     finalPillarPlans = fallbackProcessed.pillarPlans;
@@ -719,8 +959,15 @@ export async function synthesizeActionPlanWithLlm(
     coachNotes: {
       keyStrength: finalPrimaryPattern.behaviouralBoxes[1]?.content ?? "",
       keyRisk: finalBlindSpots.patternBody,
-      coachingNotes: [],
-      sourceIds: selection.piSeries.sourceIds,
+      coachingNotes: selection.coachSourceRows.map((r) =>
+        resolvedText(r, selection.profile, { topScoring: true }),
+      ),
+      sourceIds: [
+        ...new Set([
+          ...selection.piSeries.sourceIds,
+          ...selection.coachSourceRows.map((r) => r.id),
+        ]),
+      ],
     },
     safetyGuidance,
     safetyCards,
@@ -743,19 +990,28 @@ export async function buildActionPlan(args: {
   const { loadReportLlmProviderAdmin } = await import("@/lib/server/report-llm-config");
   const { generatePlanOutput } = await import("@/lib/recommendations/plan/plan-generator");
   const { synthesizeIntegratedPlanPage } = await import("@/lib/recommendations/plan/synthesize-plan-page");
+  const { dedupePlanPhaseItems, runPlanQaChecks } = await import(
+    "@/lib/recommendations/plan/qa-plan-checks"
+  );
 
   const templates = args.reportTemplates ?? (await loadReportTemplatesAdmin());
   const llmProvider = args.llmProvider ?? (await loadReportLlmProviderAdmin());
   const ctx = buildGeminiSynthesisContext(args.input, args.config, args.selection);
 
   const secondaryBlendPct = args.input.scores?.persona?.personaPercentages?.[args.selection.profile.secondaryPersona];
-  const planOutput = generatePlanOutput({
+  let planOutput = generatePlanOutput({
     ranked: args.selection.ranked,
     profile: args.selection.profile,
     planId: `plan_${args.selection.profile.primaryPersona}_${Date.now()}`,
     secondaryBlendPct,
   });
 
+  if (planOutput) {
+    const planQa = runPlanQaChecks(planOutput, args.selection.profile, null);
+    if (planQa.failures.some((f) => /repeats verbatim/i.test(f))) {
+      planOutput = dedupePlanPhaseItems(planOutput);
+    }
+  }
   const [synthesis, integratedPlan, reportDisplayName] = await Promise.all([
     synthesizeActionPlanWithLlm(args.selection, ctx, args.input, templates, llmProvider),
     synthesizeIntegratedPlanPage(

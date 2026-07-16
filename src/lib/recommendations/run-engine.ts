@@ -3,6 +3,7 @@ import { filterForProfile } from "@/lib/recommendations/filter";
 import { injectGoalPreferenceBridge, injectSafeReturnRec } from "@/lib/recommendations/goal-preference-bridge";
 import { injectContextSignalAnchors } from "@/lib/recommendations/context-signal-anchors";
 import { injectModalityAnchors } from "@/lib/recommendations/modality-anchors";
+import { applyMmrOrdering } from "@/lib/recommendations/mmr";
 import { validatePreGeneration } from "@/lib/recommendations/report-validation";
 import { buildActionPlan } from "@/lib/recommendations/gemini-synthesis";
 import { loadRecommendationConfig } from "@/lib/recommendations/load-recommendation-config";
@@ -19,9 +20,11 @@ export async function runRecommendationEngine(
   const profile = buildUserProfile(input, config);
   const filtered = filterForProfile(config.recommendations, profile);
   const scored = scoreAll(filtered, profile);
+  // PDA §15 / B4 — diversity-aware MMR after score ranking.
+  const mmrOrdered = applyMmrOrdering(scored);
   const ranked = injectSafeReturnRec(
     injectContextSignalAnchors(
-      injectModalityAnchors(injectGoalPreferenceBridge(scored, profile, scored), profile, scored),
+      injectModalityAnchors(injectGoalPreferenceBridge(mmrOrdered, profile, scored), profile, scored),
       profile,
       scored,
     ),

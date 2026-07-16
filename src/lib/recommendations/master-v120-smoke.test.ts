@@ -43,6 +43,7 @@ describe("Master v1.20 seed smoke", () => {
       computedAgeYears: 28,
       isMinor: false,
       isElderly65: false,
+    secondaryBlendPct: null,
     };
     const ranked = scoreAll(seed.recommendations, profile);
     const plan = selectActionPlan(ranked, profile);

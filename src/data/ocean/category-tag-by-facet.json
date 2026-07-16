@@ -19,12 +19,7 @@
         "max": 7,
         "tag": "nutritional_curiosity_high"
       }
-    ],
-    "meanings": {
-      "low": "Lower curiosity toward food exploration and nutrition learning.",
-      "medium": "Moderate food curiosity; selective interest in trying or learning.",
-      "high": "High curiosity toward food exploration, healthy-food novelty, and nutrition learning."
-    }
+    ]
   },
   "O-EE": {
     "trait": "Openness",
@@ -46,12 +41,7 @@
         "max": 7,
         "tag": "exercise_exploration_high"
       }
-    ],
-    "meanings": {
-      "low": "Lower interest in exploring new ways to stay active.",
-      "medium": "Moderate interest in new movement options.",
-      "high": "High interest in exploring different forms of movement and activity."
-    }
+    ]
   },
   "O-RE": {
     "trait": "Openness",
@@ -73,12 +63,7 @@
         "max": 7,
         "tag": "recovery_exploration_high"
       }
-    ],
-    "meanings": {
-      "low": "Lower curiosity about recovery methods or recovery learning.",
-      "medium": "Moderate recovery curiosity; may explore selectively.",
-      "high": "High curiosity about recovery approaches and ways to recharge."
-    }
+    ]
   },
   "O-ME": {
     "trait": "Openness",
@@ -100,12 +85,7 @@
         "max": 7,
         "tag": "mind_body_exploration_high"
       }
-    ],
-    "meanings": {
-      "low": "Lower interest in reflection, mindfulness, or self-awareness practices.",
-      "medium": "Moderate interest in mind-body practices.",
-      "high": "High interest in reflection, mindfulness, and mental wellness exploration."
-    }
+    ]
   },
   "O-WL": {
     "trait": "Openness",
@@ -127,12 +107,7 @@
         "max": 7,
         "tag": "wellness_learning_orientation_high"
       }
-    ],
-    "meanings": {
-      "low": "Lower tendency to learn before making wellness choices.",
-      "medium": "Moderate learning orientation; may seek information when needed.",
-      "high": "High tendency to learn, compare, and understand before wellness decisions."
-    }
+    ]
   },
   "O-WA": {
     "trait": "Openness",
@@ -154,12 +129,7 @@
         "max": 7,
         "tag": "wellness_adaptability_high"
       }
-    ],
-    "meanings": {
-      "low": "Lower willingness to change wellness habits or approaches.",
-      "medium": "Moderate adaptability; may change when benefits are clear.",
-      "high": "High flexibility and willingness to update wellness habits."
-    }
+    ]
   },
   "C-MP": {
     "trait": "Conscientiousness",
@@ -181,12 +151,7 @@
         "max": 7,
         "tag": "meal_planning_discipline_high"
       }
-    ],
-    "meanings": {
-      "low": "Lower planning around food decisions.",
-      "medium": "Moderate meal planning; may plan when convenient.",
-      "high": "High tendency to plan food choices ahead."
-    }
+    ]
   },
   "C-WA": {
     "trait": "Conscientiousness",
@@ -208,12 +173,7 @@
         "max": 7,
         "tag": "workout_adherence_high"
       }
-    ],
-    "meanings": {
-      "low": "Lower follow-through on physical activity intentions.",
-      "medium": "Moderate follow-through; consistency may depend on circumstances.",
-      "high": "High tendency to follow through on activity plans."
-    }
+    ]
   },
   "C-SR": {
     "trait": "Conscientiousness",
@@ -235,12 +195,7 @@
         "max": 7,
         "tag": "sleep_routine_consistency_high"
       }
-    ],
-    "meanings": {
-      "low": "Lower tendency to maintain steady sleep routines.",
-      "medium": "Moderate sleep routine consistency.",
-      "high": "High tendency to maintain and protect sleep routines."
-    }
+    ]
   },
   "C-PT": {
     "trait": "Conscientiousness",
@@ -262,12 +217,7 @@
         "max": 7,
         "tag": "progress_tracking_high"
       }
-    ],
-    "meanings": {
-      "low": "Lower tendency to monitor wellness progress.",
-      "medium": "Moderate interest in checking progress.",
-      "high": "High tendency to track, review, and monitor wellness improvement."
-    }
+    ]
   },
   "C-IC": {
     "trait": "Conscientiousness",
@@ -289,12 +239,7 @@
         "max": 7,
         "tag": "impulse_control_high"
       }
-    ],
-    "meanings": {
-      "low": "Lower ability to pause before short-term choices.",
-      "medium": "Moderate impulse control; varies by situation.",
-      "high": "High ability to pause, think, and make intentional wellness choices."
-    }
+    ]
   },
   "C-RD": {
     "trait": "Conscientiousness",
@@ -316,12 +261,7 @@
         "max": 7,
         "tag": "recovery_discipline_high"
       }
-    ],
-    "meanings": {
-      "low": "Lower tendency to act on recovery needs.",
-      "medium": "Moderate recovery discipline; may rest when signals are obvious.",
-      "high": "High tendency to respect rest, recovery, and fatigue signals."
-    }
+    ]
   },
   "E-SW": {
     "trait": "Extraversion",
@@ -343,39 +283,29 @@
         "max": 7,
         "tag": "social_workout_preference_high"
       }
-    ],
-    "meanings": {
-      "low": "Lower preference for being active with others.",
-      "medium": "Moderate social activity preference.",
-      "high": "High preference for physical activity with others."
-    }
+    ]
   },
-  "E-WS": {
+  "E-SE": {
     "trait": "Extraversion",
-    "category": "Wellness Sharing",
-    "categoryCode": "wellness_sharing",
+    "category": "Social Eating Influence",
+    "categoryCode": "social_eating_influence",
     "bands": [
       {
         "min": 1,
         "max": 2.99,
-        "tag": "wellness_sharing_low"
+        "tag": "social_eating_influence_low"
       },
       {
         "min": 3,
         "max": 4.99,
-        "tag": "wellness_sharing_medium"
+        "tag": "social_eating_influence_medium"
       },
       {
         "min": 5,
         "max": 7,
-        "tag": "wellness_sharing_high"
+        "tag": "social_eating_influence_high"
       }
-    ],
-    "meanings": {
-      "low": "Lower tendency to discuss or share wellness interests.",
-      "medium": "Moderate wellness sharing; shares selectively.",
-      "high": "High tendency to talk about and share wellness ideas."
-    }
+    ]
   },
   "E-HC": {
     "trait": "Extraversion",
@@ -397,39 +327,29 @@
         "max": 7,
         "tag": "healthy_competition_high"
       }
-    ],
-    "meanings": {
-      "low": "Lower motivation from challenge or comparison.",
-      "medium": "Moderate response to healthy competition.",
-      "high": "High motivation from friendly competition, challenge, or comparison."
-    }
+    ]
   },
-  "E-AE": {
+  "E-SR": {
     "trait": "Extraversion",
-    "category": "Activity Energy",
-    "categoryCode": "activity_energy",
+    "category": "Social Recharging",
+    "categoryCode": "social_recharging",
     "bands": [
       {
         "min": 1,
         "max": 2.99,
-        "tag": "activity_energy_low"
+        "tag": "social_recharging_low"
       },
       {
         "min": 3,
         "max": 4.99,
-        "tag": "activity_energy_medium"
+        "tag": "social_recharging_medium"
       },
       {
         "min": 5,
         "max": 7,
-        "tag": "activity_energy_high"
+        "tag": "social_recharging_high"
       }
-    ],
-    "meanings": {
-      "low": "Lower natural drive toward movement or stimulation.",
-      "medium": "Moderate activity energy.",
-      "high": "High natural energy, movement-seeking, and activity drive."
-    }
+    ]
   },
   "E-GR": {
     "trait": "Extraversion",
@@ -451,12 +371,7 @@
         "max": 7,
         "tag": "group_recovery_preference_high"
       }
-    ],
-    "meanings": {
-      "low": "Lower preference for shared relaxation or recovery activities.",
-      "medium": "Moderate preference for group-based recovery.",
-      "high": "High preference for relaxing or recovering through shared activities."
-    }
+    ]
   },
   "E-PW": {
     "trait": "Extraversion",
@@ -478,12 +393,7 @@
         "max": 7,
         "tag": "positive_wellness_influence_high"
       }
-    ],
-    "meanings": {
-      "low": "Lower outward enthusiasm or influence around wellness.",
-      "medium": "Moderate tendency to encourage or influence others.",
-      "high": "High outward wellness enthusiasm and positive influence on others."
-    }
+    ]
   },
   "A-NC": {
     "trait": "Agreeableness",
@@ -505,12 +415,7 @@
         "max": 7,
         "tag": "nutrition_consideration_high"
       }
-    ],
-    "meanings": {
-      "low": "Lower tendency to consider others' food preferences.",
-      "medium": "Moderate consideration of others in food choices.",
-      "high": "High consideration and accommodation of others' food needs."
-    }
+    ]
   },
   "A-WH": {
     "trait": "Agreeableness",
@@ -532,12 +437,7 @@
         "max": 7,
         "tag": "wellness_harmony_high"
       }
-    ],
-    "meanings": {
-      "low": "Lower preference for respectful, low-conflict wellness discussions.",
-      "medium": "Moderate harmony orientation.",
-      "high": "High preference for respectful, cooperative wellness discussions."
-    }
+    ]
   },
   "A-SE": {
     "trait": "Agreeableness",
@@ -559,12 +459,7 @@
         "max": 7,
         "tag": "supportive_encouragement_high"
       }
-    ],
-    "meanings": {
-      "low": "Lower tendency to encourage others' wellness efforts.",
-      "medium": "Moderate supportiveness.",
-      "high": "High tendency to encourage and celebrate others' wellness progress."
-    }
+    ]
   },
   "A-RG": {
     "trait": "Agreeableness",
@@ -586,12 +481,7 @@
         "max": 7,
         "tag": "respect_for_guidance_high"
       }
-    ],
-    "meanings": {
-      "low": "Lower receptiveness to helpful advice or feedback.",
-      "medium": "Moderate receptiveness to guidance.",
-      "high": "High openness to trusted guidance and constructive feedback."
-    }
+    ]
   },
   "A-CP": {
     "trait": "Agreeableness",
@@ -613,39 +503,29 @@
         "max": 7,
         "tag": "cooperative_participation_high"
       }
-    ],
-    "meanings": {
-      "low": "Lower tendency to adjust or cooperate in shared wellness activities.",
-      "medium": "Moderate cooperative participation.",
-      "high": "High willingness to cooperate and adapt when working with others."
-    }
+    ]
   },
-  "A-SR": {
+  "A-RP": {
     "trait": "Agreeableness",
-    "category": "Shared Recovery Respect",
-    "categoryCode": "shared_recovery_respect",
+    "category": "Rest Prioritization",
+    "categoryCode": "rest_prioritization",
     "bands": [
       {
         "min": 1,
         "max": 2.99,
-        "tag": "shared_recovery_respect_low"
+        "tag": "rest_prioritization_low"
       },
       {
         "min": 3,
         "max": 4.99,
-        "tag": "shared_recovery_respect_medium"
+        "tag": "rest_prioritization_medium"
       },
       {
         "min": 5,
         "max": 7,
-        "tag": "shared_recovery_respect_high"
+        "tag": "rest_prioritization_high"
       }
-    ],
-    "meanings": {
-      "low": "Lower awareness of others' rest and recovery needs.",
-      "medium": "Moderate respect for shared recovery needs.",
-      "high": "High respect for others' quiet, rest, and recovery needs."
-    }
+    ]
   },
   "N-HA": {
     "trait": "Neuroticism",
@@ -667,12 +547,7 @@
         "max": 7,
         "tag": "health_anxiety_sensitivity_high"
       }
-    ],
-    "meanings": {
-      "low": "Low tendency to worry about body changes or health signals.",
-      "medium": "Moderate health worry or reassurance seeking.",
-      "high": "High sensitivity to body changes, health concerns, or reassurance needs."
-    }
+    ]
   },
   "N-EE": {
     "trait": "Neuroticism",
@@ -694,12 +569,7 @@
         "max": 7,
         "tag": "emotional_eating_response_high"
       }
-    ],
-    "meanings": {
-      "low": "Low tendency for emotions to affect eating choices.",
-      "medium": "Moderate emotion-driven eating response.",
-      "high": "High tendency for emotions to affect eating amount or food choices."
-    }
+    ]
   },
   "N-SC": {
     "trait": "Neuroticism",
@@ -721,12 +591,7 @@
         "max": 7,
         "tag": "stress_impact_on_consistency_high"
       }
-    ],
-    "meanings": {
-      "low": "Low tendency for stress to disrupt wellness routines.",
-      "medium": "Moderate stress-related disruption.",
-      "high": "High tendency for stress or pressure to disrupt wellness consistency."
-    }
+    ]
   },
   "N-SW": {
     "trait": "Neuroticism",
@@ -748,12 +613,7 @@
         "max": 7,
         "tag": "sleep_worry_mental_overload_high"
       }
-    ],
-    "meanings": {
-      "low": "Low tendency for worry or mental load to affect sleep.",
-      "medium": "Moderate night-time mental load.",
-      "high": "High tendency for thoughts, worry, or mental load to disrupt sleep."
-    }
+    ]
   },
   "N-WS": {
     "trait": "Neuroticism",
@@ -775,12 +635,7 @@
         "max": 7,
         "tag": "wellness_stability_high"
       }
-    ],
-    "meanings": {
-      "low": "Low all-or-nothing swings; more stable wellness patterns.",
-      "medium": "Moderate wellness stability; some swings after disruption.",
-      "high": "High tendency toward all-or-nothing patterns or routine instability."
-    }
+    ]
   },
   "N-ER": {
     "trait": "Neuroticism",
@@ -802,11 +657,6 @@
         "max": 7,
         "tag": "emotional_recovery_resilience_high"
       }
-    ],
-    "meanings": {
-      "low": "Low difficulty recovering emotionally from wellness setbacks.",
-      "medium": "Moderate emotional recovery difficulty after setbacks.",
-      "high": "High self-criticism or slow emotional recovery after wellness setbacks."
-    }
+    ]
   }
 }

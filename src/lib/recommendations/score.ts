@@ -1,20 +1,26 @@
 import { isPiSeries } from "@/lib/recommendations/action-pool";
 import { phase1ActivationEnergyCap } from "@/lib/recommendations/plan/activation-energy";
 import { PERSONA_PHASE_CONFIG } from "@/lib/recommendations/plan/phase-config";
+import { isSafetyScopedRow } from "@/lib/recommendations/safety";
 import {
   PDA_BARRIER,
   PDA_CONTEXT,
+  PDA_DUPLICATE_THEME_PENALTY,
   PDA_EFFORT,
   PDA_EFFORT_EXCEEDS_CAPACITY_PENALTY,
   PDA_GOAL,
   PDA_OCEAN,
   PDA_PERSONA,
+  PDA_PERSONA_CONFLICT_PENALTY,
   PDA_PERSONA_PRIMARY_BY_FIT_TIER,
   PDA_PERSONA_SECONDARY_BY_BLEND,
   PDA_PLAN_SCORE_THRESHOLD,
+  PDA_PREFERENCE_CONTRADICTION_PENALTY,
   PDA_RANK_PILLARS,
+  PDA_SOCIAL_FOR_SOLO_PENALTY,
   PDA_STRENGTH_POINTS,
   PDA_STRENGTH_RANK,
+  PDA_TRACKING_ANXIOUS_PENALTY,
 } from "@/lib/recommendations/scoring-constants";
 import type {
   PillarName,
@@ -26,6 +32,16 @@ import type {
 } from "@/lib/recommendations/types";
 import type { BlendStrength } from "@/lib/scoring/persona-types";
 import { normalizeFitTier } from "@/lib/scoring/persona-fit";
+
+/** Personas that conflict with Shielded Turtle / solo-avoidant patterns on high-E social recs. */
+const HIGH_SOCIAL_PERSONA_ALIASES = new Set([
+  "pack_wolf",
+  "social_motivator",
+  "curious_fox",
+  "curious_explorer",
+]);
+const LOW_SOCIAL_PRIMARY = new Set(["shielded_turtle", "brittle_avoidant", "steadfast_bear", "resilient_performer"]);
+
 
 function intersect(a: string[], b: string[]): string[] {
   const set = new Set(b);
@@ -56,16 +72,6 @@ function personaPoints(row: RecommendationRow, profile: UserProfile) {
 
 function cappedSum(perMatch: number, matches: number, cap: number): number {
   return Math.min(perMatch * matches, cap);
-}
-
-function strengthComponent(
-  strength: RecommendationStrength,
-  matchedContextCount: number,
-): number {
-  if (strength === "conditional") {
-    return matchedContextCount > 0 ? 0 : PDA_STRENGTH_POINTS.conditional;
-  }
-  return PDA_STRENGTH_POINTS[strength] ?? 0;
 }
 
 /** §14 — low capacity favours low-effort recs; high-capacity profiles favour high-effort recs. */
@@ -115,6 +121,68 @@ function effortExceedsCapacityPenalty(row: RecommendationRow, profile: UserProfi
   return 0;
 }
 
+/** PDA §14 mismatch penalties (except duplicate theme — applied in scoreAll after pool exists). */
+function mismatchPenalties(row: RecommendationRow, profile: UserProfile): number {
+  let penalty = 0;
+  const fit = row.personaFit.map((p) => p.toLowerCase());
+  const primary = profile.primaryPersonaAlias.toLowerCase();
+
+  // Persona conflict: high-social rec tagged only for pack/fox while primary is turtle/bear.
+  if (
+    LOW_SOCIAL_PRIMARY.has(primary) &&
+    fit.some((p) => HIGH_SOCIAL_PERSONA_ALIASES.has(p)) &&
+    !fit.includes(primary) &&
+    !fit.includes("all_personas")
+  ) {
+    penalty -= PDA_PERSONA_CONFLICT_PENALTY;
+  }
+
+  // Preference contradiction: gym-based when user selected home (or reverse).
+  const prefersHome =
+    profile.context.includes("environment_home") || profile.context.includes("workout_home");
+  const prefersGym =
+    profile.context.includes("environment_gym") || profile.context.includes("workout_gym");
+  const rowGym =
+    row.contextFit.some((t) => /gym/.test(t)) || /\bgym\b/i.test(row.text);
+  const rowHome =
+    row.contextFit.some((t) => /home/.test(t)) || /\bat home\b/i.test(row.text);
+  if ((prefersHome && rowGym && !rowHome) || (prefersGym && rowHome && !rowGym)) {
+    penalty -= PDA_PREFERENCE_CONTRADICTION_PENALTY;
+  }
+
+  // Tracking-for-anxious: detailed monitoring + N high tag or high neuroticism signal.
+  const nHigh =
+    profile.oceanTags.includes("N_high") ||
+    profile.primaryPersona === "brittle_avoidant" ||
+    profile.primaryPersona === "stress_sensitive";
+  const trackingHeavy =
+    row.category.includes("track") ||
+    /track|log daily|monitor|weigh.?in|calorie count/i.test(row.text);
+  if (nHigh && trackingHeavy) {
+    penalty -= PDA_TRACKING_ANXIOUS_PENALTY;
+  }
+
+  // Social-for-solo: group/partner for low E or solo preference.
+  const soloPref =
+    profile.context.includes("support_self_directed") ||
+    profile.oceanTags.includes("E_low") ||
+    profile.primaryPersona === "brittle_avoidant" ||
+    profile.primaryPersona === "resilient_performer";
+  const socialRec =
+    row.contextFit.some((t) => /social|group|partner|buddy/.test(t)) ||
+    /group|partner|buddy|class with others/i.test(row.text);
+  if (soloPref && socialRec) {
+    penalty -= PDA_SOCIAL_FOR_SOLO_PENALTY;
+  }
+
+  return penalty;
+}
+
+function duplicateThemeKey(row: RecommendationRow): string {
+  const barrier = [...(row.barrierFit ?? [])].sort()[0] ?? "";
+  return `${row.category}::${barrier}`;
+}
+
 export type RankContext = {
   selectedCategories?: Set<string>;
   pillarAssignmentCounts?: Partial<Record<PillarName, number>>;
@@ -144,6 +212,27 @@ export function passesPlanScoreGate(row: ScoredRecommendation): boolean {
 }
 
 export function scoreRecommendation(row: RecommendationRow, profile: UserProfile): ScoreBreakdown {
+  // PDA §40.5 — safety_professional_referral bypasses competitive scoring (trigger-selected only).
+  if (isSafetyScopedRow(row) || (row.scopeClassification || "").toLowerCase() === "safety_professional_referral") {
+    return {
+      persona: 0,
+      barriers: 0,
+      goals: 0,
+      context: 0,
+      ocean: 0,
+      effort: 0,
+      strength: 0,
+      total: 0,
+      primaryPersonaMatch: false,
+      secondaryPersonaMatch: false,
+      allPersonasMatch: false,
+      matchedBarriers: [],
+      matchedGoals: [],
+      matchedContext: [],
+      matchedOcean: [],
+    };
+  }
+
   if (isPiSeries(row)) {
     return {
       persona: 0,
@@ -177,9 +266,11 @@ export function scoreRecommendation(row: RecommendationRow, profile: UserProfile
   const context = cappedSum(PDA_CONTEXT.perMatch, matchedContext.length, PDA_CONTEXT.cap);
   const ocean = cappedSum(PDA_OCEAN.perMatch, matchedOcean.length, PDA_OCEAN.cap);
   const effort = effortFit(row, profile) + effortExceedsCapacityPenalty(row, profile);
-  const strength = strengthComponent(row.strength, matchedContext.length);
+  // PDA §14 — conditional always −5 (eligibility is filtering; do not waive on context match).
+  const strength = PDA_STRENGTH_POINTS[row.strength] ?? 0;
+  const mismatch = mismatchPenalties(row, profile);
 
-  const total = persona + barriers + goals + context + ocean + effort + strength;
+  const total = persona + barriers + goals + context + ocean + effort + strength + mismatch;
 
   return {
     persona,
@@ -187,7 +278,7 @@ export function scoreRecommendation(row: RecommendationRow, profile: UserProfile
     goals,
     context,
     ocean,
-    effort,
+    effort: effort + mismatch,
     strength,
     total,
     primaryPersonaMatch: primaryMatch,
@@ -266,6 +357,28 @@ export function scoreAll(rows: RecommendationRow[], profile: UserProfile): Score
     score: scoreRecommendation(row, profile),
     excluded: false as const,
   }));
+
+  // PDA §14 duplicate theme −12: Category+Barrier duplicates beyond the first (by score).
+  const byTheme = new Map<string, ScoredRecommendation[]>();
+  for (const row of scored) {
+    if (isPiSeries(row) || row.score.total === 0) continue;
+    const key = duplicateThemeKey(row);
+    const list = byTheme.get(key) ?? [];
+    list.push(row);
+    byTheme.set(key, list);
+  }
+  for (const list of byTheme.values()) {
+    if (list.length < 2) continue;
+    list.sort((a, b) => b.score.total - a.score.total);
+    for (let i = 1; i < list.length; i++) {
+      const row = list[i]!;
+      row.score = {
+        ...row.score,
+        effort: row.score.effort - PDA_DUPLICATE_THEME_PENALTY,
+        total: row.score.total - PDA_DUPLICATE_THEME_PENALTY,
+      };
+    }
+  }
 
   const piRows = scored.filter((r) => isPiSeries(r)).sort((a, b) => a.id.localeCompare(b.id));
   const ranked: ScoredRecommendation[] = [];

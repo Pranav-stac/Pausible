@@ -29,6 +29,7 @@ function profile(
     computedAgeYears: null,
     isMinor: false,
     isElderly65: false,
+    secondaryBlendPct: null,
     ...overrides,
   };
 }

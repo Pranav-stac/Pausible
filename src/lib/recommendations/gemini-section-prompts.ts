@@ -147,20 +147,23 @@ export function buildSecondaryPatternPrompt(
   input: BuildProfileInput,
   fb: SectionFitBlend,
 ): string {
-  if (fb.blendStrength === "pure") return "";
-
   const pi = selection.piSeries;
   const secondarySuccess = pi.secondarySuccessConditionText?.trim() || "";
   const secondaryStrength = pi.secondaryStrengthInsightText?.trim() || "";
   const barriers = tagList(ctx.matchedProfile.barriers);
   const firstName = resolveFirstName(input);
 
+  // PDA §20.5 — Pure still renders Page 5: 2-sentence summary only (no boxes / blend).
   const boxCount =
     fb.blendStrength === "tendencies" ? 3 : fb.blendStrength === "strong_influence" ? 6 : 0;
   const narrativeWords =
-    fb.blendStrength === "tendencies" ? "80-100" : fb.blendStrength === "strong_influence" ? "100-150" : "2 sentences";
+    fb.blendStrength === "tendencies" ? "80-100" : fb.blendStrength === "strong_influence" ? "100-150" : "exactly 2 sentences";
   const blendWords =
     fb.blendStrength === "tendencies" ? "60-80" : fb.blendStrength === "strong_influence" ? "100-120" : "null";
+  const pureRule =
+    fb.blendStrength === "pure"
+      ? " Pure blend: secondaryNarrative must be exactly 2 sentences that name the secondary persona and make clear it does not meaningfully reshape the primary pattern. behaviouralBoxes must be []. blendNarrative must be null."
+      : "";
 
   return `PROMPT: SECONDARY_PATTERN
 
@@ -176,12 +179,13 @@ INPUT:
 - barriers: ${barriers}
 - fit_tier: ${fb.fitTier}
 
-TASK: Apply blend rules - Pure: 2-sentence summary only. Tendencies: ${narrativeWords}w description + 3 boxes (${SECONDARY_BOX_TITLES.join(", ")}) + ${blendWords}w 'How Your Two Patterns Interact'. Strong: ${narrativeWords}w + all 6 boxes + ${blendWords}w interaction with one concrete example.
+TASK: Apply blend rules - Pure: 2-sentence summary only. Tendencies: ${narrativeWords}w description + 3 boxes (${SECONDARY_BOX_TITLES.join(", ")}) + ${blendWords}w 'How Your Two Patterns Interact'. Strong: ${narrativeWords}w + all 6 boxes + ${blendWords}w interaction with one concrete example.${pureRule}
 
 Field constraints:
 - Do not repeat or contradict Page 4.
 - Box count exactly 0, 3, or 6 per blend; titles match Page 4.
 - Interaction uses only both personas' PI texts.
+- Never omit Page 5 entirely — Pure is a brief summary page, not a skip.
 
 FALLBACK: Pure -> behaviouralBoxes=[] and blendNarrative=null.
 
@@ -238,14 +242,20 @@ export function buildPillarPrompt(
   _fb: SectionFitBlend,
 ): string {
   const focusText = plan.focusReason || plan.focusArea;
-  const doLines = plan.dos.map((d) => `  {text: "${d.text}", category: ${d.category}}`);
-  const dontLines = plan.donts.map((d) => `  {text: "${d.text}", category: ${d.category}}`);
+  const firstName = resolveFirstName(input);
+  const doLines = plan.dos.map(
+    (d) =>
+      `  {text: "${d.text}", category: ${d.category}, scope_classification: ${d.scopeClassification || "behavior_core"}, user_facing_boundary: ${d.userFacingBoundary || "behavioral_guidance"}}`,
+  );
+  const dontLines = plan.donts.map(
+    (d) =>
+      `  {text: "${d.text}", category: ${d.category}, scope_classification: ${d.scopeClassification || "behavior_core"}, user_facing_boundary: ${d.userFacingBoundary || "behavioral_guidance"}}`,
+  );
 
   return `PROMPT: PILLAR_ACTIONS
 
-Compose the Key Actions block for pillar: ${pillar}.
-
-INPUT (already selected for this user):
+Compose the Key Actions block for pillar: ${pillar}, for ${firstName}.
+You are given, already selected for this user:
   mindset_shift: "${focusText}"
   do_recs (up to 3): [
 ${doLines.join(",\n")}
@@ -258,8 +268,28 @@ ${formatPdaUserContextBlock(profile, input, ctx)}
 
 Produce: a headline (the mindset reframe, <=15 words); why_this_matters (ONE different sentence, <=25 words,
 tying the mindset to this user's goal/barrier — never copy the headline); 3 DO items (action = imperative
-<=12 words, why <=20 words); 2 DON'T items (behaviour to avoid <=12 words, why <=20 words). Compose ONLY from
-the supplied texts. Apply the system-prompt rules, PLUS the pillar rules below.
+<=12 words, why <=20 words, example = parenthetical <=15 words or null); 2 DON'T items (behaviour to avoid
+<=12 words, why <=20 words). Compose ONLY from the supplied texts. Apply the system-prompt rules, PLUS the
+pillar rules below.
+
+PERSONALIZED EXAMPLE RULE (DO items only):
+For each DO item, append a brief parenthetical example that grounds the recommendation in ONE
+contextual signal from the user's profile. The example makes the neutral recommendation feel
+personally relevant. Pick the SINGLE most fitting signal for each rec from: activity_prefs, goals,
+barriers, stress_level, lifestyle, preferred_location, fitness_level. Do NOT stack multiple signals
+in one example. Vary the signal across the 3 DO items where possible — avoid using the same signal
+for all three.
+  Good: "Start with short movement sessions" + (e.g., a 15-minute dance session after work)
+        — grounded in activity_pref = dance
+  Good: "Keep a backup routine for tough days" + (e.g., a 10-minute home stretch when time is short)
+        — grounded in barrier = lack_of_time + preferred_location = home
+  Bad:  "Start with short movement sessions" + (e.g., since you prefer dancing and lack time and
+        feel stressed and want to lose fat) — stacks too many signals, sounds like a playback.
+The example must be a realistic micro-illustration, not a restatement of the action. If no
+contextual signal naturally fits, omit the example field for that item (use null).
+When user_facing_boundary is example_only, replace any fixed domain example with a dynamic one from user context.
+When scope_classification is safety_professional_referral or user_facing_boundary is safety_sensitive,
+do NOT compose that item into Do/Don't — safety cards are rendered separately.
 
 PHYSICAL ACTIVITY:
  - At least 2 of the 3 DO items must reflect the user's activity_prefs. If 'dance' is a pref, phrase a
@@ -292,7 +322,7 @@ OUTPUT (strict JSON):
   "pillar": "${pillar}",
   "headline": "string(<=15w)",
   "why_this_matters": "string(<=25w, distinct from headline)",
-  "do_items": [{"action":"string(<=12w)","why":"string(<=20w)"} x3],
+  "do_items": [{"action":"string(<=12w)","why":"string(<=20w)","example":"string(<=15w) | null"} x3],
   "dont_items": [{"behaviour":"string(<=12w)","why":"string(<=20w)"} x2]
 }`;
 }

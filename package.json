@@ -12,6 +12,7 @@
     "generate:recommendation-seed": "node scripts/generate-recommendation-seed.mjs",
     "import:pda-v1": "node scripts/import-pda-v1.mjs",
     "import:revised-ocean": "node scripts/import-revised-ocean.mjs",
+    "import:persona-v8": "node scripts/import-persona-plan-v8.mjs",
     "import:client-v7": "node scripts/import-client-v7.mjs",
     "seed:all": "npm run import:pda-v1 && npm run seed:firestore",
     "seed:firestore": "tsx --env-file=.env scripts/seed-firestore.ts",

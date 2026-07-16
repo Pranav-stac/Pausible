@@ -11,10 +11,18 @@ import { sanitizePersonaSummaryText } from "@/lib/results/trait-labels";
 import { fitTierLabel, blendStrengthLabel } from "@/lib/scoring/persona-fit";
 import type { FitTier, BlendStrength, PersonaAnalysis } from "@/lib/scoring/persona-types";
 import { DEFAULT_PERSONA_CENTROIDS } from "@/lib/scoring/persona-defaults";
-import type { OpportunityCard, IntegratedPlanSynthesis, PillarName, PillarSynthesisDo, PillarSynthesisDont, PlanOutput } from "@/lib/recommendations/types";
+import type {
+  OpportunityCard,
+  IntegratedPlanSynthesis,
+  PillarName,
+  PillarSynthesisDo,
+  PillarSynthesisDont,
+  PlanOutput,
+  SafetyCard,
+  WellnessReportSections,
+} from "@/lib/recommendations/types";
 import { normalizePillarDo, normalizePillarDont } from "@/lib/recommendations/pillar-display";
 import { PDA_REPORT_PILLAR_ORDER } from "@/lib/recommendations/scoring-constants";
-import type { WellnessReportSections } from "@/lib/recommendations/types";
 import type { DualSectionPart } from "@/lib/results/report-section-split";
 import { formatPlanDurationTitle } from "@/lib/recommendations/plan/plan-phase-display";
 import {
@@ -407,7 +415,10 @@ export function SecondaryPatternSlide({
   totalPages: number;
   refId: string;
 }) {
-  if (!secondaryPattern?.secondaryNarrative?.trim() && model.blendStrength === "pure") return null;
+  // PDA §20.5 — Pure blend still shows this page with a brief 2-sentence summary (no boxes / blend).
+  const isPure = model.blendStrength === "pure";
+  const boxes = isPure ? [] : (secondaryPattern?.behaviouralBoxes ?? []);
+  const blendNarrative = isPure ? null : secondaryPattern?.blendNarrative;
 
   return (
     <section data-report-page className={REPORT_PAGE}>
@@ -416,14 +427,21 @@ export function SecondaryPatternSlide({
         <SlideTitle title={`Your Secondary Pattern: ${model.secondaryLabel ?? "Secondary influence"}`} />
 
         <ContentBlock title="Persona description" className="mb-5">
-          <ProseBlock text={secondaryPattern?.secondaryNarrative ?? "—"} />
+          <ProseBlock
+            text={
+              secondaryPattern?.secondaryNarrative?.trim() ||
+              (isPure
+                ? `${model.secondaryLabel ?? "A secondary pattern"} appears in your scores but does not meaningfully reshape how your primary pattern shows up day to day. Keep using your primary pattern as the main guide for pacing and priorities.`
+                : "—")
+            }
+          />
         </ContentBlock>
 
-        <BehaviouralBoxesGrid boxes={secondaryPattern?.behaviouralBoxes ?? []} />
+        <BehaviouralBoxesGrid boxes={boxes} />
 
-        {secondaryPattern?.blendNarrative?.trim() ? (
+        {blendNarrative?.trim() ? (
           <ContentBlock title="How your two patterns interact" className="mt-5">
-            <ProseBlock text={secondaryPattern.blendNarrative} />
+            <ProseBlock text={blendNarrative} />
           </ContentBlock>
         ) : null}
 
@@ -435,11 +453,14 @@ export function SecondaryPatternSlide({
 
 export function KeyActionsSlide({
   plans,
+  safetyCards,
   page,
   totalPages,
   refId,
 }: {
   plans: Partial<Record<PillarName, { focusArea: string; focusReason: string; dos: (PillarSynthesisDo | string)[]; donts: (PillarSynthesisDont | string)[] }>>;
+  /** PDA §38.9 — safety cards above Do/Don't on Page 7. */
+  safetyCards?: SafetyCard[];
   page: number;
   totalPages: number;
   refId: string;
@@ -452,6 +473,11 @@ export function KeyActionsSlide({
     "Mental Wellness": "border-amber-200 bg-amber-50",
   };
 
+  const cardsByPillar = (pillar: PillarName) =>
+    (safetyCards ?? []).filter((c) => c.pillar === pillar).sort((a, b) => a.severityRank - b.severityRank);
+  // PDA §38.9 — Physical Activity safety cards appear first (above pillar blocks).
+  const topPaCards = cardsByPillar("Physical Activity");
+
   return (
     <section data-report-page className={REPORT_PAGE}>
       <div className={REPORT_PAGE_BODY}>
@@ -460,16 +486,50 @@ export function KeyActionsSlide({
           title="Your Key Actions"
           subtitle="Personalized actions across all four wellness pillars, tailored to your pattern."
         />
+
+        {topPaCards.length > 0 ? (
+          <div className="mb-4 space-y-2">
+            {topPaCards.map((card) => (
+              <div
+                key={card.recId}
+                className="rounded-lg border border-amber-200 bg-amber-50/90 px-4 py-3"
+              >
+                <p className="text-[10px] font-bold uppercase tracking-wide text-amber-900">
+                  Safety · {card.pillar}
+                </p>
+                {card.disclaimerLine ? (
+                  <p className="mt-1 text-xs font-medium text-amber-900/80">{card.disclaimerLine}</p>
+                ) : null}
+                <p className="mt-1.5 text-sm leading-relaxed text-amber-950">{card.cardText}</p>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
         <div className="space-y-4">
           {pillars.map((pillar) => {
             const plan = plans[pillar];
             if (!plan) return null;
+            const pillarCards = pillar === "Physical Activity" ? [] : cardsByPillar(pillar);
             return (
               <div key={pillar} className={`overflow-hidden rounded-lg border ${colors[pillar]}`}>
                 <div className="border-b border-inherit px-4 py-2">
                   <p className="text-xs font-bold uppercase tracking-wide text-slate-800">{pillar}</p>
                   <p className="mt-1 text-sm font-semibold text-slate-900">{plan.focusArea}</p>
                 </div>
+                {pillarCards.length > 0 ? (
+                  <div className="space-y-2 border-b border-inherit bg-amber-50/60 px-4 py-3">
+                    {pillarCards.map((card) => (
+                      <div key={card.recId}>
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-amber-900">Safety</p>
+                        {card.disclaimerLine ? (
+                          <p className="mt-1 text-xs font-medium text-amber-900/80">{card.disclaimerLine}</p>
+                        ) : null}
+                        <p className="mt-1 text-sm leading-relaxed text-amber-950">{card.cardText}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
                 <div className="grid gap-4 p-4 sm:grid-cols-2">
                   <div>
                     <p className="text-[10px] font-bold uppercase text-slate-600">Do</p>
@@ -480,6 +540,11 @@ export function KeyActionsSlide({
                           <li key={`${row.action}-${i}`} className="text-xs text-slate-700">
                             <span className="font-medium text-slate-900">{row.action}</span>
                             {row.why ? <span className="block text-slate-600">{row.why}</span> : null}
+                            {row.example?.trim() ? (
+                              <span className="mt-0.5 block italic text-slate-500">
+                                (e.g., {row.example.trim().replace(/^\(+|\)+$/g, "")})
+                              </span>
+                            ) : null}
                           </li>
                         );
                       })}
@@ -799,7 +864,7 @@ export function WhereYouStandSlide({
 
           <div className="space-y-4">
             {personaAnalysis && primaryKey ? (
-              <ContentBlock title="Radar chart — you vs persona centroid">
+              <ContentBlock title="Radar chart — you vs your pattern">
                 <div className="flex justify-center py-2">
                   <OceanRadarChart
                     userScores={personaAnalysis.traitAverages}

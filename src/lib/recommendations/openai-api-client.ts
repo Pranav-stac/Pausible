@@ -1,6 +1,10 @@
 import type { GeminiTokenUsage } from "@/lib/recommendations/types";
 import { parseSectionJson } from "@/lib/recommendations/gemini-api-client";
-import { SECTION_OUTPUT_TOKENS } from "@/lib/recommendations/section-output-limits";
+import {
+  PDA_TEMPERATURE,
+  PDA_TOP_P,
+  SECTION_OUTPUT_TOKENS,
+} from "@/lib/recommendations/section-output-limits";
 
 export type OpenAiSectionResult = {
   text: string;
@@ -64,6 +68,8 @@ async function callOpenAiResponses(args: {
     instructions: args.systemPrompt,
     input: args.userPrompt,
     max_output_tokens: args.maxOutputTokens ?? SECTION_OUTPUT_TOKENS.default,
+    temperature: PDA_TEMPERATURE,
+    top_p: PDA_TOP_P,
     store: false,
   };
 
@@ -119,7 +125,8 @@ function buildChatCompletionBody(
       { role: "system", content: args.systemPrompt },
       { role: "user", content: args.userPrompt },
     ],
-    temperature: 0.7,
+    temperature: PDA_TEMPERATURE,
+    top_p: PDA_TOP_P,
     [tokenField]: args.maxOutputTokens ?? SECTION_OUTPUT_TOKENS.default,
     ...(args.json ? { response_format: { type: "json_object" } } : {}),
   };

@@ -46,12 +46,13 @@ function profile(overrides: Partial<UserProfile> = {}): UserProfile {
     computedAgeYears: null,
     isMinor: false,
     isElderly65: false,
+    secondaryBlendPct: null,
     ...overrides,
   };
 }
 
-describe("applyContextSelectionSuppression (DR19–DR22)", () => {
-  it("DR19 removes caffeine recs when caffeine_none", () => {
+describe("applyContextSelectionSuppression (DR21–DR24)", () => {
+  it("DR21 removes caffeine recs when caffeine_none", () => {
     const rows = [
       row({ id: "SLP014", category: "caffeine_stimulants_sleep", text: "Cut caffeine after 2pm." }),
       row({ id: "FIT001" }),
@@ -60,7 +61,7 @@ describe("applyContextSelectionSuppression (DR19–DR22)", () => {
     expect(out.map((r) => r.id)).toEqual(["FIT001"]);
   });
 
-  it("DR21 suppresses walking-primary for fit active users except FIT042", () => {
+  it("DR23 suppresses walking-primary for fit active users except FIT042", () => {
     const rows = [
       row({ id: "FIT004", category: "walking_daily_activity" }),
       row({ id: "FIT042", category: "walking_daily_activity", text: "Easy recovery walk." }),
@@ -74,7 +75,7 @@ describe("applyContextSelectionSuppression (DR19–DR22)", () => {
     expect(out.map((r) => r.id)).toEqual(["FIT042"]);
   });
 
-  it("DR22 suppresses deficit recs when fat loss is not a goal", () => {
+  it("DR24 suppresses deficit recs when fat loss is not a goal", () => {
     const rows = [
       row({
         id: "NUT001",

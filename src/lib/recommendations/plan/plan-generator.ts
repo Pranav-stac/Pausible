@@ -233,6 +233,17 @@ function secondaryInfluenceActive(_profile: UserProfile, secondaryBlendPct?: num
   return typeof secondaryBlendPct === "number" && secondaryBlendPct > 15;
 }
 
+/** PDA §39 PHASES — required daily/weekly counts after fit/barrier/secondary adjustments. */
+export function resolvePhaseItemTargets(
+  profile: UserProfile,
+  fitTier: FitTier,
+  phaseNumber: number,
+  secondaryPersona: PersonaKey | null,
+  secondaryActive: boolean,
+): { daily: number; weekly: number } {
+  return itemCountsForPhase(profile, fitTier, phaseNumber, secondaryPersona, secondaryActive);
+}
+
 function itemCountsForPhase(
   profile: UserProfile,
   fitTier: FitTier,
@@ -241,21 +252,34 @@ function itemCountsForPhase(
   secondaryActive: boolean,
 ): { daily: number; weekly: number } {
   const config = PERSONA_PHASE_CONFIG[profile.primaryPersona];
+  const minDaily = config.dailyItems.min;
+  const minWeekly = config.weeklyItems.min;
   let daily = config.dailyItems.max;
   let weekly = config.weeklyItems.max;
 
+  // PDA §38.5 / §22.5 — Shielded Turtle Phase 1 is environment-only (0 daily items).
+  if (profile.primaryPersona === "brittle_avoidant" && phaseNumber === 1) {
+    daily = minDaily;
+  }
+
   if (hasBarrierOverride(profile, "overwhelm") && phaseNumber === 1) {
-    daily = Math.max(1, daily - 1);
-    weekly = Math.max(1, weekly - 1);
+    daily = Math.max(minDaily, daily - 1);
+    weekly = Math.max(minWeekly, weekly - 1);
+  }
+
+  // PDA §21.10 barrier_unpredictable_schedule — reduce Phase 1 items by 1.
+  if (hasBarrierOverride(profile, "unpredictable_schedule") && phaseNumber === 1) {
+    daily = Math.max(minDaily, daily - 1);
+    weekly = Math.max(minWeekly, weekly - 1);
   }
 
   if (fitTier === "leaning" && phaseNumber === 1) {
-    daily = Math.max(1, daily - 1);
+    daily = Math.max(minDaily, daily - 1);
   }
 
   if (fitTier === "exploring") {
-    daily = Math.max(1, Math.min(3, daily - 1));
-    weekly = Math.max(1, weekly - 1);
+    daily = Math.max(minDaily, Math.min(3, daily - 1));
+    weekly = Math.max(minWeekly, weekly - 1);
   }
 
   if (secondaryActive && secondaryPersona === "resilient_performer" && phaseNumber === 1) {
@@ -294,6 +318,11 @@ function adjustActivationCap(
   }
 
   if (hasBarrierOverride(profile, "starting_difficulty") && phaseNumber === 1) {
+    cap = Math.min(cap, 2);
+  }
+
+  // PDA §21.10 barrier_lack_of_knowledge — Phase 1 AE capped at 1–2.
+  if (hasBarrierOverride(profile, "lack_of_knowledge") && phaseNumber === 1) {
     cap = Math.min(cap, 2);
   }
 
@@ -486,6 +515,41 @@ function injectBarrierRhythmItems(
         .sort(comparePlanRhythmCandidates)[0];
       if (fallback && assignRhythmItem(fallback, daily, weekly, counts, true)) {
         used.add(fallback.id);
+      }
+    }
+  }
+
+  // PDA §21.10 barrier_lack_of_knowledge — Phase 1 anchor should be first_action.
+  if (hasBarrierOverride(profile, "lack_of_knowledge") && phaseNumber === 1) {
+    const firstAction = pool
+      .filter((r) => !used.has(r.id) && rowHasRole(r, "first_action"))
+      .sort(comparePlanRhythmCandidates)[0];
+    if (firstAction && (!currentAnchor || !rowHasRole(currentAnchor, "first_action"))) {
+      if (assignRhythmItem(firstAction, daily, weekly, counts, true)) {
+        used.add(firstAction.id);
+        currentAnchor = firstAction;
+      }
+    }
+  }
+
+  // PDA §21.10 barrier_self_consciousness — ≥1 mindset_shift in Phase 1.
+  if (hasBarrierOverride(profile, "self_consciousness") && phaseNumber === 1) {
+    const hasMindset = phaseItemsIncludeType(
+      pool,
+      currentAnchor,
+      daily,
+      weekly,
+      (r) => r.type === "mindset_shift" || rowHasRole(r, "coach_note"),
+    );
+    if (!hasMindset) {
+      const mindset = pool
+        .filter(
+          (r) =>
+            !used.has(r.id) && (r.type === "mindset_shift" || rowHasRole(r, "coach_note")),
+        )
+        .sort(comparePlanRhythmCandidates)[0];
+      if (mindset && assignRhythmItem(mindset, daily, weekly, counts, true)) {
+        used.add(mindset.id);
       }
     }
   }
@@ -731,6 +795,13 @@ function pairDontRecsWithDo(
   }
 }
 
+function secondaryPoolPullCount(secondaryBlendPct?: number): number {
+  if (typeof secondaryBlendPct !== "number" || secondaryBlendPct <= 15) return 0;
+  if (secondaryBlendPct > 35) return 5;
+  if (secondaryBlendPct > 25) return 4;
+  return 3;
+}
+
 function injectSecondaryPersonaItems(
   pool: ScoredRecommendation[],
   profile: UserProfile,
@@ -742,16 +813,47 @@ function injectSecondaryPersonaItems(
   used: Set<string>,
   counts: { daily: number; weekly: number },
   capacity: PhaseCapacity,
+  secondaryBlendPct?: number,
 ): void {
   if (!secondaryActive || !secondaryPersona) return;
 
   const tryAdd = (row: ScoredRecommendation | undefined) => {
-    if (!row || used.has(row.id)) return;
-    if (!isEligibleForPhase(row, capacity, phaseNumber, profile)) return;
+    if (!row || used.has(row.id)) return false;
+    if (!isEligibleForPhase(row, capacity, phaseNumber, profile)) return false;
+    // PDA §21.8 — persona conflict (−20 already in score); skip high-conflict social for turtle/bear.
+    const conflict =
+      (profile.primaryPersona === "brittle_avoidant" ||
+        profile.primaryPersona === "resilient_performer") &&
+      (row.category.includes("social") || /group|partner|buddy/i.test(row.text));
+    if (conflict && row.score.total < 20) return false;
     if (assignRhythmItem(row, daily, weekly, counts, true)) {
       used.add(row.id);
+      return true;
     }
+    return false;
   };
+
+  // PDA §21.8 — pull 3–5 secondary-pool recs scaled by blend; place ≥1 in P1 and P2.
+  const pullTarget = secondaryPoolPullCount(secondaryBlendPct);
+  const secondaryAlias = profile.secondaryPersonaAlias.toLowerCase();
+  const secondaryPool = pool
+    .filter(
+      (r) =>
+        !used.has(r.id) &&
+        r.personaFit.some((p) => p.toLowerCase() === secondaryAlias) &&
+        !r.personaFit.some((p) => p.toLowerCase() === profile.primaryPersonaAlias.toLowerCase()),
+    )
+    .sort((a, b) => b.score.total - a.score.total);
+
+  let pulled = 0;
+  const phaseBudget =
+    phaseNumber === 1 || phaseNumber === 2
+      ? Math.max(1, Math.ceil(pullTarget / 2))
+      : Math.max(0, Math.floor(pullTarget / 3));
+  for (const row of secondaryPool) {
+    if (pulled >= phaseBudget) break;
+    if (tryAdd(row)) pulled += 1;
+  }
 
   switch (secondaryPersona) {
     case "curious_explorer": {
@@ -904,6 +1006,7 @@ function assignPhaseItems(
     used,
     counts,
     capacity,
+    secondaryBlendPct,
   );
 
   const adjustedAnchor = injectBarrierRhythmItems(
@@ -1018,6 +1121,10 @@ export function generatePlanOutput(args: {
   const phases: PlanPhaseOutput[] = [];
 
   let showAllPhases = !hasBarrierOverride(profile, "overwhelm");
+  // PDA §21.10 — unpredictable schedule never shows the full plan upfront.
+  if (hasBarrierOverride(profile, "unpredictable_schedule")) {
+    showAllPhases = false;
+  }
   if (
     secondaryActive &&
     secondaryPersona === "self_regulated_planner" &&

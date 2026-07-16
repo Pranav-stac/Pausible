@@ -69,6 +69,7 @@ function resolveOptionTags(
     else context.push(tag);
   }
 
+  // PDA §12 DR08 (stress_high → barrier_work_stress) / DR09 (poor sleep → barrier_poor_sleep)
   if (field.inferBarrierTags?.length) {
     const isStress = field.answerKey.includes("stress_level");
     const isSleep = field.answerKey.includes("sleep_quality");
@@ -186,13 +187,41 @@ function derivedExclusions(
   return [...ex];
 }
 
-/** DR13 / former DR11 — strength goal without resistance preference (§21.14). */
+/** DR13 / §21.14 — strength goal without resistance preference. */
 export function computeGoalPreferenceBridge(goals: string[], context: string[]): boolean {
   const strengthGoal = goals.includes("goal_strength") || goals.includes("goal_muscle_gain");
   if (!strengthGoal) return false;
   return (
     !context.includes("activity_cat_strength") && !context.includes("activity_pref_strength")
   );
+}
+
+/** PDA §12 DR10 — N-EE facet high → barrier_stress_emotional_eating. */
+function applyDr10EmotionalEatingBarrier(
+  scores: AttemptScores | null | undefined,
+  barriers: string[],
+): void {
+  const facetAvg = scores?.persona?.facetAverages?.["N-EE"];
+  if (typeof facetAvg === "number" && facetAvg >= 5.0) {
+    if (!barriers.includes("barrier_stress_emotional_eating")) {
+      barriers.push("barrier_stress_emotional_eating");
+    }
+  }
+}
+
+/** PDA §12 DR11 / DR12 — Extraversion → support_self_directed / social_preference_high. */
+function applyDr11Dr12ExtraversionSupport(
+  scores: AttemptScores | null | undefined,
+  context: string[],
+): void {
+  const e = scores?.persona?.traitAverages?.extraversion;
+  if (typeof e !== "number") return;
+  if (e < 3.0 && !context.includes("support_self_directed")) {
+    context.push("support_self_directed");
+  }
+  if (e >= 5.0 && !context.includes("social_preference_high")) {
+    context.push("social_preference_high");
+  }
 }
 
 export type BuildProfileInput = {
@@ -233,6 +262,9 @@ export function buildUserProfile(input: BuildProfileInput, config: Recommendatio
 
   migrateProfileTags({ context, goals, barriers, exclusions: healthExclusions });
 
+  applyDr10EmotionalEatingBarrier(scores, barriers);
+  applyDr11Dr12ExtraversionSupport(scores, context);
+
   const ageInfo = resolveWellnessAge(answers, context);
 
   const exclusions = derivedExclusions(
@@ -245,6 +277,11 @@ export function buildUserProfile(input: BuildProfileInput, config: Recommendatio
   );
 
   migrateProfileTags({ context, goals, barriers, exclusions });
+
+  const secondaryBlendPct =
+    typeof scores?.persona?.personaPercentages?.[secondaryPersona] === "number"
+      ? scores.persona.personaPercentages[secondaryPersona]
+      : null;
 
   return {
     primaryPersona,
@@ -264,5 +301,6 @@ export function buildUserProfile(input: BuildProfileInput, config: Recommendatio
     computedAgeYears: ageInfo.computedAgeYears,
     isMinor: ageInfo.isMinor,
     isElderly65: ageInfo.isElderly65,
+    secondaryBlendPct,
   };
 }

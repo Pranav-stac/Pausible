@@ -94,7 +94,13 @@ export function WellnessReportSlideStack({
         </div>
       </section>
 
-      <KeyActionsSlide plans={synthesis.pillarPlans} page={7} totalPages={TOTAL_PAGES} refId={refId} />
+      <KeyActionsSlide
+        plans={synthesis.pillarPlans}
+        safetyCards={synthesis.safetyCards}
+        page={7}
+        totalPages={TOTAL_PAGES}
+        refId={refId}
+      />
 
       <PriorityCardsSlide cards={opportunityCards} page={8} totalPages={TOTAL_PAGES} refId={refId} />
 

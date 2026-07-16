@@ -1,8 +1,7 @@
 import { primaryPersonaMatchesRow, resolvedText } from "@/lib/recommendations/action-pool";
 import {
   NUTRITION_DISCLAIMER,
-  PHYSICAL_DISCLAIMER_DEFAULT,
-  PHYSICAL_DISCLAIMER_PREGNANCY,
+  resolvePhysicalDisclaimer,
 } from "@/lib/recommendations/safety-disclaimers";
 import type { PillarName, SafetyCard, ScoredRecommendation, UserProfile } from "@/lib/recommendations/types";
 
@@ -41,14 +40,16 @@ function matchingTrigger(row: ScoredRecommendation, profile: UserProfile): strin
 
 function disclaimerForPillar(pillar: PillarName, profile: UserProfile): string | null {
   if (pillar === "Physical Activity") {
-    if (profile.exclusions.some((e) => e.includes("pregnancy") || e.includes("postpartum"))) {
-      return PHYSICAL_DISCLAIMER_PREGNANCY;
-    }
-    if (profile.exclusions.some((e) => e !== "exclude_none") || profile.isElderly65) {
-      return PHYSICAL_DISCLAIMER_DEFAULT;
-    }
+    return resolvePhysicalDisclaimer(profile);
   }
-  if (pillar === "Nutrition" && profile.exclusions.some((e) => e !== "exclude_none")) {
+  if (
+    pillar === "Nutrition" &&
+    profile.exclusions.some((e) =>
+      ["exclude_medical_condition", "exclude_doctor_advised_restriction", "exclude_pregnancy_postpartum"].includes(
+        e,
+      ),
+    )
+  ) {
     return NUTRITION_DISCLAIMER;
   }
   return null;

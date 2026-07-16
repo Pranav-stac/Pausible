@@ -1,6 +1,7 @@
 import type { GeminiSynthesisContext } from "@/lib/recommendations/build-gemini-synthesis-context";
 import type { BuildProfileInput } from "@/lib/recommendations/build-user-profile";
 import { buildProfileSafetyContext } from "@/lib/recommendations/profile-safety-context";
+import { resolveRuntimeShortForms } from "@/lib/recommendations/tag-normalization";
 import type { UserProfile } from "@/lib/recommendations/types";
 import { PARTICIPANT_DISPLAY_NAME_KEY } from "@/lib/assessment/session-recovery";
 import { personaLabel } from "@/lib/results/persona-display";
@@ -13,42 +14,6 @@ function pickLifestyle(context: Set<string>): string {
   if (context.has("work_physically_demanding")) return "physically_demanding";
   if (context.has("work_travel_heavy")) return "travel_heavy";
   if (context.has("work_desk_based")) return "desk_based";
-  return "not specified";
-}
-
-function pickMealControl(context: Set<string>): string {
-  if (context.has("meal_control_prepared_by_others")) return "others_prepare";
-  if (context.has("meal_control_frequent_eating_out")) return "eat_out";
-  if (context.has("meal_control_mixed")) return "mixed";
-  if (context.has("meal_control_self_prepared")) return "self";
-  return "not specified";
-}
-
-function pickCaffeine(context: Set<string>): string {
-  if (context.has("caffeine_none")) return "none";
-  if (context.has("caffeine_evening")) return "evening";
-  if (context.has("caffeine_daytime")) return "daytime";
-  if (context.has("caffeine_morning")) return "morning";
-  return "not specified";
-}
-
-function pickFitnessLevel(context: Set<string>): string {
-  // PDA §10.2 — fitness_advanced ≡ consistent for prompts.
-  if (context.has("fitness_consistent") || context.has("fitness_advanced") || context.has("fitness_structured")) {
-    return "consistent";
-  }
-  if (context.has("fitness_restarting") || context.has("fitness_returning")) return "returning";
-  if (context.has("fitness_beginner")) return "beginner";
-  if (context.has("fitness_sedentary")) return "sedentary";
-  if (context.has("fitness_intermediate")) return "consistent";
-  return "not specified";
-}
-
-function pickActivityLevel(context: Set<string>): string {
-  if (context.has("activity_very_active")) return "very_active";
-  if (context.has("activity_moderate")) return "moderate";
-  if (context.has("activity_lightly_active")) return "lightly_active";
-  if (context.has("activity_sedentary")) return "sedentary";
   return "not specified";
 }
 
@@ -86,6 +51,8 @@ export function formatPdaUserContextBlock(
 ): string {
   const contextSet = new Set(profile.context);
   const safety = buildProfileSafetyContext(profile);
+  // PDA §10.2 — short forms for system-prompt / selection fields.
+  const short = resolveRuntimeShortForms(profile.context);
   const goals =
     ctx?.matchedProfile.goals.map((g) => g.label).join(", ") ||
     profile.goals.map((g) => g.replace(/^goal_/, "").replace(/_/g, " ")).join(", ") ||
@@ -100,8 +67,8 @@ export function formatPdaUserContextBlock(
   const restrictionFlags =
     safety.restrictionFlags.map(restrictionFlagLabel).join(", ") || "none";
   const preferredLocation = [...contextSet]
-    .filter((t) => t.startsWith("exercise_location_") || t.startsWith("workout_"))
-    .map((t) => t.replace(/^(exercise_location_|workout_)/, "").replace(/_/g, " "))
+    .filter((t) => t.startsWith("exercise_location_") || t.startsWith("workout_") || t.startsWith("environment_"))
+    .map((t) => t.replace(/^(exercise_location_|workout_|environment_)/, "").replace(/_/g, " "))
     .join(", ");
 
   return `YOU ALSO RECEIVE THIS USER CONTEXT (use it to obey the rules):
@@ -117,9 +84,9 @@ export function formatPdaUserContextBlock(
   barriers: [${barriers}]
   activity_prefs: [${activityPrefs}]
   preferred_location: ${preferredLocation || "not specified"}
-  meal_control: ${pickMealControl(contextSet)}
-  caffeine: ${pickCaffeine(contextSet)}
-  fitness_level: ${pickFitnessLevel(contextSet)}
-  activity_level: ${pickActivityLevel(contextSet)}
+  meal_control: ${short.meal_control ?? "not specified"}
+  caffeine: ${short.caffeine ?? "not specified"}
+  fitness_level: ${short.fitness_level ?? "not specified"}
+  activity_level: ${short.activity_level ?? "not specified"}
   restriction_flags: [${restrictionFlags}]`;
 }

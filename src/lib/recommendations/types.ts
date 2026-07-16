@@ -79,12 +79,14 @@ export type UserProfile = {
   exclusions: string[];
   /** Facet-level OCEAN category tags from assessment (col L clustering). */
   oceanCategoryTags: string[];
-  /** True when DR11 goal-preference bridge applies (FIT037). */
+  /** True when DR13 goal-preference bridge applies (FIT037). */
   goalPreferenceBridge: boolean;
   /** CQ01 — exact or band-derived age when available. */
   computedAgeYears: number | null;
   isMinor: boolean;
   isElderly65: boolean;
+  /** Softmax % for secondary persona (PDA §13 / §21.9). Null if unavailable. */
+  secondaryBlendPct: number | null;
 };
 
 export type ScoreBreakdown = {
@@ -126,6 +128,10 @@ export type PillarActionItem = {
   category: string;
   action?: string;
   why?: string;
+  /** Master col V — passed into PILLAR_ACTIONS (PDA §20.7 / B9). */
+  scopeClassification?: string;
+  /** Master col W — passed into PILLAR_ACTIONS (PDA §20.7 / B9). */
+  userFacingBoundary?: string;
 };
 
 export type PillarActionPlan = {
@@ -257,7 +263,12 @@ export type GeminiTokenUsage = {
   totalTokens: number;
 };
 
-export type PillarSynthesisDo = { action: string; why: string };
+export type PillarSynthesisDo = {
+  action: string;
+  why: string;
+  /** PDA §20.7 / §38.3 — optional parenthetical micro-illustration (null when omitted). */
+  example?: string | null;
+};
 export type PillarSynthesisDont = { behavior: string; why: string };
 
 export type WellnessReportSections = {
