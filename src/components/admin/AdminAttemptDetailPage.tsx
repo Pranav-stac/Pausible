@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { AdminAttemptReportDownloader } from "@/components/admin/AdminAttemptReportDownloader";
 import { AdminCoachGuideDetail } from "@/components/admin/AdminCoachGuideDetail";
 import { AttemptActionPlanCacheOverview } from "@/components/admin/AttemptActionPlanCacheOverview";
+import { AttemptAnswersExcelDownloader } from "@/components/admin/AttemptAnswersExcelDownloader";
 import { AttemptAnswersView } from "@/components/admin/AttemptAnswersView";
 import { AttemptLlmContextPanel } from "@/components/admin/AttemptLlmContextPanel";
 import { AttemptPersonaDetail } from "@/components/admin/AttemptPersonaDetail";
@@ -339,6 +340,7 @@ function OverviewTab({
             Open results page
           </Link>
           <AdminAttemptReportDownloader attemptId={attemptId} api={api} />
+          <AttemptAnswersExcelDownloader attemptId={attemptId} api={api} />
         </div>
         <p className="mt-2 break-all font-mono text-[11px] text-slate-600">{resultsUrl}</p>
       </section>
@@ -554,6 +556,8 @@ export function AdminAttemptDetailPage({ attemptId }: Props) {
                 orphanRows={orphanRows}
                 answeredCount={answerCounts.answered}
                 totalCount={answerCounts.total}
+                attemptId={attemptId}
+                api={api}
               />
             ) : null}
             {tab === "overview" ? (

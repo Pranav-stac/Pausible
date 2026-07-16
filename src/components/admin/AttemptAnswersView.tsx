@@ -1,5 +1,6 @@
 "use client";
 
+import { AttemptAnswersExcelDownloader } from "@/components/admin/AttemptAnswersExcelDownloader";
 import type { AttemptAnswerBlock, OrphanAnswerRow } from "@/lib/admin/format-attempt-answer";
 
 const TYPE_LABELS: Record<string, string> = {
@@ -67,14 +68,26 @@ type Props = {
   orphanRows: OrphanAnswerRow[];
   answeredCount: number;
   totalCount: number;
+  attemptId: string;
+  api: (path: string, init?: RequestInit) => Promise<Response>;
 };
 
-export function AttemptAnswersView({ blocks, orphanRows, answeredCount, totalCount }: Props) {
+export function AttemptAnswersView({
+  blocks,
+  orphanRows,
+  answeredCount,
+  totalCount,
+  attemptId,
+  api,
+}: Props) {
   if (!blocks.length && !orphanRows.length) {
     return (
-      <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-        No answers recorded on this attempt.
-      </p>
+      <div className="space-y-3">
+        <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+          No answers recorded on this attempt.
+        </p>
+        <AttemptAnswersExcelDownloader attemptId={attemptId} api={api} />
+      </div>
     );
   }
 
@@ -93,6 +106,7 @@ export function AttemptAnswersView({ blocks, orphanRows, answeredCount, totalCou
             />
           </div>
         ) : null}
+        <AttemptAnswersExcelDownloader attemptId={attemptId} api={api} className="ml-auto" />
       </div>
 
       {blocks.map((block) => (

@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { BrandLogo } from "@/components/BrandLogo";
-import { MyResultsNavLink } from "@/components/my-results/MyResultsHub";
 import { NavAuthActions } from "@/components/NavAuthActions";
 import { TrackedAssessmentLink } from "@/components/marketing/TrackedAssessmentLink";
 
@@ -58,8 +57,7 @@ export function MarketingNav({ ctaHref }: { ctaHref: string }) {
         </nav>
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-          <div className="hidden items-center gap-2 xl:flex xl:gap-3">
-            <MyResultsNavLink />
+          <div className="hidden sm:block">
             <NavAuthActions />
           </div>
           <TrackedAssessmentLink
@@ -117,7 +115,6 @@ export function MarketingNav({ ctaHref }: { ctaHref: string }) {
             ))}
           </nav>
           <div className="mt-3 flex flex-col gap-2 border-t border-[#F3F4F6] pt-4">
-            <MyResultsNavLink layout="drawer" />
             <NavAuthActions layout="drawer" />
           </div>
         </div>

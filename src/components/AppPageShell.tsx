@@ -33,7 +33,7 @@ export function AppPageShell({
 }: AppPageShellProps) {
   return (
     <main className={`${softBg ? APP_PAGE_BG_SOFT : "min-h-screen bg-white scheme-light"} ${className}`}>
-      <header className={APP_HEADER}>
+      <header className={`shrink-0 ${APP_HEADER}`}>
         <div className={APP_HEADER_INNER}>
           <Link href="/" className="shrink-0 rounded-lg outline-offset-4" aria-label="Pausibl home">
             <BrandLogo sizeClass="text-lg sm:text-xl" />

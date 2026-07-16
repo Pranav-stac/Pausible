@@ -4,12 +4,10 @@ import { useEffect, useId, useRef, useState } from "react";
 import { BrandLogo } from "@/components/BrandLogo";
 import {
   APP_BODY,
-  APP_HEADING_MD,
   CTA_PRIMARY_CLASS,
   CTA_SECONDARY_CLASS,
   FORM_CARD_CLASS,
   INPUT_CLASS,
-  INPUT_LABEL,
 } from "@/components/marketing/marketing-brand";
 
 function GoogleLogoMark({ className = "h-5 w-5" }: { className?: string }) {
@@ -34,6 +32,9 @@ function GoogleLogoMark({ className = "h-5 w-5" }: { className?: string }) {
     </svg>
   );
 }
+
+const compactInput =
+  `${INPUT_CLASS} !mt-1 !rounded-lg !px-3 !py-2 !text-sm`;
 
 export function AssessmentLoginPromptDialog({
   open,
@@ -86,7 +87,7 @@ export function AssessmentLoginPromptDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4"
       role="presentation"
     >
       <button
@@ -103,104 +104,100 @@ export function AssessmentLoginPromptDialog({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={descId}
-        className={`relative w-full max-w-md ${FORM_CARD_CLASS} p-6 sm:p-8`}
+        className={`relative flex max-h-[min(100dvh-1.5rem,640px)] w-full max-w-md flex-col overflow-y-auto ${FORM_CARD_CLASS} !rounded-2xl !p-4 sm:!p-5`}
       >
-        <div className="mb-5 flex justify-center">
-          <BrandLogo heightClass="h-9 sm:h-10" />
+        <div className="mb-3 flex justify-center">
+          <BrandLogo heightClass="h-7 sm:h-8" />
         </div>
 
-        <h2 id={titleId} className={`text-center ${APP_HEADING_MD}`}>
+        <h2 id={titleId} className="text-center text-xl font-bold tracking-tight text-[#0D1B2A] sm:text-2xl">
           Sign in to continue
         </h2>
-        <p id={descId} className={`mt-2 text-center ${APP_BODY}`}>
+        <p id={descId} className={`mt-1 text-center !text-sm !leading-snug ${APP_BODY}`}>
           Save your results and pick up where you left off.
         </p>
 
         {error ? (
-          <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-center text-xs text-red-800">
+          <p className="mt-2.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-center text-xs text-red-800">
             {error}
           </p>
         ) : null}
 
-        <div className="mt-6 space-y-4">
-          <section className="rounded-2xl border border-slate-200/90 bg-slate-50/50 p-4">
-            <button
-              ref={googleRef}
-              type="button"
-              disabled={busy}
-              onClick={() => onSignInWithGoogle()}
-              className={`flex w-full items-center justify-center gap-3 ${CTA_SECONDARY_CLASS} !min-h-[48px] disabled:cursor-not-allowed disabled:opacity-50`}
-            >
-              <GoogleLogoMark />
-              {busy ? "Working…" : "Continue with Google"}
-            </button>
-          </section>
+        <div className="mt-4 space-y-3">
+          <button
+            ref={googleRef}
+            type="button"
+            disabled={busy}
+            onClick={() => onSignInWithGoogle()}
+            className={`flex w-full items-center justify-center gap-2.5 ${CTA_SECONDARY_CLASS} !min-h-[42px] !rounded-xl !px-4 !py-2 !text-sm disabled:cursor-not-allowed disabled:opacity-50`}
+          >
+            <GoogleLogoMark className="h-4 w-4" />
+            {busy ? "Working…" : "Continue with Google"}
+          </button>
 
           <div className="flex items-center gap-3">
             <div className="h-px flex-1 bg-slate-200" />
-            <span className="text-xs font-medium text-slate-500">or</span>
+            <span className="text-[11px] font-medium text-slate-500">or</span>
             <div className="h-px flex-1 bg-slate-200" />
           </div>
 
-          <section className="rounded-2xl border border-slate-200/90 bg-white p-4">
-            <form
-              className="space-y-3"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (emailSubmitDisabled) return;
-                onSignInWithEmail(email.trim(), password, emailMode);
-              }}
-            >
-              <label className="block">
-                <span className="text-xs font-semibold text-slate-700">Email</span>
-                <input
-                  type="email"
-                  autoComplete="email"
-                  value={email}
-                  disabled={busy}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className={INPUT_CLASS}
-                  placeholder="you@example.com"
-                />
-              </label>
-              <label className="block">
-                <span className="text-xs font-semibold text-slate-700">Password</span>
-                <input
-                  type="password"
-                  autoComplete={emailMode === "register" ? "new-password" : "current-password"}
-                  value={password}
-                  disabled={busy}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className={INPUT_CLASS}
-                  placeholder="At least 6 characters"
-                />
-              </label>
-              <button
-                type="submit"
-                disabled={emailSubmitDisabled}
-                className={`w-full ${CTA_PRIMARY_CLASS} disabled:cursor-not-allowed disabled:opacity-50`}
-              >
-                {busy ? "Working…" : emailMode === "register" ? "Create account" : "Sign in with email"}
-              </button>
-              <button
-                type="button"
+          <form
+            className="space-y-2.5"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (emailSubmitDisabled) return;
+              onSignInWithEmail(email.trim(), password, emailMode);
+            }}
+          >
+            <label className="block">
+              <span className="text-xs font-semibold text-slate-700">Email</span>
+              <input
+                type="email"
+                autoComplete="email"
+                value={email}
                 disabled={busy}
-                onClick={() => setEmailMode((m) => (m === "sign-in" ? "register" : "sign-in"))}
-                className="w-full cursor-pointer text-center text-xs font-medium text-sky-700 transition hover:text-sky-900 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {emailMode === "sign-in"
-                  ? "Need an account? Create one with email"
-                  : "Already have an account? Sign in"}
-              </button>
-            </form>
-          </section>
+                onChange={(e) => setEmail(e.target.value)}
+                className={compactInput}
+                placeholder="you@example.com"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-semibold text-slate-700">Password</span>
+              <input
+                type="password"
+                autoComplete={emailMode === "register" ? "new-password" : "current-password"}
+                value={password}
+                disabled={busy}
+                onChange={(e) => setPassword(e.target.value)}
+                className={compactInput}
+                placeholder="At least 6 characters"
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={emailSubmitDisabled}
+              className={`w-full ${CTA_PRIMARY_CLASS} !min-h-[42px] !rounded-xl !px-5 !py-2.5 !text-sm disabled:cursor-not-allowed disabled:opacity-50`}
+            >
+              {busy ? "Working…" : emailMode === "register" ? "Create account" : "Sign in with email"}
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => setEmailMode((m) => (m === "sign-in" ? "register" : "sign-in"))}
+              className="w-full cursor-pointer text-center text-xs font-medium text-sky-700 transition hover:text-sky-900 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {emailMode === "sign-in"
+                ? "Need an account? Create one with email"
+                : "Already have an account? Sign in"}
+            </button>
+          </form>
         </div>
 
         <button
           type="button"
           disabled={busy}
           onClick={() => onClose()}
-          className="mt-4 w-full cursor-pointer text-center text-xs font-medium text-slate-500 transition hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-3 w-full cursor-pointer text-center text-xs font-medium text-slate-500 transition hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Cancel
         </button>
